@@ -746,7 +746,7 @@ export default function App() {
       <div style={{ maxWidth: winW > 900 ? 1100 : (isAdmin ? 700 : 800), margin:"0 auto", padding: winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
         {/* Customer: Hero Image */}
         {!isAdmin && (
-          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 420 : winW > 520 ? 280 : 200 }}>
+          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 560 : winW > 520 ? 370 : 265 }}>
             <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-hintergrund.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
             <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"50%", background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }} />
             <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 16 : 10, right: winW > 900 ? 20 : 10, height: winW > 900 ? 48 : winW > 520 ? 36 : 28, opacity:0.85, filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }} />
@@ -1067,19 +1067,19 @@ export default function App() {
 
         {/* Customer: Contact */}
         {!isAdmin && (
-          <div style={{ background:`${BRAND.lila}0a`, borderRadius:10, padding: winW < 520 ? "14px 16px" : "16px 28px", textAlign:"center", marginBottom:24, border:`1px solid ${BRAND.lila}15` }}>
-            <div style={{ fontSize: winW < 520 ? 12 : 13, fontWeight:700, color:BRAND.aubergine, letterSpacing:2, marginBottom:4, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
-            <div style={{ fontSize: winW < 520 ? 11 : 12, color:BRAND.aubergine, opacity:.6, lineHeight:1.6 }}>
-              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:BRAND.aubergine, opacity:.7 }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
+          <div style={{ background:BRAND.aubergine, borderRadius:10, padding: winW < 520 ? "16px 16px" : "18px 28px", textAlign:"center", marginBottom:24 }}>
+            <div style={{ fontSize: winW < 520 ? 13 : 14, fontWeight:700, color:"#fff", letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
+            <div style={{ fontSize: winW < 520 ? 11 : 12, color:`${BRAND.lila}cc`, lineHeight:1.6 }}>
+              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}cc` }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
               {winW < 520 ? (
                 <>
-                  <a href="tel:+4346349119" style={{ color:BRAND.aubergine, textDecoration:"none" }}>+43 463 49 119</a><br />
-                  <a href="mailto:info@mattuschka.at" style={{ color:BRAND.aubergine, textDecoration:"none" }}>info@mattuschka.at</a><br />
-                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:BRAND.aubergine, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>+43 463 49 119</a><br />
+                  <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>info@mattuschka.at</a><br />
+                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               ) : (
                 <>
-                  <a href="tel:+4346349119" style={{ color:BRAND.aubergine, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:BRAND.aubergine, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:BRAND.aubergine, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               )}
             </div>
@@ -1090,8 +1090,28 @@ export default function App() {
       {/* Modal */}
       {(modalView || editingType) && (
         <div onClick={() => { if (modalView !== "form") { setModalView(null); setEditingType(null); } }}
-          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch" }}>
+          onTouchMove={e => e.preventDefault()}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none", overscrollBehavior:"none" }}>
+          <div onClick={e => e.stopPropagation()}
+            onTouchMove={e => {
+              const el = e.currentTarget;
+              if (el.scrollHeight <= el.clientHeight) { e.preventDefault(); }
+              else if (el.scrollTop <= 0 && e.touches[0].clientY > (el._touchY || 0)) { e.preventDefault(); }
+              else if (el.scrollTop + el.clientHeight >= el.scrollHeight && e.touches[0].clientY < (el._touchY || 0)) { e.preventDefault(); }
+              el._touchY = e.touches[0].clientY;
+            }}
+            onTouchStart={e => { e.currentTarget._touchY = e.touches[0].clientY; }}
+            style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch" }}>
+
+            {/* Pull handle for mobile */}
+            {winW < 520 && (
+              <div
+                onTouchStart={e => { e.currentTarget._sy = e.touches[0].clientY; }}
+                onTouchEnd={e => { if (e.changedTouches[0].clientY - (e.currentTarget._sy||0) > 60) { setModalView(null); setEditingType(null); } }}
+                style={{ display:"flex", justifyContent:"center", padding:"4px 0 12px", marginTop:-8, cursor:"grab" }}>
+                <div style={{ width:36, height:4, borderRadius:2, background:"#ddd" }} />
+              </div>
+            )}
 
             {/* Select Event Type */}
             {modalView === "selectType" && (
