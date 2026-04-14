@@ -30,7 +30,7 @@ const DEFAULT_TYPES = [
   { id:"geburtstag", label:"Geburtstagsfeier", halfDay:500, fullDay:800, color:BRAND.aprikot, desc:"Feiern Sie Ihren besonderen Tag bei uns" },
   { id:"seminar", label:"Seminar / Workshop", halfDay:350, fullDay:600, color:BRAND.mintgruen, desc:"Inspirierende Räumlichkeiten für Ihre Veranstaltung" },
   { id:"gruppenfuehrung", label:"Gruppenführung", halfDay:0, fullDay:0, color:BRAND.moosgruen, desc:"Garten erleben mit allen Sinnen – inkl. Café im Paradiesglashaus", isGroupTour:true, pricePerPerson:9, minPersons:10, guideCost:80, maxPerTour:20 },
-  { id:"sonstiges", label:"Sonstiges", halfDay:0, fullDay:0, color:BRAND.aubergine, desc:"Individuelle Veranstaltungen nach Ihren Wünschen" },
+  { id:"sonstiges", label:"Sonstiges", halfDay:0, fullDay:0, color:"#420045", desc:"Individuelle Veranstaltungen nach Ihren Wünschen" },
 ];
 
 const MONTHS = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
@@ -85,7 +85,7 @@ function getMonthDays(year, month) {
 function dateKey(y, m, d) { return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
 
 function StatusDot({ status }) {
-  const colors = { booked: BRAND.lila, blocked: BRAND.moosgruen, pending: BRAND.aprikot };
+  const colors = { booked: BRAND.lila, blocked: "#009a93", pending: BRAND.aprikot };
   return <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background: colors[status] || "transparent", marginRight: 4 }} />;
 }
 
@@ -505,6 +505,13 @@ export default function App() {
   const [showPrices, setShowPrices] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showPending, setShowPending] = useState(true);
+  const [showUpcoming, setShowUpcoming] = useState(true);
+  const [showInternal, setShowInternal] = useState(true);
+  const [heroIdx, setHeroIdx] = useState(0);
+  const [heroHover, setHeroHover] = useState(false);
+  const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
+  useEffect(() => { if (isAdmin) return; const t = setInterval(() => setHeroIdx(i => (i+1) % 7), 4000); return () => clearInterval(t); }, [isAdmin]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -718,31 +725,58 @@ export default function App() {
       {loginModal && (<div onClick={() => setLoginModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}><div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"32px 24px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}><div style={{ textAlign:"center", marginBottom:20 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" style={{ marginBottom:8 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><div style={{ fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Admin-Login</div><div style={{ fontSize:12, color:"#999", marginTop:2 }}>Paradiesgarten Mattuschka</div></div><input placeholder="E-Mail" type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()} style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} /><input placeholder="Passwort" type="password" value={loginPw} onChange={e => setLoginPw(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()} style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />{loginError && <div style={{ fontSize:12, color:"#c44", marginBottom:8, textAlign:"center" }}>{loginError}</div>}<button onClick={handleLogin} style={{ width:"100%", padding:"12px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 }}>Anmelden</button><button onClick={() => setLoginModal(false)} onMouseEnter={e=>{e.target.style.color="#c44";e.target.style.background="#fdf6f6"}} onMouseLeave={e=>{e.target.style.color="#aaa";e.target.style.background="transparent"}} style={{ width:"100%", padding:10, border:"none", background:"transparent", color:"#aaa", cursor:"pointer", fontSize:13, marginTop:4, borderRadius:8, transition:"all .15s" }}>Abbrechen</button></div></div>)}
 
       {isAdmin && (
-        <div style={{ background:`${BRAND.aubergine}12`, padding: winW < 520 ? "5px 12px" : "5px 24px", fontSize: winW < 520 ? 10 : 11, display:"flex", gap: winW < 520 ? 10 : 16, alignItems:"center", borderBottom:"1px solid #e8e0e5" }}>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:BRAND.lila, display:"inline-block" }} /> Gebucht</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:BRAND.moosgruen, display:"inline-block" }} /> Blockiert</span>
+        <div style={{ background:`${BRAND.aubergine}12`, padding: winW < 520 ? "5px 10px" : "5px 24px", fontSize: winW < 520 ? 9 : 11, display:"flex", gap: winW < 520 ? 8 : 16, alignItems:"center", borderBottom:"1px solid #e8e0e5", flexWrap:"wrap" }}>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.lila, display:"inline-block" }} /> Gebucht</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#009a93", display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
         </div>
       )}
 
       <div style={{ maxWidth: winW > 900 ? 1100 : (isAdmin ? 700 : 800), margin:"0 auto", padding: winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
-        {/* Customer: Hero Image */}
+        {/* Customer: Hero Slideshow */}
         {!isAdmin && (
-          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 560 : winW > 520 ? 370 : 265 }}>
-            <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-hintergrund.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"55%", background:"linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 55%, transparent 100%)" }} />
-            <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)" }} />
-            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }} />
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : winW > 520 ? "18px 20px" : "14px 14px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12 }}>
+          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 560 : winW > 520 ? 370 : 265, touchAction:"pan-y" }}
+            onMouseEnter={() => setHeroHover(true)} onMouseLeave={() => setHeroHover(false)}
+            onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
+            onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (e.currentTarget._sx||0); const dy = Math.abs(e.changedTouches[0].clientY - (e.currentTarget._sy||0)); if (Math.abs(dx) > 40 && Math.abs(dx) > dy) { if (dx < 0) setHeroIdx(i => (i+1) % 7); else setHeroIdx(i => (i+6) % 7); } }}>
+            {heroImages.map((src, idx) => (
+              <div key={idx} style={{ position:"absolute", inset:0, backgroundImage:`url(${src})`, backgroundSize:"cover", backgroundPosition:"center 40%", opacity: idx === heroIdx ? 1 : 0, transition:"opacity 1s ease-in-out", zIndex: idx === heroIdx ? 1 : 0 }} />
+            ))}
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"55%", background:"linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 55%, transparent 100%)", zIndex:2 }} />
+            <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
+            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
+            {/* Arrows on hover (desktop only) */}
+            {heroHover && winW >= 520 && <>
+              <div onClick={() => setHeroIdx(i => (i+6) % 7)}
+                style={{ position:"absolute", left: winW > 900 ? 20 : 14, top:"50%", transform:"translateY(-50%)", zIndex:4, cursor:"pointer", width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", transition:"all .2s", border:"1px solid rgba(255,255,255,0.2)" }}
+                onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.3)"}
+                onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.15)"}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+              </div>
+              <div onClick={() => setHeroIdx(i => (i+1) % 7)}
+                style={{ position:"absolute", right: winW > 900 ? 20 : 14, top:"50%", transform:"translateY(-50%)", zIndex:4, cursor:"pointer", width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", transition:"all .2s", border:"1px solid rgba(255,255,255,0.2)" }}
+                onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.3)"}
+                onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.15)"}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+              </div>
+            </>}
+            {/* Dot indicators - desktop/tablet only, on hover */}
+            {heroHover && winW >= 520 && <div style={{ position:"absolute", bottom: winW > 900 ? 14 : 10, left:"50%", transform:"translateX(-50%)", display:"flex", gap:6, zIndex:4 }}>
+              {heroImages.map((_, idx) => (
+                <div key={idx} onClick={e => { e.stopPropagation(); setHeroIdx(idx); }}
+                  style={{ width: idx === heroIdx ? 16 : 6, height:6, borderRadius:3, background: idx === heroIdx ? "#fff" : "rgba(255,255,255,0.4)", cursor:"pointer", transition:"all .3s ease" }} />
+              ))}
+            </div>}
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : winW > 520 ? "18px 20px" : "14px 14px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12, zIndex:3 }}>
               <div>
                 <div style={{ fontSize: winW > 900 ? 28 : winW > 520 ? 20 : 16, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
                 <div style={{ fontSize: winW > 900 ? 14 : winW > 520 ? 12 : 10, color:"rgba(255,255,255,0.85)", marginTop: winW < 520 ? 2 : 4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
-              <button onClick={() => setModalView("selectType")}
-                onMouseEnter={e => { e.currentTarget.style.background=BRAND.aubergine; e.currentTarget.style.boxShadow="0 8px 24px rgba(88,8,74,0.4)"; e.currentTarget.style.transform="translateY(-1px)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background="#a84c9e"; e.currentTarget.style.boxShadow="0 6px 20px rgba(144,52,134,0.25)"; e.currentTarget.style.transform="translateY(0)"; }}
-                style={{ background:"#a84c9e", color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(144,52,134,0.25)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .25s ease" }}>
-                Jetzt anfragen
+              <button onClick={(e) => { e.stopPropagation(); setModalView("selectType"); }}
+                onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
+                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease" }}>
+                Location buchen
                 <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
             </div>
@@ -763,15 +797,15 @@ export default function App() {
                   <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
                     style={{ "--card-color": et.color, flex: isMobile ? (winW < 380 ? "1 1 100%" : "1 1 calc(50% - 5px)") : winW > 900 ? "1 1 calc(33.33% - 8px)" : "1 1 0", background:"#fff", borderRadius:10, padding: isMobile ? "14px 12px" : winW > 900 ? "20px 18px" : "16px 14px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0 }}>
                     <div>
-                      <div style={{ fontWeight:700, color: BRAND.aubergine, fontSize: isMobile ? 12 : winW > 900 ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto" }}>{et.label}</div>
+                      <div style={{ fontWeight:700, color: et.color, fontSize: isMobile ? 12 : winW > 900 ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto" }}>{et.label}</div>
                       <div style={{ fontSize: isMobile ? 9 : winW > 900 ? 12 : 10, color:"#888", lineHeight:1.3, marginBottom:6 }}>{et.desc}</div>
                     </div>
                     <div style={{ marginTop:"auto" }}>
-                      <div style={{ background: et.color+"12", color: et.color, padding:"3px 6px", borderRadius:6, fontSize: isMobile ? 10 : 11, fontWeight:700, textAlign:"left", marginBottom:2, display:"inline-block" }}>
+                      <div style={{ color: et.color, fontSize: isMobile ? 11 : 12, fontWeight:700, textAlign:"left", marginBottom:6 }}>
                         {isGroup ? <><span>€ {et.pricePerPerson} p.P.</span><span style={{ margin:"0 6px", opacity:0.4 }}>|</span><span>ab {et.minPersons} Pers.</span></> : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
                       </div>
-                      <div style={{ fontSize: isMobile ? 9 : 10, color: et.color, fontWeight:600, marginTop:6, display:"flex", alignItems:"center", gap:3, opacity:0.7 }}>
-                        Jetzt anfragen <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke={et.color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <div style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize: isMobile ? 9 : 10, color: et.color, fontWeight:600, padding: isMobile ? "5px 10px" : "6px 12px", borderRadius:8, background: et.color+"30", cursor:"pointer", letterSpacing:0.3 }}>
+                        Jetzt anfragen <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={et.color} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                       </div>
                     </div>
                   </div>
@@ -783,7 +817,7 @@ export default function App() {
                     {allTypes.map(renderCard)}
                   </div>
                   <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 6 : 10, justifyContent:"center", marginBottom:10 }}>
-                    {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","Persönliche Betreuung"].map(t => (
+                    {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
                       <span key={t} style={{ fontSize: isMobile ? 10 : 11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
                     ))}
                   </div>
@@ -829,16 +863,16 @@ export default function App() {
             const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked");
             const customerFree = !isAdmin && (!ev || ev.status === "pending");
-            const statusColor = ev ? (ev.status === "booked" ? BRAND.lila : ev.status === "pending" ? BRAND.aprikot : BRAND.moosgruen) : null;
+            const statusColor = ev ? (ev.status === "booked" ? BRAND.lila : ev.status === "pending" ? BRAND.aprikot : "#009a93") : null;
             const isPending = ev?.status === "pending" && isAdmin;
             return (
               <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : "day-free"} onClick={() => !isPast && handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : isAdmin && ev?.label ? ev.label : ""}
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2px solid ${BRAND.lila}` : isPending ? `2px solid ${BRAND.aprikot}` : ev && isAdmin && ev.status==="blocked" ? `1.5px solid ${BRAND.moosgruen}60` : ev && isAdmin ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid #8ec89a` : isPending ? `2px solid ${BRAND.aprikot}` : ev && isAdmin && ev.status==="blocked" ? `1.5px solid #009a9360` : ev && isAdmin ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && ev.status==="blocked" ? `${BRAND.moosgruen}12` : ev && isAdmin ? `${statusColor}18` : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && ev.status==="blocked" ? "#009a9312" : ev && isAdmin ? `${statusColor}18` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast || customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   animation: isPending && !isPast ? "pendingPulse 2s ease-in-out infinite" : "none",
@@ -847,7 +881,7 @@ export default function App() {
                   <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>
                   : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0" }} />
                 )}
-                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: ev && isAdmin && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
+                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? "#8ec89a" : ev && isAdmin && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.lila, marginTop:2 }} />}
                 {ev && isAdmin && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
               </button>
@@ -862,8 +896,11 @@ export default function App() {
           if (!pending.length) return null;
           return (
             <div style={{ marginBottom:24 }}>
-              <h3 style={{ fontSize: winW > 900 ? 16 : 14, fontWeight:700, color: BRAND.aprikot, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>Offene Anfragen ({pending.length})</h3>
-              {pending.map(([key, ev]) => {
+              <h3 onClick={() => setShowPending(s=>!s)} style={{ fontSize: winW > 900 ? 16 : 14, fontWeight:700, color: BRAND.aprikot, letterSpacing:2, textTransform:"uppercase", marginBottom: showPending ? 12 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+                Offene Anfragen ({pending.length})
+                <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPending ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aprikot} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </h3>
+              {showPending && pending.map(([key, ev]) => {
                 const [yy,mm,dd] = key.split("-").map(Number);
                 const d = new Date(yy,mm-1,dd);
                 const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
@@ -872,29 +909,28 @@ export default function App() {
                 <SwipeRow key={key} onSwipeRight={() => handleAdminAction(key,"confirm")} onSwipeLeft={() => handleAdminAction(key,"delete")} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
                   <div onClick={() => { setSelectedDate(key); setModalView("info"); }}
                     onMouseEnter={() => setHoveredDate(key)} onMouseLeave={() => setHoveredDate(null)}
-                    style={{ background:"#fff", borderRadius:8, padding:"10px 12px", borderLeft:`3px solid ${BRAND.aprikot}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", transition:"all .15s" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
-                      <div style={{ display:"flex", alignItems:"baseline", gap:6, flexWrap:"wrap", flex:1, minWidth:0 }}>
-                        <span style={{ fontWeight:600, color: BRAND.aprikot, fontSize:13 }}>{dateStr}</span>
-                        <span style={{ fontSize:11, color: BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
-                        {ev.slotLabel && <span style={{ fontSize:10, color:"#aaa" }}><ClockIcon />{ev.slotLabel}</span>}
+                    style={{ background:"#fff", borderRadius:8, padding: winW < 520 ? "8px 10px" : "10px 12px", borderLeft:`3px solid ${BRAND.aprikot}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", transition:"all .15s" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2, gap:8 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"baseline", gap: winW < 520 ? 4 : 6, flexWrap:"wrap" }}>
+                          <span style={{ fontWeight:600, color: BRAND.aprikot, fontSize: winW < 520 ? 12 : 13 }}>{dateStr}</span>
+                          <span style={{ fontSize: winW < 520 ? 10 : 11, color: BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
+                        </div>
+                        {ev.slotLabel && <span style={{ fontSize: winW < 520 ? 9 : 10, color:"#aaa" }}><ClockIcon />{ev.slotLabel}</span>}
                       </div>
-                      <div style={{ display:"flex", gap:4, flexShrink:0, marginLeft:8 }}>
-                        <button onClick={(e) => { e.stopPropagation(); setSelectedDate(key); setModalView("info"); }}
-                          onMouseEnter={e => { e.target.style.filter="brightness(0.85)"; }}
-                          onMouseLeave={e => { e.target.style.filter="none"; }}
-                          style={{ ...smallBtn, background: BRAND.mintgruen, width:26, height:26, fontSize:11, transition:"all .15s" }}>✓</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"delete"); }}
-                          onMouseEnter={e => { e.target.style.background="#f8d0d0"; }}
-                          onMouseLeave={e => { e.target.style.background="#e8e0e5"; }}
-                          style={{ ...smallBtn, background:"#e8e0e5", color:"#999", width:26, height:26, fontSize:11, transition:"all .15s" }}>✕</button>
-                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
+                        onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.85)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.filter="none"; }}
+                        style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius: winW < 520 ? 6 : 8, padding: winW < 520 ? "6px 8px" : "6px 14px", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:4, transition:"all .15s", letterSpacing:0.3 }}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        {winW >= 520 && "Annehmen"}
+                      </button>
                     </div>
-                    <div style={{ fontSize:10, color:"#888", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                    <div style={{ fontSize: winW < 520 ? 9 : 10, color:"#888", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
                       👤 {ev.name}
-                      {ev.email && <> · <a href={`mailto:${ev.email}`} onClick={e=>e.stopPropagation()} style={{ color: BRAND.lila, textDecoration:"none", fontSize:10 }}>{ev.email}</a></>}
+                      {ev.email && <> · <a href={`mailto:${ev.email}`} onClick={e=>e.stopPropagation()} style={{ color: BRAND.lila, textDecoration:"none", fontSize: winW < 520 ? 9 : 10 }}>{ev.email}</a></>}
                       {ev.guests && <> · {ev.guests} Gäste</>}
-                      {ev.message && <> · <span style={{ fontStyle:"italic", color:"#aaa" }}>„{ev.message}"</span></>}
+                      {winW >= 520 && ev.message && <> · <span style={{ fontStyle:"italic", color:"#aaa" }}>„{ev.message}"</span></>}
                     </div>
                   </div>
                 </SwipeRow>
@@ -919,7 +955,7 @@ export default function App() {
             return (
               <div key={key} style={{ marginBottom:5 }}>
                 <div className="admin-card" onClick={() => { setSelectedDate(key); setModalView("info"); }}
-                  style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 12px", borderLeft:`3px solid ${BRAND.aubergine}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", display:"flex", alignItems:"center", gap:10, opacity: pastMode ? 0.7 : 1 }}>
+                  style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 12px", borderLeft:`3px solid ${isBlocked ? "#009a93" : BRAND.aubergine}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", display:"flex", alignItems:"center", gap:10, opacity: pastMode ? 0.7 : 1 }}>
                   {!pastMode && winW >= 520 && (confirmDelete === key ? (
                     <div onClick={(e) => e.stopPropagation()} style={{ position:"absolute", top:0, right:0, bottom:0, display:"flex", alignItems:"center", gap:6, padding:"0 10px", background:"rgba(255,255,255,0.95)", borderRadius:"0 8px 8px 0", zIndex:2 }}>
                       <span style={{ fontSize:11, color:"#999" }}>Löschen?</span>
@@ -940,7 +976,7 @@ export default function App() {
                   ))}
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", alignItems:"baseline", gap:6, flexWrap:"wrap" }}>
-                      <span style={{ fontWeight:600, color: BRAND.aubergine, fontSize: winW > 900 ? 15 : 13 }}>{dateStr}</span>
+                      <span style={{ fontWeight:600, color: isBlocked ? "#009a93" : BRAND.aubergine, fontSize: winW > 900 ? 15 : 13 }}>{dateStr}</span>
                       <span style={{ fontSize: winW > 900 ? 13 : 11, color:"#999", fontWeight:500 }}>{ev.label || (isBlocked ? "" : "")}</span>
                       {ev.slotLabel && <span style={{ fontSize: winW > 900 ? 12 : 10, color:"#bbb" }}><ClockIcon color="#bbb" />{ev.slotLabel}</span>}
                     </div>
@@ -951,7 +987,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                  <div style={{ background:`${BRAND.aubergine}10`, color: BRAND.aubergine, padding:"2px 6px", borderRadius:8, fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0, opacity:0.6 }}>
+                  <div style={{ background: isBlocked ? "#009a9312" : `${BRAND.aubergine}10`, color: isBlocked ? "#009a93" : BRAND.aubergine, padding:"2px 6px", borderRadius:8, fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0, opacity:0.6 }}>
                     {isBlocked ? "Intern" : "Gebucht"}
                   </div>
                 </div>
@@ -962,14 +998,20 @@ export default function App() {
             <div style={{ marginBottom:24 }}>
               {bookedOnly.length > 0 && (
                 <>
-                  <h3 style={{ fontSize: winW > 900 ? 16 : 14, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom:12 }}>Kommende Termine ({bookedOnly.length})</h3>
-                  {bookedOnly.map(r => renderRow(r, false))}
+                  <h3 onClick={() => setShowUpcoming(s=>!s)} style={{ fontSize: winW > 900 ? 16 : 14, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: showUpcoming ? 12 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+                    Kommende Termine ({bookedOnly.length})
+                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showUpcoming ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aubergine} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </h3>
+                  {showUpcoming && bookedOnly.map(r => renderRow(r, false))}
                 </>
               )}
               {blockedOnly.length > 0 && (
                 <>
-                  <h3 style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom:10, marginTop: bookedOnly.length > 0 ? 20 : 0 }}>Interne Termine ({blockedOnly.length})</h3>
-                  {blockedOnly.map(r => renderRow(r, false))}
+                  <h3 onClick={() => setShowInternal(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a93", letterSpacing:2, textTransform:"uppercase", marginBottom: showInternal ? 10 : 0, marginTop: bookedOnly.length > 0 ? 20 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+                    Interne Termine ({blockedOnly.length})
+                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showInternal ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </h3>
+                  {showInternal && blockedOnly.map(r => renderRow(r, false))}
                 </>
               )}
               {(() => {
@@ -998,7 +1040,8 @@ export default function App() {
                     {showDeleted && deletedAll.map(([key, ev]) => {
                       const [yy,mm,dd] = key.split("-").map(Number);
                       return (
-                        <div key={key} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#fdf6f6", borderRadius:8, marginBottom:4, border:"1px solid #f0e0e0", opacity:0.7 }}>
+                        <div key={key} onClick={() => { setSelectedDate(key); setModalView("info"); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#fdf6f6", borderRadius:8, marginBottom:4, border:"1px solid #f0e0e0", opacity:0.6, cursor:"pointer", transition:"opacity .15s" }}
+                          onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="0.6"}>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontSize:12, fontWeight:600, color:"#888" }}>{fmtDateAT(key)}</div>
                             <div style={{ fontSize:11, color:"#aaa", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ev.label}{ev.name ? ` · ${ev.name}` : ""}</div>
@@ -1054,17 +1097,17 @@ export default function App() {
         {!isAdmin && (
           <div style={{ background:BRAND.aubergine, borderRadius:10, padding: winW < 520 ? "14px 16px" : "16px 28px", textAlign:"center", marginBottom:24 }}>
             <div style={{ fontSize: winW < 520 ? 12 : 13, fontWeight:700, color:"#fff", letterSpacing:2, marginBottom:4, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
-            <div style={{ fontSize: winW < 520 ? 10 : 11, color:"rgba(200,170,200,0.6)", lineHeight:1.6 }}>
-              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(200,170,200,0.6)" }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
+            <div style={{ fontSize: winW < 520 ? 10 : 11, color:"rgba(230,215,235,0.7)", lineHeight:1.6 }}>
+              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(230,215,235,0.7)" }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
               {winW < 520 ? (
                 <>
-                  <a href="tel:+4346349119" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>+43 463 49 119</a><br />
-                  <a href="mailto:info@mattuschka.at" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>info@mattuschka.at</a><br />
-                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:"rgba(230,215,235,0.7)", textDecoration:"none" }}>+43 463 49 119</a><br />
+                  <a href="mailto:info@mattuschka.at" style={{ color:"rgba(230,215,235,0.7)", textDecoration:"none" }}>info@mattuschka.at</a><br />
+                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(230,215,235,0.7)", textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               ) : (
                 <>
-                  <a href="tel:+4346349119" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:"rgba(230,215,235,0.7)", textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:"rgba(230,215,235,0.7)", textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(230,215,235,0.7)", textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               )}
             </div>
@@ -1171,9 +1214,14 @@ export default function App() {
               return (
                 <>
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+                    <button onClick={() => setModalView("selectType")}
+                      style={{ background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center", color:"#aaa", flexShrink:0, transition:"color .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+                    </button>
                     <div style={{ width:4, height:36, borderRadius:2, background: et?.color || BRAND.lila }} />
                     <div>
-                      <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{et?.label}</h3>
+                      <h3 style={{ margin:0, color: et?.color || BRAND.aubergine, fontSize:18, fontWeight:700 }}>{et?.label}</h3>
                       <div style={{ fontSize:12, color: et?.color, fontWeight:600 }}>{et?.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et?.halfDay)}`}</div>
                     </div>
                   </div>
@@ -1191,16 +1239,23 @@ export default function App() {
                       const ev = events[key];
                       const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                       const isFree = !ev && !isPast;
+                      const isOccupied = !!ev && !isPast;
+                      const hol = holidays[key];
                       return (
                         <button key={key} onClick={() => handlePickerDateClick(day)}
+                          title={isOccupied ? "nicht verfügbar" : ""}
+                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor=`${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="1"; } }}
+                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor=`${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}06`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="0"; } }}
                           style={{
-                            aspectRatio:"1", border: isFree ? `1.5px solid ${et?.color || BRAND.lila}40` : "1px solid #eee",
-                            borderRadius:6, background: isFree ? "#fff" : "#f8f8f8",
+                            aspectRatio:"1", border: isFree ? `1.5px solid ${BRAND.aubergine}30` : isOccupied ? `1px solid ${BRAND.lila}20` : "1px solid #eee",
+                            borderRadius:6, background: isFree ? "#fff" : isOccupied ? `${BRAND.lila}06` : "#f8f8f8",
                             cursor: isFree ? "pointer" : "default", fontSize:13, fontWeight: isFree ? 600 : 400,
-                            color: isFree ? BRAND.aubergine : "#ccc", opacity: isPast ? 0.4 : 1, transition:"all .15s",
-                            display:"flex", alignItems:"center", justifyContent:"center",
+                            color: isFree ? BRAND.aubergine : isOccupied ? `${BRAND.lila}80` : "#ccc", opacity: isPast ? 0.4 : 1, transition:"all .15s",
+                            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden", padding:0,
                           }}>
+                          {hol && <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`${BRAND.aubergine}60` }} />}
                           {day}
+                          {isOccupied && <span className="tip" style={{ position:"absolute", bottom:2, fontSize:6, color:BRAND.aubergine, opacity:0, transition:"opacity .15s", whiteSpace:"nowrap", fontWeight:500 }}>nicht verfügbar</span>}
                         </button>
                       );
                     })}
@@ -1217,9 +1272,9 @@ export default function App() {
                 <div style={{ fontSize:13, color:"#999", marginBottom: holidays[selectedDate] ? 6 : 12 }}>{fmtDateAT(selectedDate)}</div>
                 {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
                 <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-                  {[["booked","Gebucht"],["blocked","Blockiert"],["free","Freigeben"]].map(([v,l]) => (
+                  {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"], ...(events[selectedDate] ? [["free","Freigeben","#999"]] : [])].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
-                      style={{ flex:1, padding:"8px 0", border:`2px solid ${adminForm.type===v ? BRAND.lila : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? BRAND.lila+"15" : "#fff", color: BRAND.aubergine, fontWeight:600, fontSize:12, cursor:"pointer" }}>
+                      style={{ flex:1, padding:"8px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 11 : 12, cursor:"pointer" }}>
                       {l}
                     </button>
                   ))}
@@ -1236,16 +1291,14 @@ export default function App() {
                     );
                   })}
                 </div>
-                {adminForm.type === "blocked" && (
-                  <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
-                    style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.allDay ? `${BRAND.lila}10` : "#fff", border:`1.5px solid ${adminForm.allDay ? BRAND.lila : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
-                    <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.allDay ? BRAND.lila : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? BRAND.lila : "#fff" }}>
-                      {adminForm.allDay && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                    </div>
-                    <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Ganztägig</span>
-                  </label>
-                )}
-                {!(adminForm.type === "blocked" && adminForm.allDay) && (() => {
+                <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.allDay ? `${adminForm.type==="blocked" ? "#009a93" : BRAND.lila}10` : "#fff", border:`1.5px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
+                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff" }}>
+                    {adminForm.allDay && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                  <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Ganztägig</span>
+                </label>
+                {!adminForm.allDay && (() => {
                   return (
                   <>
                   <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
@@ -1302,13 +1355,21 @@ export default function App() {
               const missingGuests = isGroup && !formData.guests;
               const canSubmit = !missingName && !missingEmail && !invalidEmail && (!isGroup || (!missingGuests && !guestsTooLow));
               const sa = submitAttempted;
-              const reqStyle = (empty, invalid) => !sa ? inputStyle : invalid ? { ...inputStyle, borderColor:"#c44", background:"#fdf6f6" } : empty ? { ...inputStyle, borderColor:BRAND.aprikot, background:"#fdf8f5" } : inputStyle;
+              const reqStyle = (empty, invalid) => !sa ? inputStyle : invalid ? { ...inputStyle, borderColor:"#c44", background:"#fdf6f6" } : empty ? { ...inputStyle, borderColor: et?.color || BRAND.aprikot, background: (et?.color || BRAND.aprikot)+"08" } : inputStyle;
+              const ec = et?.color || BRAND.lila;
               return (
                 <>
+                  <style>{`.form-modal input:focus, .form-modal textarea:focus { border-color: ${ec}80 !important; box-shadow: 0 0 0 2px ${ec}15 !important; }`}</style>
+                  <div className="form-modal">
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                    <button onClick={() => { setPickerMonth(month); setPickerYear(year); setModalView("pickDate"); }}
+                      style={{ background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center", color:"#aaa", flexShrink:0, transition:"color .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+                    </button>
                     <div style={{ width:4, height:36, borderRadius:2, background: et?.color || BRAND.lila }} />
                     <div>
-                      <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{et?.label}</h3>
+                      <h3 style={{ margin:0, color: et?.color || BRAND.aubergine, fontSize:18, fontWeight:700 }}>{et?.label}</h3>
                       <div style={{ fontSize:13, color: BRAND.lila, fontWeight:500 }}>{fmtDateAT(selectedDate)}</div>
                       {holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:9, borderRadius:3, padding:"2px 6px", marginTop:2 }}>{holidays[selectedDate]}</div>}
                     </div>
@@ -1423,8 +1484,10 @@ export default function App() {
                           const priceVal = isHalf ? et?.halfDay : et?.fullDay;
                           return (
                             <button key={v} onClick={() => setFormData(f=>({...f, slot:v}))}
+                              onMouseEnter={e => { if (formData.slot!==v) { e.currentTarget.style.background=(et?.color || BRAND.lila)+"10"; e.currentTarget.style.borderColor=(et?.color || BRAND.lila)+"40"; } }}
+                              onMouseLeave={e => { if (formData.slot!==v) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#e0d8de"; } }}
                               style={{ flex:1, padding:"8px 4px", border:`2px solid ${formData.slot===v ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:10,
-                                background: formData.slot===v ? (et?.color || BRAND.lila)+"12" : "#fff", cursor:"pointer", textAlign:"center" }}>
+                                background: formData.slot===v ? (et?.color || BRAND.lila)+"20" : "#fff", cursor:"pointer", textAlign:"center", transition:"all .15s" }}>
                               <div style={{ fontWeight:700, fontSize:12, color: BRAND.aubergine }}>{l}</div>
                               <div style={{ fontSize:9, color:"#999" }}>{sub}</div>
                               <div style={{ fontSize:13, fontWeight:700, color: et?.color || BRAND.lila, marginTop:3 }}>
@@ -1439,7 +1502,7 @@ export default function App() {
                         <div style={{ marginBottom:8 }}>
                           <button onClick={() => setFormData(f=>({...f, slot: f.slot==="custom" ? "fullDay" : "custom"}))}
                             style={{ width:"100%", padding:"8px", border:`2px solid ${formData.slot==="custom" ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:10,
-                              background: formData.slot==="custom" ? (et?.color || BRAND.lila)+"12" : "#fff", cursor:"pointer", textAlign:"center", marginBottom:6 }}>
+                              background: formData.slot==="custom" ? (et?.color || BRAND.lila)+"20" : "#fff", cursor:"pointer", textAlign:"center", marginBottom:6 }}>
                             <div style={{ fontWeight:700, fontSize:12, color: BRAND.aubergine }}>Eigenes Zeitfenster</div>
                           </button>
                           {formData.slot === "custom" && (
@@ -1500,6 +1563,7 @@ export default function App() {
                       <button onClick={handleCustomerSubmit} style={primaryBtn}>Anfrage senden</button>
                     </>
                   )}
+                  </div>
                 </>
               );
             })()}
@@ -1514,7 +1578,7 @@ export default function App() {
                     {et && <div style={{ width:4, height:36, borderRadius:2, background: et.color }} />}
                     <div>
                       <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
-                      <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : BRAND.moosgruen) : BRAND.lila, color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
+                      <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : "#009a93") : BRAND.lila, color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
                         {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : "Blockiert") : "Gebucht"}
                       </div>
                     </div>
