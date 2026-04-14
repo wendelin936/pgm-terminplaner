@@ -241,7 +241,7 @@ function ChecklistNote({ items=[], onChange, editable=true }) {
   );
 }
 
-function TimeField({ val, onInc, onDec, color, max }) {
+function TimeField({ val, onInc, onDec, color, max, noClick }) {
   const ref = useRef(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -261,18 +261,18 @@ function TimeField({ val, onInc, onDec, color, max }) {
   return (
     <div ref={ref} style={{ display:"flex", flexDirection:"column", alignItems:"center", touchAction:"none", gap:0 }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <button onClick={onInc} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 4l4-3L9 4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
-      {editing ? (
+      {!noClick && <button onClick={onInc} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 4l4-3L9 4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>}
+      {editing && !noClick ? (
         <input autoFocus value={draft} onChange={e => setDraft(e.target.value.replace(/\D/g,"").slice(0,2))}
           onBlur={commit} onKeyDown={e => { if(e.key==="Enter") commit(); if(e.key==="Escape") setEditing(false); }}
           style={{ width:24, fontSize:15, fontWeight:500, color, textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", padding:0, fontFamily:"inherit", fontVariantNumeric:"tabular-nums" }} />
       ) : (
-        <span onClick={() => { setDraft(String(val).padStart(2,"0")); setEditing(true); }}
-          style={{ fontSize:15, fontWeight:500, color, fontVariantNumeric:"tabular-nums", cursor:"text", userSelect:"none", minWidth:24, textAlign:"center", lineHeight:1 }}>
+        <span onClick={noClick ? undefined : () => { setDraft(String(val).padStart(2,"0")); setEditing(true); }}
+          style={{ fontSize:15, fontWeight:500, color, fontVariantNumeric:"tabular-nums", cursor: noClick ? "pointer" : "text", userSelect:"none", minWidth:24, textAlign:"center", lineHeight:1 }}>
           {String(val).padStart(2,"0")}
         </span>
       )}
-      <button onClick={onDec} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 1l4 3L9 1" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
+      {!noClick && <button onClick={onDec} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 1l4 3L9 1" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>}
     </div>
   );
 }
@@ -337,9 +337,9 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
     <>
       <div onClick={isTouch ? () => { setPH(h); setPM(m); setPickerOpen(true); } : undefined}
         style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none", cursor: isTouch ? "pointer" : "default" }}>
-        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} />
+        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} noClick={isTouch} />
         <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
-        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} />
+        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} noClick={isTouch} />
         <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
       </div>
       {pickerOpen && (
@@ -686,11 +686,14 @@ export default function App() {
                   borderRadius: winW > 900 ? 10 : 8,
                   background: isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && ev.status==="blocked" ? `${BRAND.moosgruen}12` : ev && isAdmin ? `${statusColor}18` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast || customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
-                  alignItems:"center", justifyContent:"center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev ? (winW > 900 ? 14 : 10) : (isAdmin ? 2 : 3),
+                  alignItems:"center", justifyContent:"center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   animation: isPending && !isPast ? "pendingPulse 2s ease-in-out infinite" : "none",
                 }}>
-                {hol && !ev && <div style={{ position:"absolute", top:0, left:0, right:0, background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize: winW > 900 ? 9 : 6, lineHeight:1, borderRadius: winW > 900 ? "10px 10px 2px 2px" : "8px 8px 2px 2px", padding: winW > 900 ? "3px 2px" : "2px 1px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>}
-                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : 400, color: ev && isAdmin && ev.status!=="blocked" ? statusColor : BRAND.aubergine }}>{day}</span>
+                {hol && !ev && (winW > 900 ?
+                  <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>
+                  : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0" }} />
+                )}
+                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: ev && isAdmin && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.lila, marginTop:2 }} />}
                 {ev && isAdmin && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
               </button>
@@ -1140,14 +1143,8 @@ export default function App() {
 
                   {isGroup ? (
                     <>
-                      {/* Persons first */}
-                      <input placeholder={`Anzahl Teilnehmer * (mind. ${et?.minPersons || 10})`} type="number" min="1" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))} style={{ ...reqStyle(missingGuests, guestsTooLow), marginTop:8 }} />
-                      {sa && formData.guests && guestsTooLow && (
-                        <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
-                      )}
-
-                      {/* Time window */}
-                      <div style={{ display:"flex", gap:10, marginBottom:12, alignItems:"center" }}>
+                      {/* 1. Time window */}
+                      <div style={{ display:"flex", gap:10, marginBottom:12, marginTop:8, alignItems:"center" }}>
                         {[["Von","tourHour","tourMin"],["Bis","tourEndHour","tourEndMin"]].map(([lbl,hField,mField]) => {
                           const h = Number(formData[hField])||0;
                           const m = Number(formData[mField])||0;
@@ -1161,19 +1158,20 @@ export default function App() {
                         })}
                       </div>
 
-                      {/* Guide checkbox */}
-                      <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"12px 14px", background: formData.tourGuide ? `${BRAND.moosgruen}12` : "#fff", border:`1.5px solid ${formData.tourGuide ? BRAND.moosgruen : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
-                        <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${formData.tourGuide ? BRAND.moosgruen : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1, background: formData.tourGuide ? BRAND.moosgruen : "#fff" }}>
-                          {formData.tourGuide && <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      {/* 2. Participants - styled like time input */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: formData.guests && guestsTooLow ? 4 : 12 }}>
+                        <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, flexShrink:0 }}>Teilnehmeranzahl</label>
+                        <div style={{ display:"inline-flex", alignItems:"center", background:"#fff", border:`1.5px solid ${formData.guests && guestsTooLow ? "#c44" : BRAND.moosgruen+"20"}`, borderRadius:6, padding:"3px 10px", gap:4 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                          <input type="number" min="1" placeholder="Anzahl" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))}
+                            style={{ width:60, fontSize:15, fontWeight:500, color:BRAND.moosgruen, border:"none", outline:"none", background:"transparent", fontFamily:"inherit", fontVariantNumeric:"tabular-nums", padding:"2px 0", textAlign:"center" }} />
                         </div>
-                        <div>
-                          <div style={{ fontWeight:700, fontSize:13, color: BRAND.aubergine }}>Führung mit Gartenexpertin</div>
-                          <div style={{ fontSize:11, color:"#888", lineHeight:1.3, marginTop:2 }}>€ {et?.guideCost || 80} pro Führung · max. {et?.maxPerTour || 20} Personen · Dauer ca. 1,5 h</div>
-                        </div>
-                      </label>
+                      </div>
+                      {formData.guests && guestsTooLow && (
+                        <div style={{ fontSize:11, color:"#c44", marginTop:-2, marginBottom:10 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
+                      )}
 
-                      {/* Info box */}
+                      {/* 3. Café */}
                       <div style={{ background:`${BRAND.moosgruen}08`, border:`1px solid ${BRAND.moosgruen}20`, borderRadius:10, padding:"10px 14px", marginBottom:10 }}>
                         <div style={{ fontSize:11, fontWeight:700, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Café im Paradiesglashaus</div>
                         <div style={{ fontSize:12, color:"#666", lineHeight:1.4, marginBottom:8 }}>Kuchen wird frisch zubereitet – bitte vorab die gewünschte Menge angeben.</div>
@@ -1188,6 +1186,18 @@ export default function App() {
                           </div>
                         </div>
                       </div>
+
+                      {/* 4. Guide checkbox */}
+                      <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
+                        style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"12px 14px", background: formData.tourGuide ? `${BRAND.moosgruen}12` : "#fff", border:`1.5px solid ${formData.tourGuide ? BRAND.moosgruen : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
+                        <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${formData.tourGuide ? BRAND.moosgruen : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1, background: formData.tourGuide ? BRAND.moosgruen : "#fff" }}>
+                          {formData.tourGuide && <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight:700, fontSize:13, color: BRAND.aubergine }}>Führung mit Gartenexpertin</div>
+                          <div style={{ fontSize:11, color:"#888", lineHeight:1.3, marginTop:2 }}>€ {et?.guideCost || 80} pro Führung · max. {et?.maxPerTour || 20} Personen · Dauer ca. 1,5 h</div>
+                        </div>
+                      </label>
 
                       {/* Cost overview */}
                       {nGuests > 0 && (
