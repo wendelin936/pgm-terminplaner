@@ -746,12 +746,13 @@ export default function App() {
       <div style={{ maxWidth: winW > 900 ? 1100 : (isAdmin ? 700 : 800), margin:"0 auto", padding: winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
         {/* Customer: Hero Image */}
         {!isAdmin && winW > 520 && (
-          <div style={{ position:"relative", borderRadius:16, overflow:"hidden", marginBottom:28, height: winW > 900 ? 280 : 180 }}>
+          <div style={{ position:"relative", borderRadius:16, overflow:"hidden", marginBottom:28, height: winW > 900 ? 420 : 280 }}>
             <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-hintergrund.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
-            <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(88,8,74,0.6) 0%, rgba(88,8,74,0.1) 60%, transparent 100%)" }} />
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"45%", background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }} />
+            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 16 : 12, right: winW > 900 ? 20 : 14, height: winW > 900 ? 48 : 36, opacity:0.85, filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }} />
             <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : "18px 20px" }}>
-              <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>Paradiesgarten Mattuschka</div>
-              <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4 }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
+              <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
+              <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
             </div>
           </div>
         )}
