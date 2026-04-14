@@ -241,42 +241,62 @@ function ChecklistNote({ items=[], onChange, editable=true }) {
   );
 }
 
+function TimeField({ val, onInc, onDec, color, max }) {
+  const ref = useRef(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [hover, setHover] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e) => { e.preventDefault(); e.deltaY < 0 ? onInc() : onDec(); };
+    const onStart = (e) => { startY.current = e.touches[0].clientY; acc.current = 0; };
+    const onMove = (e) => {
+      e.preventDefault();
+      const dy = startY.current - e.touches[0].clientY;
+      const steps = Math.floor((dy - acc.current) / 28);
+      if (steps !== 0) { acc.current += steps * 28; for (let i = 0; i < Math.abs(steps); i++) steps > 0 ? onInc() : onDec(); }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    return () => { el.removeEventListener("wheel", onWheel); el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMove); };
+  });
+
+  const startY = useRef(0);
+  const acc = useRef(0);
+  const commit = () => { const n = parseInt(draft, 10); if (!isNaN(n) && n >= 0 && n <= max) { const diff = n - val; if (diff > 0) for (let i=0;i<diff;i++) onInc(); else for (let i=0;i<-diff;i++) onDec(); } setEditing(false); };
+  const arrowBtn = { background:"none", border:"none", cursor:"pointer", padding:0, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", width:24, height:8, opacity: hover ? 1 : 0, transition:"opacity .15s" };
+
+  return (
+    <div ref={ref} style={{ display:"flex", flexDirection:"column", alignItems:"center", touchAction:"none", gap:0 }}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <button onClick={onInc} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 4l4-3L9 4" stroke={color} strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.5"/></svg></button>
+      {editing ? (
+        <input autoFocus value={draft} onChange={e => setDraft(e.target.value.replace(/\D/g,"").slice(0,2))}
+          onBlur={commit} onKeyDown={e => { if(e.key==="Enter") commit(); if(e.key==="Escape") setEditing(false); }}
+          style={{ width:24, fontSize:15, fontWeight:500, color, textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", padding:0, fontFamily:"inherit", fontVariantNumeric:"tabular-nums" }} />
+      ) : (
+        <span onClick={() => { setDraft(String(val).padStart(2,"0")); setEditing(true); }}
+          style={{ fontSize:15, fontWeight:500, color, fontVariantNumeric:"tabular-nums", cursor:"text", userSelect:"none", minWidth:24, textAlign:"center", lineHeight:1 }}>
+          {String(val).padStart(2,"0")}
+        </span>
+      )}
+      <button onClick={onDec} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 1l4 3L9 1" stroke={color} strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.5"/></svg></button>
+    </div>
+  );
+}
+
 function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
   const [h,m] = (value||"08:00").split(":").map(Number);
-  const [editH, setEditH] = useState(null);
-  const [editM, setEditM] = useState(null);
-  const set = (nh,nm) => onChange(String(((nh%24)+24)%24).padStart(2,"0")+":"+String(nm).padStart(2,"0"));
-  const hUp = () => set(h+1, m);
-  const hDn = () => set(h-1, m);
-  const mUp = () => set(h, m===0?30:0);
-  const mDn = () => set(h, m===0?30:0);
-  const chevU = <svg width="12" height="7" viewBox="0 0 12 7"><path d="M1 6l5-4.5L11 6" stroke={accentColor} strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.35"/></svg>;
-  const chevD = <svg width="12" height="7" viewBox="0 0 12 7"><path d="M1 1l5 4.5L11 1" stroke={accentColor} strokeWidth="1.3" fill="none" strokeLinecap="round" opacity="0.35"/></svg>;
-  const aBtn = { background:"none", border:"none", cursor:"pointer", padding:"4px 10px", display:"flex", alignItems:"center", justifyContent:"center", borderRadius:4 };
-  const numInput = { width:32, fontSize:18, fontWeight:500, color:accentColor, fontVariantNumeric:"tabular-nums", textAlign:"center", border:"none", background:"transparent", outline:"none", padding:"2px 0", fontFamily:"inherit" };
+  const set = (nh,nm) => onChange(String(((nh%24)+24)%24).padStart(2,"0")+":"+String(((nm%60)+60)%60).padStart(2,"0"));
   return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:2, background:"#fff", border:`1.5px solid ${accentColor}25`, borderRadius:8, padding:"2px 6px", touchAction:"none" }}>
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-        <button style={aBtn} onClick={hUp}>{chevU}</button>
-        <input style={numInput}
-          value={editH !== null ? editH : String(h).padStart(2,"0")}
-          onFocus={e => { setEditH(String(h).padStart(2,"0")); e.target.select(); }}
-          onChange={e => setEditH(e.target.value.replace(/\D/g,"").slice(0,2))}
-          onBlur={e => { const n=parseInt(editH,10); if(!isNaN(n)) set(Math.min(23,Math.max(0,n)),m); setEditH(null); }}
-          onKeyDown={e => { if(e.key==="Enter") e.target.blur(); if(e.key==="ArrowUp"){e.preventDefault();hUp();setEditH(null);} if(e.key==="ArrowDown"){e.preventDefault();hDn();setEditH(null);} }} />
-        <button style={aBtn} onClick={hDn}>{chevD}</button>
-      </div>
-      <span style={{ fontSize:18, fontWeight:400, color:"#ccc", marginBottom:1 }}>:</span>
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-        <button style={aBtn} onClick={mUp}>{chevU}</button>
-        <input style={numInput}
-          value={editM !== null ? editM : String(m).padStart(2,"0")}
-          onFocus={e => { setEditM(String(m).padStart(2,"0")); e.target.select(); }}
-          onChange={e => setEditM(e.target.value.replace(/\D/g,"").slice(0,2))}
-          onBlur={e => { const n=parseInt(editM,10); if(!isNaN(n)) set(h, n<15?0:n<45?30:0); setEditM(null); }}
-          onKeyDown={e => { if(e.key==="Enter") e.target.blur(); if(e.key==="ArrowUp"){e.preventDefault();mUp();setEditM(null);} if(e.key==="ArrowDown"){e.preventDefault();mDn();setEditM(null);} }} />
-        <button style={aBtn} onClick={mDn}>{chevD}</button>
-      </div>
+    <div style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none" }}>
+      <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} />
+      <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
+      <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} />
+      <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
     </div>
   );
 }
@@ -295,7 +315,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"fullDay", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
+  const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
   const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[] });
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
@@ -339,7 +359,7 @@ export default function App() {
     "2026-04-18": { status:"pending", label:"Hochzeit", type:"hochzeit", slot:"fullDay", startTime:"08:00", endTime:"22:00", slotLabel:"Ganztags (08:00–22:00)", name:"Maria Huber", email:"maria@example.at", phone:"+43 660 1234567", guests:"80", message:"Wir würden gerne die Terrasse nutzen. Gibt es einen DJ-Anschluss?" },
     "2026-05-09": { status:"pending", label:"Firmenfeier", type:"firmenfeier", slot:"halfDayPM", startTime:"13:00", endTime:"18:00", slotLabel:"Halbtags Nachmittag (13:00–18:00)", name:"Thomas Berger", email:"t.berger@firma.at", phone:"+43 664 9876543", guests:"35", message:"Sommerfest für unser Team, vegetarisches Catering gewünscht." },
     "2026-05-23": { status:"pending", label:"Geburtstagsfeier", type:"geburtstag", slot:"custom", startTime:"16:00", endTime:"22:00", slotLabel:"16:00 – 22:00", name:"Lisa Moser", email:"lisa.moser@gmx.at", phone:"+43 650 3344556", guests:"25", message:"Gartenparty zum 30er, eigene Musik, brauchen wir eine Genehmigung?" },
-    "2026-06-13": { status:"pending", label:"Seminar / Workshop", type:"seminar", slot:"halfDayAM", startTime:"08:00", endTime:"13:00", slotLabel:"Halbtags Vormittag (08:00–13:00)", name:"Dr. Eva Kern", email:"eva.kern@uni-klu.at", phone:"+43 463 2700100", guests:"18", message:"Botanik-Workshop für Studierende, Beamer benötigt." },
+    "2026-06-13": { status:"pending", label:"Seminar / Workshop", type:"seminar", slot:"fullDay", startTime:"08:00", endTime:"13:00", slotLabel:"Halbtags Vormittag (08:00–13:00)", name:"Dr. Eva Kern", email:"eva.kern@uni-klu.at", phone:"+43 463 2700100", guests:"18", message:"Botanik-Workshop für Studierende, Beamer benötigt." },
   };
   const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
@@ -438,13 +458,13 @@ export default function App() {
       setModalView("info");
     } else {
       setSelectedDate(key);
-      setFormData(f => ({ ...f, name:"", email:"", phone:"", guests:"", message:"", slot:"fullDay" }));
+      setFormData(f => ({ ...f, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM" }));
       setModalView("selectType");
     }
   };
 
   const handleCardClick = (typeId) => {
-    setFormData({ name:"", email:"", phone:"", type: typeId, slot:"fullDay", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
+    setFormData({ name:"", email:"", phone:"", type: typeId, slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
     setShowTypeSelect(false);
     setSubmitAttempted(false);
     setPickerMonth(month);
@@ -930,7 +950,7 @@ export default function App() {
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {eventTypes.map(et => (
                     <button key={et.id} onClick={() => {
-                      setFormData(f => ({ ...f, type: et.id, name:"", email:"", phone:"", guests:"", message:"", slot:"fullDay", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:12, tourEndMin:0 }));
+                      setFormData(f => ({ ...f, type: et.id, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:12, tourEndMin:0 }));
                       setSubmitAttempted(false);
                       setModalView("form");
                     }}
@@ -1066,12 +1086,12 @@ export default function App() {
                 {!(adminForm.type === "blocked" && adminForm.allDay) && (() => {
                   return (
                   <>
-                  <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+                  <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
                     {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
                       const timeVal = adminForm[field] || "08:00";
                       return (
-                        <div key={field} style={{ flex:1 }}>
-                          <label style={{ fontSize:10, color:"#999", fontWeight:600, marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
+                        <div key={field} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
                           <TimeInput value={timeVal} onChange={v => setAdminForm(f=>({...f,[field]:v}))} />
                         </div>
                       );
@@ -1140,14 +1160,14 @@ export default function App() {
                       )}
 
                       {/* Time window */}
-                      <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+                      <div style={{ display:"flex", gap:10, marginBottom:12, alignItems:"center" }}>
                         {[["Von","tourHour","tourMin"],["Bis","tourEndHour","tourEndMin"]].map(([lbl,hField,mField]) => {
                           const h = Number(formData[hField])||0;
                           const m = Number(formData[mField])||0;
                           const timeVal = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
                           return (
-                            <div key={lbl} style={{ flex:1 }}>
-                              <label style={{ fontSize:10, color:"#999", fontWeight:600, marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
+                            <div key={lbl} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                              <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
                               <TimeInput value={timeVal} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f,[hField]:nh,[mField]:nm})); }} />
                             </div>
                           );
@@ -1212,10 +1232,10 @@ export default function App() {
 
                       {/* Document buttons */}
                       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-                        <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.moosgruen}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.moosgruen, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none" }}>
+                        <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" className="doc-green" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.moosgruen}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.moosgruen, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
                           <span style={{ fontSize:15 }}>📋</span> Getränke- & Kuchenkarte
                         </a>
-                        <a href={DOCS.flyer} target="_blank" rel="noopener noreferrer" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.lila}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.lila, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none" }}>
+                        <a href={DOCS.flyer} target="_blank" rel="noopener noreferrer" className="doc-violet" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.lila}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.lila, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
                           <span style={{ fontSize:15 }}>📋</span> Garten-Flyer
                         </a>
                       </div>
@@ -1261,8 +1281,8 @@ export default function App() {
                                 const m = Number(formData[mField])||0;
                                 const timeVal = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
                                 return (
-                                  <div key={lbl} style={{ flex:1 }}>
-                                    <div style={{ fontSize:10, color:"#999", fontWeight:600, marginBottom:2 }}>{lbl}</div>
+                                  <div key={lbl} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                    <span style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</span>
                                     <TimeInput value={timeVal} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f,[hField]:nh,[mField]:nm})); }} />
                                   </div>
                                 );
@@ -1272,7 +1292,6 @@ export default function App() {
                         </div>
                       )}
 
-                      {formData.slot !== "custom" && price > 0 && <div style={{ fontSize:13, color: et?.color, fontWeight:600, marginBottom:10, textAlign:"center" }}>Preis: {fmt(price)}</div>}
 
                       <div style={{ marginBottom:10 }}>
                         <div onClick={() => setShowTypeSelect(s=>!s)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", padding:"6px 0" }}>
@@ -1302,10 +1321,10 @@ export default function App() {
                       <textarea placeholder="Ihre Nachricht / Wünsche" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))} style={{ ...inputStyle, height:70, resize:"none" }} />
                       {formData.type !== "sonstiges" && (
                         <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                          <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.moosgruen}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.moosgruen, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none" }}>
+                          <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" className="doc-green" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.moosgruen}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.moosgruen, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
                             <span style={{ fontSize:15 }}>📋</span> Getränke- & Kuchenkarte ansehen
                           </a>
-                          <a href={DOCS.weinkarte} target="_blank" rel="noopener noreferrer" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.aubergine}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.aubergine, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none" }}>
+                          <a href={DOCS.weinkarte} target="_blank" rel="noopener noreferrer" className="doc-violet" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.aubergine}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.aubergine, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
                             <span style={{ fontSize:15 }}>📋</span> Weinkarte ansehen
                           </a>
                         </div>
@@ -1477,24 +1496,26 @@ export default function App() {
         html { overflow-x: hidden; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         input, textarea, select, button { font-size: 16px; }
-        @media (max-width: 520px) {
-          .evt-card:hover { transform: none !important; }
-        }
         @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
         @keyframes toastProgress { from { width:100% } to { width:0% } }
         @keyframes pendingPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(242,140,90,0.3) } 50% { box-shadow: 0 0 8px 2px rgba(242,140,90,0.25) } }
-        .evt-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.10) !important; border-left-width: 4px !important; background: color-mix(in srgb, var(--card-color) 6%, #fff) !important; }
-        .day-free:hover { background: rgba(0,154,147,0.08) !important; border-color: rgba(0,154,147,0.3) !important; }
-        .day-booked:hover { background: rgba(144,52,134,0.08) !important; border-color: rgba(144,52,134,0.25) !important; }
         input[type="time"] { -webkit-appearance: none; }
         input[type="time"]:focus { border-color: ${BRAND.aubergine}60 !important; box-shadow: 0 0 0 2px ${BRAND.aubergine}15 !important; }
         input[type="time"]::-webkit-datetime-edit { padding: 0; }
         input:focus, textarea:focus { border-color: ${BRAND.aubergine}60 !important; box-shadow: 0 0 0 2px ${BRAND.aubergine}10 !important; }
-        button:hover { filter: brightness(0.97) }
         .admin-card { transition: all .15s ease; }
-        .admin-card:hover { background: rgba(144,52,134,0.05) !important; border-left-color: ${BRAND.lila} !important; box-shadow: 0 2px 8px rgba(88,8,74,0.08) !important; }
-        .admin-card:hover .card-delete { opacity: 1 !important; }
-        .card-delete:hover { background: rgba(204,68,68,0.1) !important; }
+        .doc-green, .doc-violet { transition: all .15s ease; }
+        @media (hover: hover) and (pointer: fine) {
+          button:hover { filter: brightness(0.97) }
+          .evt-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.10) !important; border-left-width: 4px !important; background: color-mix(in srgb, var(--card-color) 6%, #fff) !important; }
+          .day-free:hover { background: rgba(0,154,147,0.08) !important; border-color: rgba(0,154,147,0.3) !important; }
+          .day-booked:hover { background: rgba(144,52,134,0.08) !important; border-color: rgba(144,52,134,0.25) !important; }
+          .admin-card:hover { background: rgba(144,52,134,0.05) !important; border-left-color: ${BRAND.lila} !important; box-shadow: 0 2px 8px rgba(88,8,74,0.08) !important; }
+          .admin-card:hover .card-delete { opacity: 1 !important; }
+          .card-delete:hover { background: rgba(204,68,68,0.1) !important; }
+          .doc-green:hover { background: ${BRAND.moosgruen}12 !important; border-color: ${BRAND.moosgruen}80 !important; }
+          .doc-violet:hover { background: ${BRAND.lila}12 !important; border-color: ${BRAND.lila}80 !important; }
+        }
       `}</style>
     </div>
   );
@@ -1502,5 +1523,5 @@ export default function App() {
 
 const navBtn = { width:44, height:44, borderRadius:"50%", border:`2px solid ${BRAND.aubergine}20`, background:"#fff", color:BRAND.aubergine, fontSize:22, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, padding:0, textAlign:"center" };
 const inputStyle = { width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:16, marginBottom:10, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color: BRAND.aubergine };
-const primaryBtn = { width:"100%", padding:"12px 0", background: BRAND.lila, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 };
+const primaryBtn = { width:"100%", padding:"12px 0", background: BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 };
 const smallBtn = { width:32, height:32, borderRadius:8, border:"none", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" };
