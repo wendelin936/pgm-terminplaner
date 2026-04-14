@@ -664,8 +664,10 @@ export default function App() {
       )}
 
       {successModal && (
-        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, background:"rgba(88,8,74,0.15)", backdropFilter:"blur(6px)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:"32px 28px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(88,8,74,0.2)", textAlign:"center" }}>
+        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center" }} />
+          <div style={{ position:"absolute", inset:0, background:"rgba(88,8,74,0.55)", backdropFilter:"blur(2px)" }} />
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(255,255,255,0.97)", borderRadius:20, padding:"32px 28px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(88,8,74,0.35)", textAlign:"center" }}>
             <div style={{ width:56, height:56, borderRadius:"50%", background:`${BRAND.lila}12`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={BRAND.lila} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
             </div>
@@ -742,7 +744,68 @@ export default function App() {
       )}
 
       <div style={{ maxWidth: winW > 900 ? 1100 : (isAdmin ? 700 : 800), margin:"0 auto", padding: winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
-        <div style={{ maxWidth: isAdmin && winW > 900 ? "80%" : "none", margin: isAdmin && winW > 900 ? "0 auto" : 0 }}>
+        {/* Customer: Hero Image */}
+        {!isAdmin && winW > 520 && (
+          <div style={{ position:"relative", borderRadius:16, overflow:"hidden", marginBottom:28, height: winW > 900 ? 280 : 180 }}>
+            <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-hintergrund.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
+            <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(88,8,74,0.6) 0%, rgba(88,8,74,0.1) 60%, transparent 100%)" }} />
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : "18px 20px" }}>
+              <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.3)" }}>Paradiesgarten Mattuschka</div>
+              <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4 }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
+            </div>
+          </div>
+        )}
+        {/* Customer: Event Types */}
+        {!isAdmin && (
+          <div style={{ marginBottom:32 }}>
+            <h2 style={{ fontSize: winW < 520 ? 16 : winW > 900 ? 24 : 20, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: winW > 900 ? 24 : 16, textAlign:"center" }}>
+              Unsere Veranstaltungen & Preise
+            </h2>
+            {(() => {
+              const allTypes = eventTypes;
+              const isMobile = winW < 520;
+              const renderCard = (et) => {
+                const isGroup = et.isGroupTour;
+                return (
+                  <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
+                    style={{ "--card-color": et.color, flex: isMobile ? (winW < 380 ? "1 1 100%" : "1 1 calc(50% - 5px)") : winW > 900 ? "1 1 calc(33.33% - 8px)" : "1 1 0", background:"#fff", borderRadius:10, padding: isMobile ? "14px 12px" : winW > 900 ? "20px 18px" : "16px 14px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0 }}>
+                    <div>
+                      <div style={{ fontWeight:700, color: BRAND.aubergine, fontSize: isMobile ? 12 : winW > 900 ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto" }}>{et.label}</div>
+                      <div style={{ fontSize: isMobile ? 9 : winW > 900 ? 12 : 10, color:"#888", lineHeight:1.3, marginBottom:6 }}>{et.desc}</div>
+                    </div>
+                    <div style={{ marginTop:"auto" }}>
+                      <div style={{ background: et.color+"12", color: et.color, padding:"3px 6px", borderRadius:6, fontSize: isMobile ? 10 : 11, fontWeight:700, textAlign:"left", marginBottom:2, display:"inline-block" }}>
+                        {isGroup ? <><span>€ {et.pricePerPerson} p.P.</span><span style={{ margin:"0 6px", opacity:0.4 }}>|</span><span>ab {et.minPersons} Pers.</span></> : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
+                      </div>
+                      <div style={{ fontSize: isMobile ? 9 : 10, color: et.color, fontWeight:600, marginTop:6, display:"flex", alignItems:"center", gap:3, opacity:0.7 }}>
+                        Jetzt anfragen <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke={et.color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    </div>
+                  </div>
+                );
+              };
+              return (
+                <div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 8 : 10, marginBottom:20 }}>
+                    {allTypes.map(renderCard)}
+                  </div>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 6 : 10, justifyContent:"center", marginBottom:20 }}>
+                    {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","Persönliche Betreuung"].map(t => (
+                      <span key={t} style={{ fontSize: isMobile ? 10 : 11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
+                    ))}
+                  </div>
+                  <button onClick={() => setModalView("selectType")}
+                    style={{ width:"100%", padding:"14px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, fontSize:15, fontWeight:700, cursor:"pointer", letterSpacing:0.5, boxShadow:"0 4px 16px rgba(88,8,74,0.25)", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    Jetzt Veranstaltung anfragen
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {isAdmin && <div style={{ maxWidth: isAdmin && winW > 900 ? "80%" : "none", margin: isAdmin && winW > 900 ? "0 auto" : 0 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: winW < 520 ? 8 : 12 }}>
           <button onClick={prevMonth} style={{ ...navBtn, width: winW < 520 ? 36 : 44, height: winW < 520 ? 36 : 44 }}><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 3L5 7L9 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></button>
           <div style={{ textAlign:"center" }}>
@@ -804,7 +867,7 @@ export default function App() {
           })}
         </div>
 
-        </div>
+        </div>}
         {/* Admin: 1. Offene Anfragen */}
         {isAdmin && (() => {
           const pending = Object.entries(events).filter(([,v]) => v.status === "pending").sort(([a],[b]) => a.localeCompare(b));
@@ -999,59 +1062,21 @@ export default function App() {
           </div>
         )}
 
-        {/* Customer: Event Types */}
-        {!isAdmin && (
-          <div style={{ marginBottom:32 }}>
-            <h2 style={{ fontSize: winW < 520 ? 16 : winW > 900 ? 24 : 20, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: winW > 900 ? 24 : 16, textAlign:"center" }}>
-              Unsere Veranstaltungen & Preise
-            </h2>
-            {(() => {
-              const allTypes = eventTypes;
-              const isMobile = winW < 520;
-              const renderCard = (et) => {
-                const isGroup = et.isGroupTour;
-                return (
-                  <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
-                    style={{ "--card-color": et.color, flex: isMobile ? (winW < 380 ? "1 1 100%" : "1 1 calc(50% - 5px)") : winW > 900 ? "1 1 calc(33.33% - 8px)" : "1 1 0", background:"#fff", borderRadius:10, padding: isMobile ? "14px 12px" : winW > 900 ? "20px 18px" : "16px 14px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0 }}>
-                    <div>
-                      <div style={{ fontWeight:700, color: BRAND.aubergine, fontSize: isMobile ? 12 : winW > 900 ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto" }}>{et.label}</div>
-                      <div style={{ fontSize: isMobile ? 9 : winW > 900 ? 12 : 10, color:"#888", lineHeight:1.3, marginBottom:6 }}>{et.desc}</div>
-                    </div>
-                    <div style={{ marginTop:"auto" }}>
-                      <div style={{ background: et.color+"12", color: et.color, padding:"3px 6px", borderRadius:6, fontSize: isMobile ? 10 : 11, fontWeight:700, textAlign:"left", marginBottom:2, display:"inline-block" }}>
-                        {isGroup ? <><span>€ {et.pricePerPerson} p.P.</span><span style={{ margin:"0 6px", opacity:0.4 }}>|</span><span>ab {et.minPersons} Pers.</span></> : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
-                      </div>
-                      <div style={{ fontSize:8, color:"#bbb", textAlign:"left", minHeight:10 }}>
-                        {isGroup ? "Kärnten Card gratis" : et.halfDay > 0 ? `Ganztags ${fmt(et.fullDay)}` : "\u00A0"}
-                      </div>
-                    </div>
-                  </div>
-                );
-              };
-              return (
-                <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 8 : 10 }}>
-                  {allTypes.map(renderCard)}
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
         {/* Customer: Contact */}
         {!isAdmin && (
-          <div style={{ background: BRAND.aubergine, color:"#fff", borderRadius:12, padding: winW < 520 ? "20px 16px" : "24px 28px", textAlign:"center", marginBottom:24 }}>
-            <div style={{ fontSize: winW < 520 ? 14 : 16, fontWeight:700, letterSpacing:2, marginBottom:8, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
-            <div style={{ fontSize: winW < 520 ? 12 : 13, opacity:.8, lineHeight:1.8 }}>
-              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:"#fff", opacity:.8 }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
+          <div style={{ background:`${BRAND.lila}0a`, borderRadius:10, padding: winW < 520 ? "14px 16px" : "16px 28px", textAlign:"center", marginBottom:24, border:`1px solid ${BRAND.lila}15` }}>
+            <div style={{ fontSize: winW < 520 ? 12 : 13, fontWeight:700, color:BRAND.aubergine, letterSpacing:2, marginBottom:4, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
+            <div style={{ fontSize: winW < 520 ? 11 : 12, color:BRAND.aubergine, opacity:.6, lineHeight:1.6 }}>
+              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:BRAND.aubergine, opacity:.7 }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
               {winW < 520 ? (
                 <>
-                  <a href="tel:+4346349119" style={{ color:"#fff", opacity:.8, textDecoration:"none" }}>+43 463 49 119</a><br />
-                  <a href="mailto:info@mattuschka.at" style={{ color:"#fff", opacity:.8, textDecoration:"none" }}>info@mattuschka.at</a><br />
-                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"#fff", opacity:.8, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:BRAND.aubergine, textDecoration:"none" }}>+43 463 49 119</a><br />
+                  <a href="mailto:info@mattuschka.at" style={{ color:BRAND.aubergine, textDecoration:"none" }}>info@mattuschka.at</a><br />
+                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:BRAND.aubergine, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               ) : (
                 <>
-                  <a href="tel:+4346349119" style={{ color:"#fff", opacity:.8, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:"#fff", opacity:.8, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"#fff", opacity:.8, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:BRAND.aubergine, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:BRAND.aubergine, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:BRAND.aubergine, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               )}
             </div>
@@ -1070,15 +1095,18 @@ export default function App() {
               <>
                 <div style={{ textAlign:"center", marginBottom:20 }}>
                   <div style={{ fontSize:18, fontWeight:700, color: BRAND.aubergine, marginBottom:4 }}>Veranstaltung anfragen</div>
-                  <div style={{ fontSize:13, color:"#999" }}>{fmtDate(selectedDate)}</div>
-                  {holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:10, borderRadius:4, padding:"3px 10px", marginTop:6 }}>{holidays[selectedDate]}</div>}
+                  {selectedDate && <div style={{ fontSize:13, color:"#999" }}>{fmtDate(selectedDate)}</div>}
+                  {selectedDate && holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:10, borderRadius:4, padding:"3px 10px", marginTop:6 }}>{holidays[selectedDate]}</div>}
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {eventTypes.map(et => (
                     <button key={et.id} onClick={() => {
                       setFormData(f => ({ ...f, type: et.id, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:12, tourEndMin:0 }));
                       setSubmitAttempted(false);
-                      setModalView("form");
+                      setShowTypeSelect(false);
+                      setPickerMonth(month);
+                      setPickerYear(year);
+                      setModalView(selectedDate ? "form" : "pickDate");
                     }}
                       style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"#fff", border:"1.5px solid #e8e0e5", borderRadius:10, borderLeft:`4px solid ${et.color}`, cursor:"pointer", textAlign:"left", transition:"all .15s" }}
                       className="evt-card">
@@ -1272,8 +1300,8 @@ export default function App() {
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                     <div style={{ width:4, height:36, borderRadius:2, background: et?.color || BRAND.lila }} />
                     <div>
-                      <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{isGroup ? "Gruppenführung buchen" : "Anfrage senden"}</h3>
-                      <div style={{ fontSize:12, color:"#888" }}>{et?.label} · {fmtDateAT(selectedDate)}</div>
+                      <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{et?.label}</h3>
+                      <div style={{ fontSize:13, color: BRAND.lila, fontWeight:500 }}>{fmtDateAT(selectedDate)}</div>
                       {holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:9, borderRadius:3, padding:"2px 6px", marginTop:2 }}>{holidays[selectedDate]}</div>}
                     </div>
                   </div>
