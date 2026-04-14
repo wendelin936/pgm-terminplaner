@@ -241,7 +241,7 @@ function ChecklistNote({ items=[], onChange, editable=true }) {
   );
 }
 
-function TimeField({ val, onInc, onDec, color, max, noClick }) {
+function TimeField({ val, onInc, onDec, onSet, color, max, noClick }) {
   const ref = useRef(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -255,7 +255,7 @@ function TimeField({ val, onInc, onDec, color, max, noClick }) {
     return () => el.removeEventListener("wheel", onWheel);
   });
 
-  const commit = () => { const n = parseInt(draft, 10); if (!isNaN(n) && n >= 0 && n <= max) { const diff = n - val; if (diff > 0) for (let i=0;i<diff;i++) onInc(); else for (let i=0;i<-diff;i++) onDec(); } setEditing(false); };
+  const commit = () => { const n = parseInt(draft, 10); if (!isNaN(n) && n >= 0 && n <= max && onSet) onSet(n); setEditing(false); };
   const arrowBtn = { background:"none", border:"none", cursor:"pointer", padding:0, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", width:24, height:8, opacity: hover ? 1 : 0, transition:"opacity .15s" };
 
   return (
@@ -338,9 +338,9 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
     <>
       <div onClick={isTouch ? () => { setPH(h); setPM(m); setPickerOpen(true); } : undefined}
         style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none", cursor: isTouch ? "pointer" : "default" }}>
-        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} noClick={isTouch} />
+        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} onSet={v => set(v,m)} color={accentColor} max={23} noClick={isTouch} />
         <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
-        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} noClick={isTouch} />
+        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} onSet={v => set(h,v)} color={accentColor} max={59} noClick={isTouch} />
         <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
       </div>
       {pickerOpen && (
@@ -365,12 +365,15 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
 function NumInput({ value, onChange, placeholder, min=0, max=999, color=BRAND.moosgruen, label, icon, style={} }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(Number(value)||min);
+  const [typing, setTyping] = useState(false);
+  const [typeDraft, setTypeDraft] = useState("");
   const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   const v = Number(value) || 0;
+  const commitType = () => { const n = parseInt(typeDraft, 10); if (!isNaN(n)) setDraft(Math.max(min, Math.min(max, n))); setTyping(false); };
   return (
     <>
       {isTouch ? (
-        <div onClick={() => { setDraft(v || min); setOpen(true); }}
+        <div onClick={() => { setDraft(v || min); setTyping(false); setOpen(true); }}
           style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:`1.5px solid ${color}20`, borderRadius:6, padding:"5px 12px", cursor:"pointer", ...style }}>
           {icon}
           <span style={{ fontSize:15, fontWeight:500, color: v > 0 ? color : "#bbb", fontVariantNumeric:"tabular-nums", minWidth:20 }}>{v > 0 ? v : placeholder || "0"}</span>
@@ -384,14 +387,21 @@ function NumInput({ value, onChange, placeholder, min=0, max=999, color=BRAND.mo
       )}
       {open && (
         <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:180 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:200 }}>
             {label && <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:14 }}>{label}</div>}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:16 }}>
-              <button onClick={() => setDraft(d => Math.max(min, d - 1))}
-                style={{ width:40, height:40, borderRadius:"50%", border:`1.5px solid ${color}30`, background:"#fff", fontSize:22, color, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:300 }}>−</button>
-              <span style={{ fontSize:36, fontWeight:600, color, fontVariantNumeric:"tabular-nums", minWidth:50 }}>{draft}</span>
-              <button onClick={() => setDraft(d => Math.min(max, d + 1))}
-                style={{ width:40, height:40, borderRadius:"50%", border:`1.5px solid ${color}30`, background:"#fff", fontSize:22, color, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:300 }}>+</button>
+              <button onClick={() => { setDraft(d => Math.max(min, d - 1)); setTyping(false); }}
+                style={{ width:44, height:44, borderRadius:"50%", border:`1.5px solid ${color}30`, background:"#fff", fontSize:22, color, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:300 }}>−</button>
+              {typing ? (
+                <input autoFocus type="number" value={typeDraft} onChange={e => setTypeDraft(e.target.value)}
+                  onBlur={commitType} onKeyDown={e => { if(e.key==="Enter") commitType(); }}
+                  style={{ width:60, fontSize:32, fontWeight:600, color, fontVariantNumeric:"tabular-nums", textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", fontFamily:"inherit", padding:0 }} />
+              ) : (
+                <span onClick={() => { setTypeDraft(String(draft)); setTyping(true); }}
+                  style={{ fontSize:36, fontWeight:600, color, fontVariantNumeric:"tabular-nums", minWidth:50, cursor:"text" }}>{draft}</span>
+              )}
+              <button onClick={() => { setDraft(d => Math.min(max, d + 1)); setTyping(false); }}
+                style={{ width:44, height:44, borderRadius:"50%", border:`1.5px solid ${color}30`, background:"#fff", fontSize:22, color, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:300 }}>+</button>
             </div>
             <button onClick={() => { onChange(String(draft)); setOpen(false); }}
               style={{ marginTop:16, background:color, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Übernehmen</button>
@@ -1219,7 +1229,7 @@ export default function App() {
 
                       {/* 2. Participants */}
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: formData.guests && guestsTooLow ? 4 : 12 }}>
-                        <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, flexShrink:0 }}>Personen</label>
+                        <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, flexShrink:0 }}>Personenanzahl</label>
                         <NumInput value={formData.guests} onChange={v => setFormData(f=>({...f, guests:v}))} placeholder="Anzahl" min={1} color={BRAND.moosgruen} label="Teilnehmeranzahl"
                           icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>}
                           style={formData.guests && guestsTooLow ? { borderColor:"#c44" } : {}} />
