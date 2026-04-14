@@ -730,17 +730,17 @@ export default function App() {
         {!isAdmin && (
           <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 560 : winW > 520 ? 370 : 265 }}>
             <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-hintergrund.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"50%", background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }} />
-            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 70 : winW > 520 ? 50 : 38, opacity:0.9, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }} />
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"55%", background:"linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 55%, transparent 100%)" }} />
+            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }} />
             <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : winW > 520 ? "18px 20px" : "14px 14px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12 }}>
               <div>
                 <div style={{ fontSize: winW > 900 ? 28 : winW > 520 ? 20 : 16, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
                 <div style={{ fontSize: winW > 900 ? 14 : winW > 520 ? 12 : 10, color:"rgba(255,255,255,0.85)", marginTop: winW < 520 ? 2 : 4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
               <button onClick={() => setModalView("selectType")}
-                style={{ background:"#fff", color:BRAND.aubergine, border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
+                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
                 Jetzt anfragen
-                <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
             </div>
           </div>
@@ -1051,17 +1051,17 @@ export default function App() {
         {!isAdmin && (
           <div style={{ background:BRAND.aubergine, borderRadius:10, padding: winW < 520 ? "16px 16px" : "18px 28px", textAlign:"center", marginBottom:24 }}>
             <div style={{ fontSize: winW < 520 ? 13 : 14, fontWeight:700, color:"#fff", letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
-            <div style={{ fontSize: winW < 520 ? 11 : 12, color:`${BRAND.lila}70`, lineHeight:1.6 }}>
-              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}70` }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
+            <div style={{ fontSize: winW < 520 ? 11 : 12, color:`${BRAND.lila}40`, lineHeight:1.6 }}>
+              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}40` }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
               {winW < 520 ? (
                 <>
-                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>+43 463 49 119</a><br />
-                  <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>info@mattuschka.at</a><br />
-                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}40`, textDecoration:"none" }}>+43 463 49 119</a><br />
+                  <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}40`, textDecoration:"none" }}>info@mattuschka.at</a><br />
+                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}40`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               ) : (
                 <>
-                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}40`, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}40`, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}40`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               )}
             </div>
