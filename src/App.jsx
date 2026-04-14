@@ -277,49 +277,50 @@ function TimeField({ val, onInc, onDec, onSet, color, max, noClick }) {
   );
 }
 
-function DrumColumn({ val, items, onChange, color }) {
-  const ref = useRef(null);
-  const startY = useRef(0);
-  const acc = useRef(0);
-  const idx = items.indexOf(val);
-  const getAt = (offset) => items[((idx + offset) % items.length + items.length) % items.length];
+function DrumColumn({ val, items, onChange, color, padLen=2 }) {
+  const containerRef = useRef(null);
+  const itemH = 36;
+  const isScrolling = useRef(false);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const onStart = (e) => { startY.current = e.touches[0].clientY; acc.current = 0; };
-    const onMove = (e) => {
-      e.preventDefault();
-      const dy = startY.current - e.touches[0].clientY;
-      const steps = Math.floor((dy - acc.current) / 32);
-      if (steps !== 0) {
-        acc.current += steps * 32;
-        const newIdx = ((idx + steps) % items.length + items.length) % items.length;
-        onChange(items[newIdx]);
-      }
-    };
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: false });
-    return () => { el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMove); };
-  });
+    const el = containerRef.current;
+    if (!el || isScrolling.current) return;
+    const idx = items.indexOf(val);
+    if (idx >= 0) el.scrollTop = idx * itemH;
+  }, [val, items]);
 
-  const numStyle = (offset) => ({
-    fontSize: offset === 0 ? 28 : 20,
-    fontWeight: offset === 0 ? 600 : 300,
-    color: offset === 0 ? color : "#ccc",
-    opacity: Math.abs(offset) === 2 ? 0.3 : Math.abs(offset) === 1 ? 0.6 : 1,
-    lineHeight:1.4, fontVariantNumeric:"tabular-nums", textAlign:"center",
-    transition:"all .1s", userSelect:"none",
-  });
+  const handleScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    isScrolling.current = true;
+    clearTimeout(el._snapTimer);
+    el._snapTimer = setTimeout(() => {
+      const idx = Math.round(el.scrollTop / itemH);
+      const clamped = Math.max(0, Math.min(items.length - 1, idx));
+      if (items[clamped] !== val) onChange(items[clamped]);
+      isScrolling.current = false;
+    }, 80);
+  };
 
   return (
-    <div ref={ref} style={{ display:"flex", flexDirection:"column", alignItems:"center", width:50, touchAction:"none", overflow:"hidden" }}>
-      {[-2,-1,0,1,2].map(offset => (
-        <span key={offset} onClick={offset !== 0 ? () => onChange(getAt(offset)) : undefined}
-          style={{ ...numStyle(offset), cursor: offset !== 0 ? "pointer" : "default" }}>
-          {String(getAt(offset)).padStart(2,"0")}
-        </span>
-      ))}
+    <div style={{ position:"relative", height: itemH * 5, width:56, overflow:"hidden" }}>
+      <div style={{ position:"absolute", left:2, right:2, top: itemH * 2, height: itemH, background:`${color}08`, borderRadius:8, border:`1px solid ${color}15`, pointerEvents:"none", zIndex:1 }} />
+      <div style={{ position:"absolute", top:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
+      <div ref={containerRef} onScroll={handleScroll}
+        style={{ height:"100%", overflowY:"scroll", scrollSnapType:"y mandatory", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", msOverflowStyle:"none", paddingTop: itemH * 2, paddingBottom: itemH * 2 }}>
+        <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+        {items.map((item, i) => {
+          const selected = item === val;
+          return (
+            <div key={i} style={{ height:itemH, display:"flex", alignItems:"center", justifyContent:"center", scrollSnapAlign:"center",
+              fontSize: selected ? 26 : 20, fontWeight: selected ? 600 : 300, color: selected ? color : "#bbb",
+              fontVariantNumeric:"tabular-nums", userSelect:"none", transition:"color .15s, font-size .15s" }}>
+              {String(item).padStart(padLen,"0")}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -329,20 +330,26 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pH, setPH] = useState(h);
   const [pM, setPM] = useState(m);
+  const [minHint, setMinHint] = useState(false);
+  const hintCount = useRef(0);
   const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   const set = (nh,nm) => onChange(String(((nh%24)+24)%24).padStart(2,"0")+":"+String(((nm%60)+60)%60).padStart(2,"0"));
+  const roundMin = (v) => { const r = v < 15 ? 0 : v < 45 ? 30 : 0; if (v !== 0 && v !== 30) { hintCount.current++; if (hintCount.current >= 2) setMinHint(true); } return r; };
   const hours = Array.from({length:24},(_,i)=>i);
   const minutes = [0,30];
 
   return (
-    <>
-      <div onClick={isTouch ? () => { setPH(h); setPM(m); setPickerOpen(true); } : undefined}
-        style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none", cursor: isTouch ? "pointer" : "default" }}>
-        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} onSet={v => set(v,m)} color={accentColor} max={23} noClick={isTouch} />
-        <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
-        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} onSet={v => set(h,v)} color={accentColor} max={59} noClick={isTouch} />
-        <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
+    <div>
+      <div style={{ display:"inline-flex", alignItems:"center" }}>
+        <div onClick={isTouch ? () => { setPH(h); setPM(m); setPickerOpen(true); } : undefined}
+          style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none", cursor: isTouch ? "pointer" : "default" }}>
+          <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} onSet={v => set(v,m)} color={accentColor} max={23} noClick={isTouch} />
+          <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
+          <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} onSet={v => set(h,roundMin(v))} color={accentColor} max={59} noClick={isTouch} />
+          <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
+        </div>
       </div>
+      {minHint && <div style={{ fontSize:10, color:"#999", marginTop:3 }}>Zeiten in 30-Minuten-Schritten (00 / 30)</div>}
       {pickerOpen && (
         <div onClick={() => setPickerOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:200 }}>
@@ -358,53 +365,40 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
-function NumInput({ value, onChange, placeholder, min=0, max=999, color=BRAND.moosgruen, label, icon, style={} }) {
+function NumInput({ value, onChange, placeholder, min=0, max=100, color=BRAND.moosgruen, label, icon, style={} }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(Number(value)||min);
-  const [typing, setTyping] = useState(false);
-  const [typeDraft, setTypeDraft] = useState("");
   const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   const v = Number(value) || 0;
-  const commitType = () => { const n = parseInt(typeDraft, 10); if (!isNaN(n)) setDraft(Math.max(min, Math.min(max, n))); setTyping(false); };
+  const items = Array.from({length: max - min + 1}, (_, i) => min + i);
   return (
     <>
       {isTouch ? (
-        <div onClick={() => { setDraft(v || min); setTyping(false); setOpen(true); }}
+        <div onClick={() => { setDraft(v || min); setOpen(true); }}
           style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:`1.5px solid ${color}20`, borderRadius:6, padding:"5px 12px", cursor:"pointer", ...style }}>
           {icon}
-          <span style={{ fontSize:15, fontWeight:500, color: v > 0 ? color : "#bbb", fontVariantNumeric:"tabular-nums", minWidth:20 }}>{v > 0 ? v : placeholder || "0"}</span>
+          <span style={{ fontSize:15, fontWeight:500, color: v > 0 ? color : "#bbb", fontVariantNumeric:"tabular-nums", minWidth:20 }}>{v > 0 ? v : ""}</span>
         </div>
       ) : (
         <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:`1.5px solid ${color}20`, borderRadius:6, padding:"3px 10px", ...style }}>
           {icon}
-          <input type="number" min={min} max={max} placeholder={placeholder||"0"} value={value} onChange={e => onChange(e.target.value)}
+          <input type="number" min={min} max={max} placeholder={placeholder||""} value={value} onChange={e => onChange(e.target.value)}
             style={{ width:50, fontSize:15, fontWeight:500, color, border:"none", outline:"none", background:"transparent", fontFamily:"inherit", fontVariantNumeric:"tabular-nums", padding:"2px 0" }} />
         </div>
       )}
       {open && (
         <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:200 }}>
-            {label && <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:14 }}>{label}</div>}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:16 }}>
-              <button onClick={() => { setDraft(d => Math.max(min, d - 1)); setTyping(false); }}
-                style={{ width:44, height:44, borderRadius:"50%", border:`1.5px solid ${color}30`, background:"#fff", fontSize:22, color, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:300 }}>−</button>
-              {typing ? (
-                <input autoFocus type="number" value={typeDraft} onChange={e => setTypeDraft(e.target.value)}
-                  onBlur={commitType} onKeyDown={e => { if(e.key==="Enter") commitType(); }}
-                  style={{ width:60, fontSize:32, fontWeight:600, color, fontVariantNumeric:"tabular-nums", textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", fontFamily:"inherit", padding:0 }} />
-              ) : (
-                <span onClick={() => { setTypeDraft(String(draft)); setTyping(true); }}
-                  style={{ fontSize:36, fontWeight:600, color, fontVariantNumeric:"tabular-nums", minWidth:50, cursor:"text" }}>{draft}</span>
-              )}
-              <button onClick={() => { setDraft(d => Math.min(max, d + 1)); setTyping(false); }}
-                style={{ width:44, height:44, borderRadius:"50%", border:`1.5px solid ${color}30`, background:"#fff", fontSize:22, color, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:300 }}>+</button>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:140 }}>
+            {label && <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>{label}</div>}
+            <div style={{ display:"flex", justifyContent:"center" }}>
+              <DrumColumn val={draft} items={items} onChange={setDraft} color={color} padLen={1} />
             </div>
             <button onClick={() => { onChange(String(draft)); setOpen(false); }}
-              style={{ marginTop:16, background:color, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Übernehmen</button>
+              style={{ marginTop:12, background:color, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Übernehmen</button>
           </div>
         </div>
       )}
@@ -437,7 +431,7 @@ export default function App() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastKey(k => k + 1);
     setToast({ msg, detail, undoable });
-    toastTimer.current = setTimeout(() => { setToast(null); prevEvents.current = null; }, 5200);
+    toastTimer.current = setTimeout(() => { setToast(null); prevEvents.current = null; }, 8000);
   };
 
   const handleUndo = () => {
@@ -454,6 +448,25 @@ export default function App() {
   const [successModal, setSuccessModal] = useState(false);
   const [winW, setWinW] = useState(typeof window !== "undefined" ? window.innerWidth : 800);
   useEffect(() => { const h = () => setWinW(window.innerWidth); window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); }, []);
+
+  // Auto-adjust end time if same as or before start time
+  useEffect(() => {
+    if (!adminForm.startTime || !adminForm.endTime || adminForm.allDay) return;
+    if (adminForm.endTime <= adminForm.startTime) {
+      const [sh,sm] = adminForm.startTime.split(":").map(Number);
+      const nh = Math.min(23, sh + 1);
+      setAdminForm(f => ({...f, endTime: String(nh).padStart(2,"0")+":"+String(sm).padStart(2,"0")}));
+    }
+  }, [adminForm.startTime, adminForm.endTime, adminForm.allDay]);
+
+  useEffect(() => {
+    const sh = Number(formData.tourHour)||0, sm = Number(formData.tourMin)||0;
+    const eh = Number(formData.tourEndHour)||0, em = Number(formData.tourEndMin)||0;
+    if (eh * 60 + em <= sh * 60 + sm) {
+      const nh = Math.min(23, sh + 1);
+      setFormData(f => ({...f, tourEndHour: nh, tourEndMin: sm}));
+    }
+  }, [formData.tourHour, formData.tourMin, formData.tourEndHour, formData.tourEndMin]);
 
   // Prevent zoom on mobile
   useEffect(() => {
@@ -626,7 +639,7 @@ export default function App() {
             )}
           </div>
           <div style={{ height:3, background: BRAND.lila, margin:"0 6px 4px", borderRadius:3 }}>
-            <div style={{ height:"100%", background:"#fff", borderRadius:3, animation:"toastProgress 5s linear forwards" }} />
+            <div style={{ height:"100%", background:"#fff", borderRadius:3, animation:"toastProgress 8s linear forwards" }} />
           </div>
         </div>
       )}
@@ -1230,7 +1243,7 @@ export default function App() {
                       {/* 2. Participants */}
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: formData.guests && guestsTooLow ? 4 : 12 }}>
                         <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, flexShrink:0 }}>Personenanzahl</label>
-                        <NumInput value={formData.guests} onChange={v => setFormData(f=>({...f, guests:v}))} placeholder="Anzahl" min={1} color={BRAND.moosgruen} label="Teilnehmeranzahl"
+                        <NumInput value={formData.guests} onChange={v => setFormData(f=>({...f, guests:v}))} placeholder="" min={1} color={BRAND.moosgruen} label="Teilnehmeranzahl"
                           icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>}
                           style={formData.guests && guestsTooLow ? { borderColor:"#c44" } : {}} />
                       </div>
