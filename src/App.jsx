@@ -281,18 +281,20 @@ function DrumColumn({ val, items, onChange, color, padLen=2 }) {
   const containerRef = useRef(null);
   const itemH = 36;
   const isScrolling = useRef(false);
+  const [scrollPos, setScrollPos] = useState(0);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el || isScrolling.current) return;
     const idx = items.indexOf(val);
-    if (idx >= 0) el.scrollTop = idx * itemH;
+    if (idx >= 0) { el.scrollTop = idx * itemH; setScrollPos(idx * itemH); }
   }, [val, items]);
 
   const handleScroll = () => {
     const el = containerRef.current;
     if (!el) return;
     isScrolling.current = true;
+    setScrollPos(el.scrollTop);
     clearTimeout(el._snapTimer);
     el._snapTimer = setTimeout(() => {
       const idx = Math.round(el.scrollTop / itemH);
@@ -302,20 +304,25 @@ function DrumColumn({ val, items, onChange, color, padLen=2 }) {
     }, 80);
   };
 
+  const centerIdx = scrollPos / itemH;
+
   return (
     <div style={{ position:"relative", height: itemH * 5, width:56, overflow:"hidden" }}>
-      <div style={{ position:"absolute", left:2, right:2, top: itemH * 2, height: itemH, background:`${color}08`, borderRadius:8, border:`1px solid ${color}15`, pointerEvents:"none", zIndex:1 }} />
       <div style={{ position:"absolute", top:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
       <div ref={containerRef} onScroll={handleScroll}
         style={{ height:"100%", overflowY:"scroll", scrollSnapType:"y mandatory", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", msOverflowStyle:"none", paddingTop: itemH * 2, paddingBottom: itemH * 2 }}>
         <style>{`div::-webkit-scrollbar { display: none; }`}</style>
         {items.map((item, i) => {
-          const selected = item === val;
+          const dist = Math.abs(i - centerIdx);
+          const t = Math.max(0, 1 - dist);
+          const sz = 18 + t * 10;
+          const fw = t > 0.5 ? 600 : 300;
+          const op = Math.max(0.3, 1 - dist * 0.35);
           return (
             <div key={i} style={{ height:itemH, display:"flex", alignItems:"center", justifyContent:"center", scrollSnapAlign:"center",
-              fontSize: selected ? 26 : 20, fontWeight: selected ? 600 : 300, color: selected ? color : "#bbb",
-              fontVariantNumeric:"tabular-nums", userSelect:"none", transition:"color .15s, font-size .15s" }}>
+              fontSize:sz, fontWeight:fw, color, opacity:op,
+              fontVariantNumeric:"tabular-nums", userSelect:"none" }}>
               {String(item).padStart(padLen,"0")}
             </div>
           );
@@ -355,7 +362,6 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:200 }}>
             <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>Uhrzeit wählen</div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, position:"relative", padding:"8px 0" }}>
-              <div style={{ position:"absolute", left:8, right:8, top:"50%", transform:"translateY(-50%)", height:36, background:`${accentColor}08`, borderRadius:8, border:`1px solid ${accentColor}15`, pointerEvents:"none" }} />
               <DrumColumn val={pH} items={hours} onChange={setPH} color={accentColor} />
               <span style={{ fontSize:28, color:"#ccc", fontWeight:300 }}>:</span>
               <DrumColumn val={pM} items={minutes} onChange={setPM} color={accentColor} />
@@ -645,20 +651,21 @@ export default function App() {
       )}
 
       {successModal && (
-        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", backdropFilter:"blur(4px)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", textAlign:"center" }}>
-            <div style={{ width:48, height:48, borderRadius:"50%", background:`${BRAND.moosgruen}15`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 14px" }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={BRAND.moosgruen} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, background:"rgba(88,8,74,0.15)", backdropFilter:"blur(6px)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:"32px 28px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(88,8,74,0.2)", textAlign:"center" }}>
+            <div style={{ width:56, height:56, borderRadius:"50%", background:`${BRAND.lila}12`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={BRAND.lila} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
             </div>
-            <div style={{ fontSize:18, fontWeight:700, color:BRAND.aubergine, marginBottom:6 }}>Anfrage gesendet!</div>
-            <div style={{ fontSize:13, color:"#888", lineHeight:1.5, marginBottom:16 }}>Vielen Dank für Ihre Anfrage. Wir melden uns in Kürze bei Ihnen.</div>
+            <div style={{ fontSize:20, fontWeight:700, color:BRAND.aubergine, marginBottom:8 }}>Anfrage gesendet!</div>
+            <div style={{ fontSize:14, color:"#888", lineHeight:1.6, marginBottom:20 }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
             <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer"
-              style={{ display:"inline-block", padding:"10px 24px", background:`${BRAND.moosgruen}12`, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, color:BRAND.moosgruen, fontSize:13, fontWeight:600, textDecoration:"none", marginBottom:12, transition:"all .15s" }}>
-              www.derparadiesgarten.at besuchen
+              style={{ display:"block", padding:"14px 16px", background:`${BRAND.aubergine}06`, border:`1.5px solid ${BRAND.aubergine}15`, borderRadius:12, textDecoration:"none", marginBottom:16, transition:"all .15s" }}>
+              <div style={{ fontSize:11, color:"#999", fontWeight:500, letterSpacing:0.5, marginBottom:4 }}>Mehr über uns erfahren</div>
+              <div style={{ fontSize:15, fontWeight:600, color:BRAND.lila }}>www.derparadiesgarten.at</div>
+              <div style={{ fontSize:11, color:"#aaa", marginTop:3 }}>Entdecken Sie unseren Paradiesgarten in Klagenfurt</div>
             </a>
-            <br />
             <button onClick={() => setSuccessModal(false)}
-              style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5, marginTop:4 }}>Schließen</button>
+              style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"12px 36px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Schließen</button>
           </div>
         </div>
       )}
