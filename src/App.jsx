@@ -433,10 +433,10 @@ export default function App() {
   const toastTimer = useRef(null);
   const prevEvents = useRef(null);
 
-  const showToast = (msg, detail, undoable=false) => {
+  const showToast = (msg, detail, undoable=false, actionColor=null) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastKey(k => k + 1);
-    setToast({ msg, detail, undoable });
+    setToast({ msg, detail, undoable, actionColor });
     toastTimer.current = setTimeout(() => { setToast(null); prevEvents.current = null; }, 8000);
   };
 
@@ -500,6 +500,7 @@ export default function App() {
   const [hoveredDate, setHoveredDate] = useState(null);
   const [showPrices, setShowPrices] = useState(false);
   const [showPast, setShowPast] = useState(false);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -523,15 +524,16 @@ export default function App() {
   const handleDateClick = (day) => {
     if (!day) return;
     const key = dateKey(year, month, day);
+    const ev = events[key]?.status === "deleted" ? null : events[key];
     setSelectedDate(key);
     if (isAdmin) {
-      if (events[key]) {
+      if (ev) {
         setModalView("info");
       } else {
         setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[] });
         setModalView("admin");
       }
-    } else if (events[key] && events[key].status !== "pending") {
+    } else if (ev && ev.status !== "pending") {
       setModalView("info");
     } else {
       setSelectedDate(key);
@@ -602,16 +604,23 @@ export default function App() {
       setConfirmDelete(key);
       return;
     }
+    if (action === "permDelete") {
+      const updated = { ...events };
+      delete updated[key];
+      saveEvents(updated);
+      return;
+    }
     setConfirmDelete(null);
     prevEvents.current = { ...events };
     const ev = events[key];
-    const detail = `${fmtDate(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`;
     const updated = { ...events };
     if (action === "confirm") updated[key] = { ...updated[key], status: "booked" };
-    else if (action === "delete") delete updated[key];
+    else if (action === "delete") updated[key] = { ...updated[key], status: "deleted", deletedAt: new Date().toISOString() };
     saveEvents(updated);
     setModalView(null);
-    showToast(action === "confirm" ? "✓ Buchung bestätigt" : "✕ Eintrag gelöscht", detail, true);
+    const actionLabel = action === "confirm" ? "Bestätigt" : "Gelöscht";
+    const actionColor = action === "confirm" ? BRAND.moosgruen : "#c44";
+    showToast(actionLabel, `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, actionColor);
   };
 
   const handleSavePrice = () => {
@@ -631,14 +640,14 @@ export default function App() {
   return (
     <div style={{ minHeight:"100vh", background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
       {toast && (
-        <div key={toastKey} style={{ position:"fixed", top:56, left:"50%", transform:"translateX(-50%)", background: BRAND.aubergine, color:"#fff", borderRadius:8, zIndex:1100, boxShadow:"0 4px 20px rgba(88,8,74,0.3)", animation:"fadeIn .25s", overflow:"hidden", minWidth:200, maxWidth:"92vw" }}>
-          <div style={{ padding:"6px 12px", display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"baseline", gap:6, overflow:"hidden" }}>
-              <span style={{ fontSize:12, fontWeight:600, whiteSpace:"nowrap" }}>{toast.msg}</span>
-              {toast.detail && <span style={{ fontSize:10, opacity:0.6, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{toast.detail}</span>}
+        <div key={toastKey} style={{ position:"fixed", top:56, left:"50%", transform:"translateX(-50%)", background: BRAND.aubergine, color:"#fff", borderRadius:10, zIndex:1100, boxShadow:"0 4px 20px rgba(88,8,74,0.3)", animation:"fadeIn .25s", overflow:"hidden", minWidth:220, maxWidth:"92vw" }}>
+          <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              {toast.detail && <div style={{ fontSize:13, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", marginBottom:3 }}>{toast.detail}</div>}
+              <span style={{ display:"inline-block", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, background: toast.actionColor || "rgba(255,255,255,0.2)", color:"#fff", letterSpacing:0.5, textTransform:"uppercase" }}>{toast.msg}</span>
             </div>
             {toast.undoable && (
-              <button onClick={handleUndo} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", padding:"4px 8px", borderRadius:5, fontSize:10, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:3 }}>
+              <button onClick={handleUndo} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", padding:"6px 10px", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4 }}>
                 <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M3 7h7a3 3 0 1 1 0 6H9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 4L3 7l3 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Rückgängig
               </button>
@@ -758,7 +767,8 @@ export default function App() {
           {days.map((day, i) => {
             if (!day) return <div key={`e${i}`} />;
             const key = dateKey(year, month, day);
-            const ev = events[key];
+            const evRaw = events[key];
+            const ev = evRaw?.status === "deleted" ? null : evRaw;
             const hol = holidays[key];
             const isToday = key === todayKey;
             const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -917,6 +927,40 @@ export default function App() {
                       <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPast ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#aaa" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </h3>
                     {showPast && pastAll.map(r => renderRow(r, true))}
+                  </div>
+                );
+              })()}
+              {(() => {
+                const deletedAll = Object.entries(events).filter(([,v]) => v.status === "deleted").sort(([a],[b]) => b.localeCompare(a));
+                if (!deletedAll.length) return null;
+                return (
+                  <div style={{ marginTop:20 }}>
+                    <h3 onClick={() => setShowDeleted(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#c44", letterSpacing:2, textTransform:"uppercase", marginBottom: showDeleted ? 10 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8, opacity:0.7 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c44" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                      Gelöschte Termine ({deletedAll.length})
+                      <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showDeleted ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#c44" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </h3>
+                    {showDeleted && deletedAll.map(([key, ev]) => {
+                      const [yy,mm,dd] = key.split("-").map(Number);
+                      return (
+                        <div key={key} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#fdf6f6", borderRadius:8, marginBottom:4, border:"1px solid #f0e0e0", opacity:0.7 }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:12, fontWeight:600, color:"#888" }}>{fmtDateAT(key)}</div>
+                            <div style={{ fontSize:11, color:"#aaa", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ev.label}{ev.name ? ` · ${ev.name}` : ""}</div>
+                          </div>
+                          <button onClick={() => { const u = {...events}; u[key] = {...u[key], status:"booked"}; saveEvents(u); }}
+                            title="Wiederherstellen"
+                            style={{ background:"none", border:`1px solid ${BRAND.moosgruen}40`, borderRadius:6, width:28, height:28, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:BRAND.moosgruen }}>
+                            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 7h7a3 3 0 1 1 0 6H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 4L3 7l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </button>
+                          <button onClick={() => handleAdminAction(key, "permDelete")}
+                            title="Endgültig löschen"
+                            style={{ background:"none", border:"1px solid #e0c0c0", borderRadius:6, width:28, height:28, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:"#c44" }}>
+                            <svg width="12" height="12" viewBox="0 0 14 14"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })()}
