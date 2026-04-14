@@ -241,11 +241,13 @@ function ChecklistNote({ items=[], onChange, editable=true }) {
   );
 }
 
-function TimeField({ val, onInc, onDec, color, max }) {
+function TimeField({ val, onInc, onDec, color, max, expanded }) {
   const ref = useRef(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [hover, setHover] = useState(false);
+  const startY = useRef(0);
+  const acc = useRef(0);
 
   useEffect(() => {
     const el = ref.current;
@@ -259,43 +261,59 @@ function TimeField({ val, onInc, onDec, color, max }) {
       if (steps !== 0) { acc.current += steps * 28; for (let i = 0; i < Math.abs(steps); i++) steps > 0 ? onInc() : onDec(); }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("touchstart", onStart, { passive: true });
-    el.addEventListener("touchmove", onMove, { passive: false });
+    if (expanded) { el.addEventListener("touchstart", onStart, { passive: true }); el.addEventListener("touchmove", onMove, { passive: false }); }
     return () => { el.removeEventListener("wheel", onWheel); el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMove); };
   });
 
-  const startY = useRef(0);
-  const acc = useRef(0);
   const commit = () => { const n = parseInt(draft, 10); if (!isNaN(n) && n >= 0 && n <= max) { const diff = n - val; if (diff > 0) for (let i=0;i<diff;i++) onInc(); else for (let i=0;i<-diff;i++) onDec(); } setEditing(false); };
-  const arrowBtn = { background:"none", border:"none", cursor:"pointer", padding:0, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", width:24, height:8, opacity: hover ? 1 : 0, transition:"opacity .15s" };
+  const sz = expanded ? 22 : 15;
+  const arrowSz = expanded ? 12 : 8;
+  const showArrows = expanded || hover;
+  const arrowBtn = { background:"none", border:"none", cursor:"pointer", padding: expanded ? "6px 8px" : 0, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", width: expanded ? 36 : 24, height: expanded ? "auto" : 8, opacity: showArrows ? 1 : 0, transition:"opacity .15s" };
 
   return (
     <div ref={ref} style={{ display:"flex", flexDirection:"column", alignItems:"center", touchAction:"none", gap:0 }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <button onClick={onInc} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 4l4-3L9 4" stroke={color} strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.5"/></svg></button>
-      {editing ? (
+      <button onClick={onInc} style={arrowBtn}><svg width={arrowSz} height={arrowSz/2} viewBox="0 0 10 5"><path d="M1 4l4-3L9 4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
+      {editing && !expanded ? (
         <input autoFocus value={draft} onChange={e => setDraft(e.target.value.replace(/\D/g,"").slice(0,2))}
           onBlur={commit} onKeyDown={e => { if(e.key==="Enter") commit(); if(e.key==="Escape") setEditing(false); }}
-          style={{ width:24, fontSize:15, fontWeight:500, color, textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", padding:0, fontFamily:"inherit", fontVariantNumeric:"tabular-nums" }} />
+          style={{ width: sz*1.6, fontSize:sz, fontWeight:500, color, textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", padding:0, fontFamily:"inherit", fontVariantNumeric:"tabular-nums" }} />
       ) : (
-        <span onClick={() => { setDraft(String(val).padStart(2,"0")); setEditing(true); }}
-          style={{ fontSize:15, fontWeight:500, color, fontVariantNumeric:"tabular-nums", cursor:"text", userSelect:"none", minWidth:24, textAlign:"center", lineHeight:1 }}>
+        <span onClick={() => { if (!expanded) { setDraft(String(val).padStart(2,"0")); setEditing(true); }}}
+          style={{ fontSize:sz, fontWeight:500, color, fontVariantNumeric:"tabular-nums", cursor: expanded ? "default" : "text", userSelect:"none", minWidth: sz*1.6, textAlign:"center", lineHeight:1 }}>
           {String(val).padStart(2,"0")}
         </span>
       )}
-      <button onClick={onDec} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 1l4 3L9 1" stroke={color} strokeWidth="1.2" fill="none" strokeLinecap="round" opacity="0.5"/></svg></button>
+      <button onClick={onDec} style={arrowBtn}><svg width={arrowSz} height={arrowSz/2} viewBox="0 0 10 5"><path d="M1 1l4 3L9 1" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
     </div>
   );
 }
 
 function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
   const [h,m] = (value||"08:00").split(":").map(Number);
+  const [expanded, setExpanded] = useState(false);
+  const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   const set = (nh,nm) => onChange(String(((nh%24)+24)%24).padStart(2,"0")+":"+String(((nm%60)+60)%60).padStart(2,"0"));
+
+  if (expanded) {
+    return (
+      <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#fff", border:`2px solid ${accentColor}40`, borderRadius:10, padding:"6px 12px", touchAction:"none", boxShadow:"0 4px 16px rgba(0,0,0,0.1)" }}>
+        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} expanded />
+        <span style={{ fontSize:22, color:"#ccc", fontWeight:300 }}>:</span>
+        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} expanded />
+        <button onClick={() => setExpanded(false)}
+          style={{ marginLeft:8, background:accentColor, color:"#fff", border:"none", borderRadius:6, width:30, height:30, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none" }}>
-      <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} />
+    <div onClick={isTouch ? () => setExpanded(true) : undefined}
+      style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none", cursor: isTouch ? "pointer" : "default" }}>
+      <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} expanded={false} />
       <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
-      <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} />
+      <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} expanded={false} />
       <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
     </div>
   );
@@ -377,13 +395,11 @@ export default function App() {
     return () => { document.body.style.overflow = ""; document.body.style.touchAction = ""; };
   }, [modalView, editingType, loginModal]);
 
-  // Auth listener
   useEffect(() => {
     const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); });
     return unsub;
   }, []);
 
-  // Daten aus Firebase laden
   useEffect(() => {
     (async () => {
       try {
@@ -393,9 +409,7 @@ export default function App() {
           setEvents(SEED_EVENTS);
           try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {}
         }
-      } catch {
-        setEvents(SEED_EVENTS);
-      }
+      } catch { setEvents(SEED_EVENTS); }
       try {
         const tyData = await loadData("types");
         if (tyData) {
@@ -424,9 +438,7 @@ export default function App() {
     setLoginError("");
     try {
       await adminLogin(loginEmail, loginPw);
-      setLoginModal(false);
-      setLoginEmail("");
-      setLoginPw("");
+      setLoginModal(false); setLoginEmail(""); setLoginPw("");
     } catch (e) {
       setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen");
     }
@@ -434,9 +446,7 @@ export default function App() {
 
   const handleLogout = async () => {
     await adminLogout();
-    setIsAdmin(false);
-    setLoggedIn(false);
-    setModalView(null);
+    setIsAdmin(false); setLoggedIn(false); setModalView(null);
   };
 
 
@@ -619,8 +629,7 @@ export default function App() {
                 style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5 }}>
                 Admin →
               </button>
-              <button onClick={handleLogout}
-                title="Abmelden"
+              <button onClick={handleLogout} title="Abmelden"
                 style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               </button>
@@ -635,7 +644,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Login Modal */}
       {loginModal && (
         <div onClick={() => setLoginModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"32px 24px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}>
@@ -644,11 +652,9 @@ export default function App() {
               <div style={{ fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Admin-Login</div>
               <div style={{ fontSize:12, color:"#999", marginTop:2 }}>Paradiesgarten Mattuschka</div>
             </div>
-            <input placeholder="E-Mail" type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
-              onKeyDown={e => e.key==="Enter" && handleLogin()}
+            <input placeholder="E-Mail" type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()}
               style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-            <input placeholder="Passwort" type="password" value={loginPw} onChange={e => setLoginPw(e.target.value)}
-              onKeyDown={e => e.key==="Enter" && handleLogin()}
+            <input placeholder="Passwort" type="password" value={loginPw} onChange={e => setLoginPw(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()}
               style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
             {loginError && <div style={{ fontSize:12, color:"#c44", marginBottom:8, textAlign:"center" }}>{loginError}</div>}
             <button onClick={handleLogin} style={{ width:"100%", padding:"12px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 }}>Anmelden</button>
@@ -710,16 +716,16 @@ export default function App() {
               <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : "day-free"} onClick={() => !isPast && handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : isAdmin && ev?.label ? ev.label : ""}
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
-                  aspectRatio: isAdmin ? "1" : "1/0.8",
+                  aspectRatio:"1",
                   border: isToday ? `2px solid ${BRAND.lila}` : isPending ? `2px solid ${BRAND.aprikot}` : ev && isAdmin && ev.status==="blocked" ? `1.5px solid ${BRAND.moosgruen}60` : ev && isAdmin ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
                   background: isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && ev.status==="blocked" ? `${BRAND.moosgruen}12` : ev && isAdmin ? `${statusColor}18` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast || customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
-                  alignItems:"center", justifyContent:"center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3,
+                  alignItems:"center", justifyContent: hol && !ev ? "flex-end" : "center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3,
                   animation: isPending && !isPast ? "pendingPulse 2s ease-in-out infinite" : "none",
                 }}>
-                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : 400, color: ev && isAdmin && ev.status!=="blocked" ? statusColor : BRAND.aubergine }}>{day}</span>
-                {hol && !ev && <div style={{ position:"absolute", top:0, left:0, right:0, background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize: winW > 900 ? 10 : 9, lineHeight:1, borderRadius: winW > 900 ? "10px 10px 2px 2px" : "8px 8px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>}
+                {hol && !ev && <div style={{ position:"absolute", top:0, left:0, right:0, background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize: winW > 900 ? 9 : 7, lineHeight:1, borderRadius: winW > 900 ? "10px 10px 2px 2px" : "8px 8px 2px 2px", padding: winW > 900 ? "3px 2px" : "2px 1px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>}
+                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : 400, color: ev && isAdmin && ev.status!=="blocked" ? statusColor : BRAND.aubergine, marginTop: hol && !ev ? 2 : 0 }}>{day}</span>
                 {customerBooked && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.lila, marginTop:2 }} />}
                 {ev && isAdmin && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
               </button>
