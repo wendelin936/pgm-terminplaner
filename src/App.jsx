@@ -745,14 +745,21 @@ export default function App() {
 
       <div style={{ maxWidth: winW > 900 ? 1100 : (isAdmin ? 700 : 800), margin:"0 auto", padding: winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
         {/* Customer: Hero Image */}
-        {!isAdmin && winW > 520 && (
-          <div style={{ position:"relative", borderRadius:16, overflow:"hidden", marginBottom:28, height: winW > 900 ? 420 : 280 }}>
+        {!isAdmin && (
+          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 420 : winW > 520 ? 280 : 200 }}>
             <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-hintergrund.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"45%", background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }} />
-            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 16 : 12, right: winW > 900 ? 20 : 14, height: winW > 900 ? 48 : 36, opacity:0.85, filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }} />
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : "18px 20px" }}>
-              <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
-              <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"50%", background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }} />
+            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 16 : 10, right: winW > 900 ? 20 : 10, height: winW > 900 ? 48 : winW > 520 ? 36 : 28, opacity:0.85, filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }} />
+            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : winW > 520 ? "18px 20px" : "14px 14px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12 }}>
+              <div>
+                <div style={{ fontSize: winW > 900 ? 28 : winW > 520 ? 20 : 16, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
+                <div style={{ fontSize: winW > 900 ? 14 : winW > 520 ? 12 : 10, color:"rgba(255,255,255,0.85)", marginTop: winW < 520 ? 2 : 4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
+              </div>
+              <button onClick={() => setModalView("selectType")}
+                style={{ background:"#fff", color:BRAND.aubergine, border:"none", borderRadius:8, padding: winW > 900 ? "10px 20px" : "8px 14px", fontSize: winW > 900 ? 14 : 12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 4px 12px rgba(0,0,0,0.25)", flexShrink:0, display:"flex", alignItems:"center", gap:6 }}>
+                Jetzt anfragen
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              </button>
             </div>
           </div>
         )}
@@ -790,16 +797,11 @@ export default function App() {
                   <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 8 : 10, marginBottom:20 }}>
                     {allTypes.map(renderCard)}
                   </div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 6 : 10, justifyContent:"center", marginBottom:20 }}>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 6 : 10, justifyContent:"center", marginBottom:10 }}>
                     {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","Persönliche Betreuung"].map(t => (
                       <span key={t} style={{ fontSize: isMobile ? 10 : 11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
                     ))}
                   </div>
-                  <button onClick={() => setModalView("selectType")}
-                    style={{ width:"100%", padding:"14px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, fontSize:15, fontWeight:700, cursor:"pointer", letterSpacing:0.5, boxShadow:"0 4px 16px rgba(88,8,74,0.25)", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-                    Jetzt Veranstaltung anfragen
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                  </button>
                 </div>
               );
             })()}
