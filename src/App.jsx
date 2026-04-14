@@ -283,6 +283,7 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [loginModal, setLoginModal] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPw, setLoginPw] = useState("");
@@ -322,6 +323,13 @@ export default function App() {
   const [winW, setWinW] = useState(typeof window !== "undefined" ? window.innerWidth : 800);
   useEffect(() => { const h = () => setWinW(window.innerWidth); window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); }, []);
 
+  // Prevent zoom on mobile
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="viewport"]');
+    if (meta) meta.setAttribute("content", "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no");
+    else { meta = document.createElement("meta"); meta.name = "viewport"; meta.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"; document.head.appendChild(meta); }
+  }, []);
+
   const SEED_EVENTS = {
     "2026-04-12": { status:"booked", label:"Geburtstagsfeier", type:"geburtstag", slot:"custom", startTime:"14:00", endTime:"18:00", slotLabel:"14:00 – 18:00", name:"Frieda", adminNote:"Frieda wird 50!", checklist:[{text:"Deko mitbringen",done:false},{text:"Torte bestellen",done:false},{text:"Einladungen verschickt",done:true}] },
     "2026-04-25": { status:"booked", label:"Seminar / Workshop", type:"seminar", slot:"fullDay", startTime:"08:00", endTime:"22:00", slotLabel:"Ganztags (08:00–22:00)", name:"", adminNote:"Workshop ganztägig" },
@@ -341,9 +349,16 @@ export default function App() {
   const [hoveredDate, setHoveredDate] = useState(null);
   const [showPrices, setShowPrices] = useState(false);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (modalView || editingType || loginModal) { document.body.style.overflow = "hidden"; document.body.style.touchAction = "none"; }
+    else { document.body.style.overflow = ""; document.body.style.touchAction = ""; }
+    return () => { document.body.style.overflow = ""; document.body.style.touchAction = ""; };
+  }, [modalView, editingType, loginModal]);
+
   // Auth: automatisch Admin-Status setzen wenn eingeloggt
   useEffect(() => {
-    const unsub = onAuthChange(user => setIsAdmin(!!user));
+    const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); });
     return unsub;
   }, []);
 
@@ -399,6 +414,7 @@ export default function App() {
   const handleLogout = async () => {
     await adminLogout();
     setIsAdmin(false);
+    setLoggedIn(false);
     setModalView(null);
   };
 
@@ -518,7 +534,7 @@ export default function App() {
   if (loading) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui", color: BRAND.aubergine }}>Laden...</div>;
 
   return (
-    <div style={{ minHeight:"100vh", background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif" }}>
+    <div style={{ minHeight:"100vh", background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
       {toast && (
         <div key={toastKey} style={{ position:"fixed", top:56, left:"50%", transform:"translateX(-50%)", background: BRAND.aubergine, color:"#fff", borderRadius:8, zIndex:1100, boxShadow:"0 4px 20px rgba(88,8,74,0.3)", animation:"fadeIn .25s", overflow:"hidden", minWidth:200, maxWidth:"92vw" }}>
           <div style={{ padding:"6px 12px", display:"flex", alignItems:"center", gap:10 }}>
@@ -541,12 +557,21 @@ export default function App() {
 
       <header style={{ background: BRAND.aubergine, color:"#fff", padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 520 ? "sticky" : "relative", top:0, zIndex:50 }}>
         <div style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1 }}>
-          <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height:26, flexShrink:0 }} />
-          {winW >= 520 && <>
-            <span style={{ marginLeft:10, fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"#fff" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}>MATTUSCHKA</span></span>
-            <div style={{ width:1, height:20, background:"rgba(255,255,255,0.35)", margin:"0 14px", flexShrink:0 }} />
-            <span style={{ fontSize:12, opacity:.6, whiteSpace:"nowrap", letterSpacing:0.5 }}>Termin-Veranstaltungsplaner</span>
-          </>}
+          <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? 24 : 26, flexShrink:0 }} />
+          <div style={{ marginLeft: winW < 520 ? 8 : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", gap: winW < 520 ? 0 : 0, minWidth:0 }}>
+            {winW < 520 ? (
+              <>
+                <span style={{ fontSize:11, letterSpacing:2, color:"#fff", fontWeight:600, lineHeight:1.2 }}>PARADIESGÄRTEN</span>
+                <span style={{ fontSize:11, letterSpacing:2, color:"#fff", fontWeight:300, lineHeight:1.2 }}>MATTUSCHKA</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"#fff" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}>MATTUSCHKA</span></span>
+                <div style={{ width:1, height:20, background:"rgba(255,255,255,0.35)", margin:"0 14px", flexShrink:0 }} />
+                <span style={{ fontSize:12, opacity:.6, whiteSpace:"nowrap", letterSpacing:0.5 }}>Termin-Veranstaltungsplaner</span>
+              </>
+            )}
+          </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           {!isAdmin && (
@@ -556,10 +581,29 @@ export default function App() {
             </button>
           )}
           {isAdmin ? (
-            <button onClick={handleLogout}
-              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"8px 16px", borderRadius:6, cursor:"pointer", fontSize:12, letterSpacing:1, textTransform:"uppercase" }}>
-              Abmelden
-            </button>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <button onClick={() => { setIsAdmin(false); setModalView(null); }}
+                style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5 }}>
+                ← Kundenansicht
+              </button>
+              <button onClick={handleLogout}
+                title="Abmelden"
+                style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </button>
+            </div>
+          ) : loggedIn ? (
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <button onClick={() => { setIsAdmin(true); setModalView(null); }}
+                style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5 }}>
+                Admin →
+              </button>
+              <button onClick={handleLogout}
+                title="Abmelden"
+                style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </button>
+            </div>
           ) : (
             <button onClick={() => setLoginModal(true)}
               style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", width:36, height:36, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}
@@ -573,7 +617,7 @@ export default function App() {
       {/* Login Modal */}
       {loginModal && (
         <div onClick={() => setLoginModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"32px 24px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"32px 24px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch" }}>
             <div style={{ textAlign:"center", marginBottom:20 }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" style={{ marginBottom:8 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               <div style={{ fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Admin-Login</div>
@@ -596,7 +640,7 @@ export default function App() {
       )}
 
       {isAdmin && (
-        <div style={{ background:`${BRAND.aubergine}12`, padding:"5px 24px", fontSize:11, display:"flex", gap:16, alignItems:"center", borderBottom:"1px solid #e8e0e5" }}>
+        <div style={{ background:`${BRAND.aubergine}12`, padding: winW < 520 ? "5px 12px" : "5px 24px", fontSize: winW < 520 ? 10 : 11, display:"flex", gap: winW < 520 ? 10 : 16, alignItems:"center", borderBottom:"1px solid #e8e0e5" }}>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:BRAND.lila, display:"inline-block" }} /> Gebucht</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:8, height:8, borderRadius:"50%", background:BRAND.moosgruen, display:"inline-block" }} /> Blockiert</span>
@@ -791,14 +835,17 @@ export default function App() {
               <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPrices ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aubergine} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </h3>
             {showPrices && (
-            <div style={{ display:"flex", gap:8 }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
               {eventTypes.map(et => (
                 <div key={et.id} onClick={() => setEditingType({...et})}
-                  style={{ flex:"1 1 0", background:"#fff", borderRadius:8, padding:"10px 10px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 1px 6px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .15s", minWidth:0 }}>
-                  <div style={{ fontWeight:700, color: BRAND.aubergine, fontSize:11, marginBottom:4, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{et.label}</div>
+                  style={{ flex: winW < 520 ? "1 1 calc(50% - 4px)" : "1 1 0", background:"#fff", borderRadius:8, padding: winW < 520 ? "12px 10px" : "10px 10px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 1px 6px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .15s", minWidth:0 }}>
+                  <div style={{ fontWeight:700, color: BRAND.aubergine, fontSize: winW < 520 ? 12 : 11, marginBottom:4, wordBreak:"break-word" }}>{et.label}</div>
                   <div style={{ fontSize:10, color:"#888" }}>
-                    <div>½ {et.halfDay === 0 ? "–" : fmt(et.halfDay)}</div>
-                    <div>1 {et.fullDay === 0 ? "–" : fmt(et.fullDay)}</div>
+                    {et.isGroupTour ? (
+                      <><div>€ {et.pricePerPerson} p.P.</div><div>ab {et.minPersons} Pers.</div></>
+                    ) : (
+                      <><div>½ {et.halfDay === 0 ? "–" : fmt(et.halfDay)}</div><div>1 {et.fullDay === 0 ? "–" : fmt(et.fullDay)}</div></>
+                    )}
                   </div>
                 </div>
               ))}
@@ -870,7 +917,7 @@ export default function App() {
       {/* Modal */}
       {(modalView || editingType) && (
         <div onClick={() => { if (modalView !== "form") { setModalView(null); setEditingType(null); } }}
-          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16 }}>
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none" }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}>
 
             {/* Select Event Type */}
@@ -1426,6 +1473,13 @@ export default function App() {
 
 
       <style>{`
+        html, body { overscroll-behavior: none; -webkit-overflow-scrolling: touch; }
+        html { overflow-x: hidden; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        input, textarea, select, button { font-size: 16px; }
+        @media (max-width: 520px) {
+          .evt-card:hover { transform: none !important; }
+        }
         @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
         @keyframes toastProgress { from { width:100% } to { width:0% } }
         @keyframes pendingPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(242,140,90,0.3) } 50% { box-shadow: 0 0 8px 2px rgba(242,140,90,0.25) } }
