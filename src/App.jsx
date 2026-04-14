@@ -686,7 +686,8 @@ export default function App() {
       )}
 
       <header style={{ background: BRAND.aubergine, color:"#fff", padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 520 ? "sticky" : "relative", top:0, zIndex:50 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1 }}>
+        <div onClick={!isAdmin ? () => { if (loggedIn) { setIsAdmin(true); setModalView(null); } else setLoginModal(true); } : undefined}
+          style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1, cursor: !isAdmin ? "pointer" : "default" }}>
           <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? 24 : 26, flexShrink:0 }} />
           <div style={{ marginLeft: winW < 520 ? 8 : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", gap: winW < 520 ? 0 : 0, minWidth:0 }}>
             {winW < 520 ? (
@@ -695,42 +696,23 @@ export default function App() {
                 <span style={{ fontSize:11, letterSpacing:2, color:"#fff", fontWeight:300, lineHeight:1.2 }}>MATTUSCHKA</span>
               </>
             ) : (
-              <>
-                <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"#fff" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}>MATTUSCHKA</span></span>
-                <div style={{ width:1, height:20, background:"rgba(255,255,255,0.35)", margin:"0 14px", flexShrink:0 }} />
-                <span style={{ fontSize:12, opacity:.6, whiteSpace:"nowrap", letterSpacing:0.5 }}>Termin-Veranstaltungsplaner</span>
-              </>
+              <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"#fff" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}> MATTUSCHKA</span></span>
             )}
           </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {!isAdmin && (
-            <button onClick={() => setModalView("contact")}
-              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 14px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:1, textTransform:"uppercase", display:"flex", alignItems:"center" }}>
-              Kontakt
+        {isAdmin && (
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <button onClick={() => { setIsAdmin(false); setModalView(null); }}
+              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 12px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center" }}>
+              ← Kundenansicht
             </button>
-          )}
-          {isAdmin ? (
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <button onClick={() => { setIsAdmin(false); setModalView(null); }}
-                style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 12px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center" }}>
-                ← Kundenansicht
-              </button>
-              <button onClick={handleLogout}
-                title="Abmelden"
-                style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              </button>
-            </div>
-          ) : loggedIn ? (
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <button onClick={() => { setIsAdmin(true); setModalView(null); }} style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 12px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center" }}>Admin →</button>
-              <button onClick={handleLogout} title="Abmelden" style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
-            </div>
-          ) : (
-            <button onClick={() => setLoginModal(true)} style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }} title="Admin-Login"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
-          )}
-        </div>
+            <button onClick={() => { setIsAdmin(false); setModalView(null); }}
+              title="Abmelden"
+              style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </button>
+          </div>
+        )}
       </header>
 
       {loginModal && (<div onClick={() => setLoginModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}><div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"32px 24px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}><div style={{ textAlign:"center", marginBottom:20 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" style={{ marginBottom:8 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><div style={{ fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Admin-Login</div><div style={{ fontSize:12, color:"#999", marginTop:2 }}>Paradiesgarten Mattuschka</div></div><input placeholder="E-Mail" type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()} style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} /><input placeholder="Passwort" type="password" value={loginPw} onChange={e => setLoginPw(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()} style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />{loginError && <div style={{ fontSize:12, color:"#c44", marginBottom:8, textAlign:"center" }}>{loginError}</div>}<button onClick={handleLogin} style={{ width:"100%", padding:"12px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 }}>Anmelden</button><button onClick={() => setLoginModal(false)} onMouseEnter={e=>{e.target.style.color="#c44";e.target.style.background="#fdf6f6"}} onMouseLeave={e=>{e.target.style.color="#aaa";e.target.style.background="transparent"}} style={{ width:"100%", padding:10, border:"none", background:"transparent", color:"#aaa", cursor:"pointer", fontSize:13, marginTop:4, borderRadius:8, transition:"all .15s" }}>Abbrechen</button></div></div>)}
@@ -749,16 +731,16 @@ export default function App() {
           <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 560 : winW > 520 ? 370 : 265 }}>
             <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-hintergrund.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
             <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"50%", background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 60%, transparent 100%)" }} />
-            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 16 : 10, right: winW > 900 ? 20 : 10, height: winW > 900 ? 48 : winW > 520 ? 36 : 28, opacity:0.85, filter:"drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }} />
+            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 70 : winW > 520 ? 50 : 38, opacity:0.9, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }} />
             <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : winW > 520 ? "18px 20px" : "14px 14px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12 }}>
               <div>
                 <div style={{ fontSize: winW > 900 ? 28 : winW > 520 ? 20 : 16, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
                 <div style={{ fontSize: winW > 900 ? 14 : winW > 520 ? 12 : 10, color:"rgba(255,255,255,0.85)", marginTop: winW < 520 ? 2 : 4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
               <button onClick={() => setModalView("selectType")}
-                style={{ background:"#fff", color:BRAND.aubergine, border:"none", borderRadius:8, padding: winW > 900 ? "10px 20px" : "8px 14px", fontSize: winW > 900 ? 14 : 12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 4px 12px rgba(0,0,0,0.25)", flexShrink:0, display:"flex", alignItems:"center", gap:6 }}>
+                style={{ background:"#fff", color:BRAND.aubergine, border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
                 Jetzt anfragen
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
             </div>
           </div>
@@ -1069,17 +1051,17 @@ export default function App() {
         {!isAdmin && (
           <div style={{ background:BRAND.aubergine, borderRadius:10, padding: winW < 520 ? "16px 16px" : "18px 28px", textAlign:"center", marginBottom:24 }}>
             <div style={{ fontSize: winW < 520 ? 13 : 14, fontWeight:700, color:"#fff", letterSpacing:2, marginBottom:6, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
-            <div style={{ fontSize: winW < 520 ? 11 : 12, color:`${BRAND.lila}cc`, lineHeight:1.6 }}>
-              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}cc` }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
+            <div style={{ fontSize: winW < 520 ? 11 : 12, color:`${BRAND.lila}70`, lineHeight:1.6 }}>
+              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}70` }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
               {winW < 520 ? (
                 <>
-                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>+43 463 49 119</a><br />
-                  <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>info@mattuschka.at</a><br />
-                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>+43 463 49 119</a><br />
+                  <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>info@mattuschka.at</a><br />
+                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               ) : (
                 <>
-                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}cc`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}70`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               )}
             </div>
