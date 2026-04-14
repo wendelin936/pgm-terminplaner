@@ -385,12 +385,16 @@ function NumInput({ value, onChange, placeholder, min=0, max=100, color=BRAND.mo
     <>
       {isTouch ? (
         <div onClick={() => { setDraft(v || min); setOpen(true); }}
-          style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:`1.5px solid ${color}20`, borderRadius:6, padding:"5px 12px", cursor:"pointer", ...style }}>
+          style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:`1.5px solid ${color}20`, borderRadius:6, padding:"8px 12px", cursor:"pointer", minHeight:36, ...style }}>
           {icon}
-          <span style={{ fontSize:15, fontWeight:500, color: v > 0 ? color : "#bbb", fontVariantNumeric:"tabular-nums", minWidth:20 }}>{v > 0 ? v : ""}</span>
+          {v > 0 ? (
+            <span style={{ fontSize:15, fontWeight:500, color, fontVariantNumeric:"tabular-nums" }}>{v}</span>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.5"/></svg>
+          )}
         </div>
       ) : (
-        <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:`1.5px solid ${color}20`, borderRadius:6, padding:"3px 10px", ...style }}>
+        <div style={{ display:"inline-flex", alignItems:"center", gap:6, background:"#fff", border:`1.5px solid ${color}20`, borderRadius:6, padding:"5px 10px", minHeight:36, ...style }}>
           {icon}
           <input type="number" min={min} max={max} placeholder={placeholder||""} value={value} onChange={e => onChange(e.target.value)}
             style={{ width:50, fontSize:15, fontWeight:500, color, border:"none", outline:"none", background:"transparent", fontFamily:"inherit", fontVariantNumeric:"tabular-nums", padding:"2px 0" }} />
@@ -600,7 +604,7 @@ export default function App() {
   };
 
   const handleAdminAction = (key, action) => {
-    if (action === "delete" && confirmDelete !== key) {
+    if (action === "delete" && confirmDelete !== key && events[key]?.status !== "pending") {
       setConfirmDelete(key);
       return;
     }
@@ -697,17 +701,17 @@ export default function App() {
             )}
           </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           {!isAdmin && (
             <button onClick={() => setModalView("contact")}
-              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"8px 16px", borderRadius:6, cursor:"pointer", fontSize:12, letterSpacing:1, textTransform:"uppercase" }}>
+              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 14px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:1, textTransform:"uppercase", display:"flex", alignItems:"center" }}>
               Kontakt
             </button>
           )}
           {isAdmin ? (
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
               <button onClick={() => { setIsAdmin(false); setModalView(null); }}
-                style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5 }}>
+                style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 12px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center" }}>
                 ← Kundenansicht
               </button>
               <button onClick={handleLogout}
@@ -718,11 +722,11 @@ export default function App() {
             </div>
           ) : loggedIn ? (
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <button onClick={() => { setIsAdmin(true); setModalView(null); }} style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5 }}>Admin →</button>
+              <button onClick={() => { setIsAdmin(true); setModalView(null); }} style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 12px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center" }}>Admin →</button>
               <button onClick={handleLogout} title="Abmelden" style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
             </div>
           ) : (
-            <button onClick={() => setLoginModal(true)} style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", width:36, height:36, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }} title="Admin-Login"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
+            <button onClick={() => setLoginModal(true)} style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }} title="Admin-Login"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></button>
           )}
         </div>
       </header>
@@ -825,7 +829,7 @@ export default function App() {
                         {ev.slotLabel && <span style={{ fontSize:10, color:"#aaa" }}><ClockIcon />{ev.slotLabel}</span>}
                       </div>
                       <div style={{ display:"flex", gap:4, flexShrink:0, marginLeft:8 }}>
-                        <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
+                        <button onClick={(e) => { e.stopPropagation(); setSelectedDate(key); setModalView("info"); }}
                           onMouseEnter={e => { e.target.style.filter="brightness(0.85)"; }}
                           onMouseLeave={e => { e.target.style.filter="none"; }}
                           style={{ ...smallBtn, background: BRAND.mintgruen, width:26, height:26, fontSize:11, transition:"all .15s" }}>✓</button>
@@ -1539,17 +1543,13 @@ export default function App() {
                   )}
 
                   {isAdmin && ev.status === "pending" && (
-                    <div style={{ background:`${BRAND.sonnengelb}20`, borderRadius:10, padding:"14px 16px", marginBottom:10, border:`1.5px solid ${BRAND.aprikot}30` }}>
-                      <div style={{ fontSize:13, fontWeight:700, color: BRAND.aprikot, marginBottom:10, textAlign:"center" }}>⏳ Diese Anfrage wartet auf Ihre Bestätigung</div>
+                    <div style={{ borderRadius:10, padding:"14px 16px", marginBottom:10, border:`1.5px solid ${BRAND.aprikot}25` }}>
+                      <div style={{ fontSize:12, color: BRAND.aprikot, marginBottom:10, textAlign:"center" }}>Diese Anfrage wartet auf Ihre Bestätigung</div>
                       <div style={{ display:"flex", gap:10 }}>
                         <button onClick={() => handleAdminAction(selectedDate,"confirm")}
-                          onMouseEnter={e => { e.target.style.filter="brightness(0.85)"; }}
-                          onMouseLeave={e => { e.target.style.filter="none"; }}
-                          style={{ ...primaryBtn, flex:1, background: BRAND.mintgruen, fontSize:15, padding:"14px 0", transition:"all .15s" }}>✓ Annehmen</button>
+                          style={{ ...primaryBtn, flex:1, background: BRAND.moosgruen, fontSize:14, padding:"11px 0", borderRadius:8 }}>Annehmen</button>
                         <button onClick={() => handleAdminAction(selectedDate,"delete")}
-                          onMouseEnter={e => { e.target.style.background="#f8d0d0"; e.target.style.color="#c44"; }}
-                          onMouseLeave={e => { e.target.style.background="#e8e0e5"; e.target.style.color=BRAND.aubergine; }}
-                          style={{ ...primaryBtn, flex:1, background:"#e8e0e5", color: BRAND.aubergine, fontSize:15, padding:"14px 0", transition:"all .15s" }}>✕ Ablehnen</button>
+                          style={{ ...primaryBtn, flex:1, background:"#f5f0f4", color: BRAND.aubergine, fontSize:14, padding:"11px 0", borderRadius:8, border:`1px solid #e0d8de` }}>Ablehnen</button>
                       </div>
                     </div>
                   )}
