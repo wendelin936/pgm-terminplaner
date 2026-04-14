@@ -739,9 +739,9 @@ export default function App() {
                 <div style={{ fontSize: winW > 900 ? 14 : winW > 520 ? 12 : 10, color:"rgba(255,255,255,0.85)", marginTop: winW < 520 ? 2 : 4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
               <button onClick={() => setModalView("selectType")}
-                onMouseEnter={e => { e.currentTarget.style.background=BRAND.aubergine; e.currentTarget.style.boxShadow="0 8px 24px rgba(88,8,74,0.4)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background=BRAND.lila; e.currentTarget.style.boxShadow="0 6px 20px rgba(144,52,134,0.3)"; }}
-                style={{ background:BRAND.lila, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(144,52,134,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .25s ease" }}>
+                onMouseEnter={e => { e.currentTarget.style.background=BRAND.aubergine; e.currentTarget.style.boxShadow="0 8px 24px rgba(88,8,74,0.4)"; e.currentTarget.style.transform="translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background="#a84c9e"; e.currentTarget.style.boxShadow="0 6px 20px rgba(144,52,134,0.25)"; e.currentTarget.style.transform="translateY(0)"; }}
+                style={{ background:"#a84c9e", color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(144,52,134,0.25)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .25s ease" }}>
                 Jetzt anfragen
                 <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
@@ -1052,19 +1052,19 @@ export default function App() {
 
         {/* Customer: Contact */}
         {!isAdmin && (
-          <div style={{ background:`${BRAND.lila}08`, borderRadius:10, padding: winW < 520 ? "14px 16px" : "16px 28px", textAlign:"center", marginBottom:24, border:`1px solid ${BRAND.lila}10` }}>
-            <div style={{ fontSize: winW < 520 ? 12 : 13, fontWeight:700, color:BRAND.aubergine, letterSpacing:2, marginBottom:4, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
-            <div style={{ fontSize: winW < 520 ? 10 : 11, color:`${BRAND.lila}50`, lineHeight:1.6 }}>
-              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}50` }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
+          <div style={{ background:BRAND.aubergine, borderRadius:10, padding: winW < 520 ? "14px 16px" : "16px 28px", textAlign:"center", marginBottom:24 }}>
+            <div style={{ fontSize: winW < 520 ? 12 : 13, fontWeight:700, color:"#fff", letterSpacing:2, marginBottom:4, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
+            <div style={{ fontSize: winW < 520 ? 10 : 11, color:"rgba(200,170,200,0.6)", lineHeight:1.6 }}>
+              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(200,170,200,0.6)" }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
               {winW < 520 ? (
                 <>
-                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}50`, textDecoration:"none" }}>+43 463 49 119</a><br />
-                  <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}50`, textDecoration:"none" }}>info@mattuschka.at</a><br />
-                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}50`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>+43 463 49 119</a><br />
+                  <a href="mailto:info@mattuschka.at" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>info@mattuschka.at</a><br />
+                  <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               ) : (
                 <>
-                  <a href="tel:+4346349119" style={{ color:`${BRAND.lila}50`, textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:`${BRAND.lila}50`, textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:`${BRAND.lila}50`, textDecoration:"none" }}>www.derparadiesgarten.at</a>
+                  <a href="tel:+4346349119" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>+43 463 49 119</a> &nbsp;|&nbsp; <a href="mailto:info@mattuschka.at" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>info@mattuschka.at</a> &nbsp;|&nbsp; <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(200,170,200,0.6)", textDecoration:"none" }}>www.derparadiesgarten.at</a>
                 </>
               )}
             </div>
