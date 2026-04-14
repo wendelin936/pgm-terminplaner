@@ -241,81 +241,123 @@ function ChecklistNote({ items=[], onChange, editable=true }) {
   );
 }
 
-function TimeField({ val, onInc, onDec, color, max, expanded }) {
+function TimeField({ val, onInc, onDec, color, max }) {
   const ref = useRef(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [hover, setHover] = useState(false);
-  const startY = useRef(0);
-  const acc = useRef(0);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const onWheel = (e) => { e.preventDefault(); e.deltaY < 0 ? onInc() : onDec(); };
-    const onStart = (e) => { startY.current = e.touches[0].clientY; acc.current = 0; };
-    const onMove = (e) => {
-      e.preventDefault();
-      const dy = startY.current - e.touches[0].clientY;
-      const steps = Math.floor((dy - acc.current) / 28);
-      if (steps !== 0) { acc.current += steps * 28; for (let i = 0; i < Math.abs(steps); i++) steps > 0 ? onInc() : onDec(); }
-    };
     el.addEventListener("wheel", onWheel, { passive: false });
-    if (expanded) { el.addEventListener("touchstart", onStart, { passive: true }); el.addEventListener("touchmove", onMove, { passive: false }); }
-    return () => { el.removeEventListener("wheel", onWheel); el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMove); };
+    return () => el.removeEventListener("wheel", onWheel);
   });
 
   const commit = () => { const n = parseInt(draft, 10); if (!isNaN(n) && n >= 0 && n <= max) { const diff = n - val; if (diff > 0) for (let i=0;i<diff;i++) onInc(); else for (let i=0;i<-diff;i++) onDec(); } setEditing(false); };
-  const sz = expanded ? 22 : 15;
-  const arrowSz = expanded ? 12 : 8;
-  const showArrows = expanded || hover;
-  const arrowBtn = { background:"none", border:"none", cursor:"pointer", padding: expanded ? "6px 8px" : 0, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", width: expanded ? 36 : 24, height: expanded ? "auto" : 8, opacity: showArrows ? 1 : 0, transition:"opacity .15s" };
+  const arrowBtn = { background:"none", border:"none", cursor:"pointer", padding:0, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", width:24, height:8, opacity: hover ? 1 : 0, transition:"opacity .15s" };
 
   return (
     <div ref={ref} style={{ display:"flex", flexDirection:"column", alignItems:"center", touchAction:"none", gap:0 }}
       onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <button onClick={onInc} style={arrowBtn}><svg width={arrowSz} height={arrowSz/2} viewBox="0 0 10 5"><path d="M1 4l4-3L9 4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
-      {editing && !expanded ? (
+      <button onClick={onInc} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 4l4-3L9 4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
+      {editing ? (
         <input autoFocus value={draft} onChange={e => setDraft(e.target.value.replace(/\D/g,"").slice(0,2))}
           onBlur={commit} onKeyDown={e => { if(e.key==="Enter") commit(); if(e.key==="Escape") setEditing(false); }}
-          style={{ width: sz*1.6, fontSize:sz, fontWeight:500, color, textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", padding:0, fontFamily:"inherit", fontVariantNumeric:"tabular-nums" }} />
+          style={{ width:24, fontSize:15, fontWeight:500, color, textAlign:"center", border:"none", borderBottom:`2px solid ${color}`, background:"transparent", outline:"none", padding:0, fontFamily:"inherit", fontVariantNumeric:"tabular-nums" }} />
       ) : (
-        <span onClick={() => { if (!expanded) { setDraft(String(val).padStart(2,"0")); setEditing(true); }}}
-          style={{ fontSize:sz, fontWeight:500, color, fontVariantNumeric:"tabular-nums", cursor: expanded ? "default" : "text", userSelect:"none", minWidth: sz*1.6, textAlign:"center", lineHeight:1 }}>
+        <span onClick={() => { setDraft(String(val).padStart(2,"0")); setEditing(true); }}
+          style={{ fontSize:15, fontWeight:500, color, fontVariantNumeric:"tabular-nums", cursor:"text", userSelect:"none", minWidth:24, textAlign:"center", lineHeight:1 }}>
           {String(val).padStart(2,"0")}
         </span>
       )}
-      <button onClick={onDec} style={arrowBtn}><svg width={arrowSz} height={arrowSz/2} viewBox="0 0 10 5"><path d="M1 1l4 3L9 1" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
+      <button onClick={onDec} style={arrowBtn}><svg width="8" height="4" viewBox="0 0 10 5"><path d="M1 1l4 3L9 1" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6"/></svg></button>
+    </div>
+  );
+}
+
+function DrumColumn({ val, items, onChange, color }) {
+  const ref = useRef(null);
+  const startY = useRef(0);
+  const acc = useRef(0);
+  const idx = items.indexOf(val);
+  const getAt = (offset) => items[((idx + offset) % items.length + items.length) % items.length];
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onStart = (e) => { startY.current = e.touches[0].clientY; acc.current = 0; };
+    const onMove = (e) => {
+      e.preventDefault();
+      const dy = startY.current - e.touches[0].clientY;
+      const steps = Math.floor((dy - acc.current) / 32);
+      if (steps !== 0) {
+        acc.current += steps * 32;
+        const newIdx = ((idx + steps) % items.length + items.length) % items.length;
+        onChange(items[newIdx]);
+      }
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    return () => { el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMove); };
+  });
+
+  const numStyle = (offset) => ({
+    fontSize: offset === 0 ? 28 : 20,
+    fontWeight: offset === 0 ? 600 : 300,
+    color: offset === 0 ? color : "#ccc",
+    opacity: Math.abs(offset) === 2 ? 0.3 : Math.abs(offset) === 1 ? 0.6 : 1,
+    lineHeight:1.4, fontVariantNumeric:"tabular-nums", textAlign:"center",
+    transition:"all .1s", userSelect:"none",
+  });
+
+  return (
+    <div ref={ref} style={{ display:"flex", flexDirection:"column", alignItems:"center", width:50, touchAction:"none", overflow:"hidden" }}>
+      <span style={numStyle(-2)}>{String(getAt(-2)).padStart(2,"0")}</span>
+      <span style={numStyle(-1)}>{String(getAt(-1)).padStart(2,"0")}</span>
+      <span style={numStyle(0)}>{String(val).padStart(2,"0")}</span>
+      <span style={numStyle(1)}>{String(getAt(1)).padStart(2,"0")}</span>
+      <span style={numStyle(2)}>{String(getAt(2)).padStart(2,"0")}</span>
     </div>
   );
 }
 
 function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
   const [h,m] = (value||"08:00").split(":").map(Number);
-  const [expanded, setExpanded] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pH, setPH] = useState(h);
+  const [pM, setPM] = useState(m);
   const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
   const set = (nh,nm) => onChange(String(((nh%24)+24)%24).padStart(2,"0")+":"+String(((nm%60)+60)%60).padStart(2,"0"));
-
-  if (expanded) {
-    return (
-      <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#fff", border:`2px solid ${accentColor}40`, borderRadius:10, padding:"6px 12px", touchAction:"none", boxShadow:"0 4px 16px rgba(0,0,0,0.1)" }}>
-        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} expanded />
-        <span style={{ fontSize:22, color:"#ccc", fontWeight:300 }}>:</span>
-        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} expanded />
-        <button onClick={() => setExpanded(false)}
-          style={{ marginLeft:8, background:accentColor, color:"#fff", border:"none", borderRadius:6, width:30, height:30, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
-      </div>
-    );
-  }
+  const hours = Array.from({length:24},(_,i)=>i);
+  const minutes = [0,30];
 
   return (
-    <div onClick={isTouch ? () => setExpanded(true) : undefined}
-      style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none", cursor: isTouch ? "pointer" : "default" }}>
-      <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} expanded={false} />
-      <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
-      <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} expanded={false} />
-      <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
-    </div>
+    <>
+      <div onClick={isTouch ? () => { setPH(h); setPM(m); setPickerOpen(true); } : undefined}
+        style={{ display:"inline-flex", alignItems:"center", gap:0, background:"#fff", border:`1.5px solid ${accentColor}20`, borderRadius:6, padding:"3px 10px", touchAction:"none", cursor: isTouch ? "pointer" : "default" }}>
+        <TimeField val={h} onInc={() => set(h+1,m)} onDec={() => set(h-1,m)} color={accentColor} max={23} />
+        <span style={{ fontSize:15, color:"#ccc", margin:"0 1px", fontWeight:300 }}>:</span>
+        <TimeField val={m} onInc={() => set(h,m===0?30:0)} onDec={() => set(h,m===0?30:0)} color={accentColor} max={59} />
+        <span style={{ fontSize:9, color:"#bbb", marginLeft:6, userSelect:"none" }}>Uhr</span>
+      </div>
+      {pickerOpen && (
+        <div onClick={() => setPickerOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:200 }}>
+            <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>Uhrzeit wählen</div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, position:"relative", padding:"8px 0" }}>
+              <div style={{ position:"absolute", left:8, right:8, top:"50%", transform:"translateY(-50%)", height:36, background:`${accentColor}08`, borderRadius:8, border:`1px solid ${accentColor}15`, pointerEvents:"none" }} />
+              <DrumColumn val={pH} items={hours} onChange={setPH} color={accentColor} />
+              <span style={{ fontSize:28, color:"#ccc", fontWeight:300 }}>:</span>
+              <DrumColumn val={pM} items={minutes} onChange={setPM} color={accentColor} />
+            </div>
+            <button onClick={() => { set(pH, pM); setPickerOpen(false); }}
+              style={{ marginTop:12, background:accentColor, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Übernehmen</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -405,49 +447,28 @@ export default function App() {
       try {
         const evData = await loadData("events");
         if (evData) { setEvents(JSON.parse(evData)); }
-        else {
-          setEvents(SEED_EVENTS);
-          try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {}
-        }
+        else { setEvents(SEED_EVENTS); try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} }
       } catch { setEvents(SEED_EVENTS); }
       try {
         const tyData = await loadData("types");
         if (tyData) {
           const saved = JSON.parse(tyData);
-          setEventTypes(DEFAULT_TYPES.map(d => {
-            const s = saved.find(x => x.id === d.id);
-            return s ? { ...d, ...s } : d;
-          }));
+          setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; }));
         }
       } catch {}
       setLoading(false);
     })();
   }, []);
 
-  const saveEvents = useCallback(async (updated) => {
-    setEvents(updated);
-    try { await saveData("events", JSON.stringify(updated)); } catch {}
-  }, []);
-
-  const saveTypes = useCallback(async (updated) => {
-    setEventTypes(updated);
-    try { await saveData("types", JSON.stringify(updated)); } catch {}
-  }, []);
+  const saveEvents = useCallback(async (updated) => { setEvents(updated); try { await saveData("events", JSON.stringify(updated)); } catch {} }, []);
+  const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
 
   const handleLogin = async () => {
     setLoginError("");
-    try {
-      await adminLogin(loginEmail, loginPw);
-      setLoginModal(false); setLoginEmail(""); setLoginPw("");
-    } catch (e) {
-      setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen");
-    }
+    try { await adminLogin(loginEmail, loginPw); setLoginModal(false); setLoginEmail(""); setLoginPw(""); }
+    catch (e) { setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen"); }
   };
-
-  const handleLogout = async () => {
-    await adminLogout();
-    setIsAdmin(false); setLoggedIn(false); setModalView(null);
-  };
+  const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
 
 
 
@@ -626,9 +647,7 @@ export default function App() {
           ) : loggedIn ? (
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
               <button onClick={() => { setIsAdmin(true); setModalView(null); }}
-                style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5 }}>
-                Admin →
-              </button>
+                style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"6px 12px", borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5 }}>Admin →</button>
               <button onClick={handleLogout} title="Abmelden"
                 style={{ background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", width:32, height:32, borderRadius:6, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -658,9 +677,7 @@ export default function App() {
               style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
             {loginError && <div style={{ fontSize:12, color:"#c44", marginBottom:8, textAlign:"center" }}>{loginError}</div>}
             <button onClick={handleLogin} style={{ width:"100%", padding:"12px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 }}>Anmelden</button>
-            <button onClick={() => setLoginModal(false)}
-              onMouseEnter={e => { e.target.style.color="#c44"; e.target.style.background="#fdf6f6"; }}
-              onMouseLeave={e => { e.target.style.color="#aaa"; e.target.style.background="transparent"; }}
+            <button onClick={() => setLoginModal(false)} onMouseEnter={e=>{e.target.style.color="#c44";e.target.style.background="#fdf6f6"}} onMouseLeave={e=>{e.target.style.color="#aaa";e.target.style.background="transparent"}}
               style={{ width:"100%", padding:10, border:"none", background:"transparent", color:"#aaa", cursor:"pointer", fontSize:13, marginTop:4, borderRadius:8, transition:"all .15s" }}>Abbrechen</button>
           </div>
         </div>
@@ -724,7 +741,7 @@ export default function App() {
                   alignItems:"center", justifyContent: hol && !ev ? "flex-end" : "center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3,
                   animation: isPending && !isPast ? "pendingPulse 2s ease-in-out infinite" : "none",
                 }}>
-                {hol && !ev && <div style={{ position:"absolute", top:0, left:0, right:0, background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize: winW > 900 ? 9 : 7, lineHeight:1, borderRadius: winW > 900 ? "10px 10px 2px 2px" : "8px 8px 2px 2px", padding: winW > 900 ? "3px 2px" : "2px 1px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>}
+                {hol && !ev && <div style={{ position:"absolute", top:0, left:0, right:0, background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize: winW > 900 ? 9 : 6, lineHeight:1, borderRadius: winW > 900 ? "10px 10px 2px 2px" : "8px 8px 2px 2px", padding: winW > 900 ? "3px 2px" : "2px 1px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>}
                 <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : 400, color: ev && isAdmin && ev.status!=="blocked" ? statusColor : BRAND.aubergine, marginTop: hol && !ev ? 2 : 0 }}>{day}</span>
                 {customerBooked && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.lila, marginTop:2 }} />}
                 {ev && isAdmin && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
