@@ -537,7 +537,6 @@ export default function App() {
     else { const st = adminForm.allDay ? "00:00" : adminForm.startTime; const et = adminForm.allDay ? "23:59" : adminForm.endTime; updated[selectedDate] = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? "Ganztägig" : `${st} – ${et}` }; }
     saveEvents(updated);
     setModalView(null);
-    showToast(adminForm.type === "free" ? "Datum freigegeben" : "Datum gespeichert", `${fmtDate(selectedDate)}${adminForm.label ? " · " + adminForm.label : ""}`);
   };
 
   const handleCustomerSubmit = () => {
@@ -590,7 +589,6 @@ export default function App() {
     if (!editingType) return;
     saveTypes(eventTypes.map(t => t.id === editingType.id ? editingType : t));
     setEditingType(null);
-    showToast("Preise gespeichert");
   };
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y=>y-1); } else setMonth(m=>m-1); };
