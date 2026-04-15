@@ -509,6 +509,8 @@ export default function App() {
   const [showUpcoming, setShowUpcoming] = useState(true);
   const [showInternal, setShowInternal] = useState(true);
   const [modalPull, setModalPull] = useState(0);
+  const [editingField, setEditingField] = useState(null);
+  const [editFieldVal, setEditFieldVal] = useState("");
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroHover, setHeroHover] = useState(false);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
@@ -928,13 +930,14 @@ export default function App() {
                   <div onClick={() => { setSelectedDate(key); setModalView("info"); }}
                     onMouseEnter={() => setHoveredDate(key)} onMouseLeave={() => setHoveredDate(null)}
                     style={{ background:"#fff", borderRadius:8, padding: winW < 520 ? "8px 10px" : "10px 12px", borderLeft:`3px solid ${BRAND.aprikot}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", transition:"all .15s" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2, gap:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: winW < 520 ? 0 : 2, gap:8 }}>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:"flex", alignItems:"baseline", gap: winW < 520 ? 4 : 6, flexWrap:"wrap" }}>
                           <span style={{ fontWeight:600, color: BRAND.aprikot, fontSize: winW < 520 ? 12 : 13 }}>{dateStr}</span>
                           <span style={{ fontSize: winW < 520 ? 10 : 11, color: BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
                         </div>
-                        {ev.slotLabel && <span style={{ fontSize: winW < 520 ? 9 : 10, color:"#aaa" }}><ClockIcon />{ev.slotLabel}</span>}
+                        {winW > 900 && ev.slotLabel && <span style={{ fontSize:10, color:"#aaa" }}><ClockIcon />{ev.slotLabel}</span>}
+                        {winW <= 900 && ev.name && <div style={{ fontSize:9, color:"#888", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>}
                       </div>
                       <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
                         onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.85)"; }}
@@ -944,12 +947,12 @@ export default function App() {
                         {winW >= 520 && "Annehmen"}
                       </button>
                     </div>
-                    <div style={{ fontSize: winW < 520 ? 9 : 10, color:"#888", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                    {winW > 900 && <div style={{ fontSize:10, color:"#888", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
                       👤 {ev.name}
-                      {ev.email && <> · <a href={`mailto:${ev.email}`} onClick={e=>e.stopPropagation()} style={{ color: BRAND.lila, textDecoration:"none", fontSize: winW < 520 ? 9 : 10 }}>{ev.email}</a></>}
+                      {ev.email && <> · <a href={`mailto:${ev.email}`} onClick={e=>e.stopPropagation()} style={{ color: BRAND.lila, textDecoration:"none", fontSize:10 }}>{ev.email}</a></>}
                       {ev.guests && <> · {ev.guests} Gäste</>}
-                      {winW >= 520 && ev.message && <> · <span style={{ fontStyle:"italic", color:"#aaa" }}>„{ev.message}"</span></>}
-                    </div>
+                      {ev.message && <> · <span style={{ fontStyle:"italic", color:"#aaa" }}>„{ev.message}"</span></>}
+                    </div>}
                   </div>
                 </SwipeRow>
                 );
@@ -974,38 +977,23 @@ export default function App() {
               <div key={key} style={{ marginBottom:5 }}>
                 <div className="admin-card" onClick={() => { setSelectedDate(key); setModalView("info"); }}
                   style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 12px", borderLeft:`3px solid ${isBlocked ? "#009a93" : BRAND.aubergine}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", display:"flex", alignItems:"center", gap:10, opacity: pastMode ? 0.7 : 1 }}>
-                  {!pastMode && winW >= 520 && (confirmDelete === key ? (
-                    <div onClick={(e) => e.stopPropagation()} style={{ position:"absolute", top:0, right:0, bottom:0, display:"flex", alignItems:"center", gap:6, padding:"0 10px", background:"rgba(255,255,255,0.95)", borderRadius:"0 8px 8px 0", zIndex:2 }}>
-                      <span style={{ fontSize:11, color:"#999" }}>Löschen?</span>
-                      <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"delete"); }}
-                        onMouseEnter={e => { e.target.style.background="#a33"; }}
-                        onMouseLeave={e => { e.target.style.background="#c44"; }}
-                        style={{ background:"#c44", border:"none", color:"#fff", padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>Ja</button>
-                      <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }}
-                        onMouseEnter={e => { e.target.style.color="#c44"; e.target.style.background="#fdf6f6"; }}
-                        onMouseLeave={e => { e.target.style.color="#888"; e.target.style.background="#e8e0e5"; }}
-                        style={{ background:"#e8e0e5", border:"none", color:"#888", padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>Nein</button>
-                    </div>
-                  ) : (
-                    <button className="card-delete" onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"delete"); }}
-                      style={{ position:"absolute", top:4, right:4, width:20, height:20, borderRadius:10, border:"none", background:"transparent", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:0, opacity:0, transition:"opacity .15s" }}>
-                      <svg width="12" height="12" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="#c44" strokeWidth="2" strokeLinecap="round"/></svg>
-                    </button>
-                  ))}
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", alignItems:"baseline", gap:6, flexWrap:"wrap" }}>
                       <span style={{ fontWeight:600, color: isBlocked ? "#009a93" : BRAND.aubergine, fontSize: winW > 900 ? 15 : 13 }}>{dateStr}</span>
                       <span style={{ fontSize: winW > 900 ? 13 : 11, color:"#999", fontWeight:500 }}>{ev.label || (isBlocked ? "" : "")}</span>
-                      {ev.slotLabel && <span style={{ fontSize: winW > 900 ? 12 : 10, color:"#bbb" }}><ClockIcon color="#bbb" />{ev.slotLabel}</span>}
+                      {winW > 900 && ev.slotLabel && <span style={{ fontSize: winW > 900 ? 12 : 10, color:"#bbb" }}><ClockIcon color="#bbb" />{ev.slotLabel}</span>}
                     </div>
-                    {(ev.name || ev.adminNote) && (
+                    {winW > 900 && (ev.name || ev.adminNote) && (
                       <div style={{ fontSize:10, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
                         {ev.name && <span>{ev.name}</span>}
                         {ev.adminNote && <span>{ev.name ? " · " : ""}{ev.adminNote}</span>}
                       </div>
                     )}
+                    {winW <= 900 && ev.name && (
+                      <div style={{ fontSize:9, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>
+                    )}
                   </div>
-                  <div style={{ background: isBlocked ? "#009a9312" : `${BRAND.aubergine}10`, color: isBlocked ? "#009a93" : BRAND.aubergine, padding:"2px 6px", borderRadius:8, fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0, opacity:0.6 }}>
+                  <div style={{ background: isBlocked ? "#009a93" : BRAND.lila, color: "#fff", padding:"3px 8px", borderRadius:6, fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>
                     {isBlocked ? "Intern" : "Gebucht"}
                   </div>
                 </div>
@@ -1610,39 +1598,75 @@ export default function App() {
                   {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:6, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
 
                   {isAdmin ? (
-                    <div onClick={() => { setAdminForm({ type: ev.status || "booked", label: ev.label || "", note: ev.note || "", startTime: ev.startTime || "08:00", endTime: ev.endTime || "22:00", adminNote: ev.adminNote || "", eventType: ev.type || "", checklist: ev.checklist || [] }); setEditingTime(null); setModalView("admin"); }}
-                      style={{ background:"#f6f2f6", borderRadius:10, padding:"14px 16px", marginBottom:12, cursor:"pointer", border:"1.5px solid transparent", transition:"border .15s" }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor="#e0d8de"} onMouseLeave={e => e.currentTarget.style.borderColor="transparent"}>
-                      {ev.label && <div style={{ fontSize:15, fontWeight:700, color: BRAND.aubergine, marginBottom:4 }}>{ev.label}</div>}
-                      {ev.slotLabel && <div style={{ fontSize:13, color:"#666", marginBottom:4 }}><ClockIcon />{ev.slotLabel}</div>}
-                      {ev.name && <div style={{ fontSize:13, color:"#666", marginBottom:2 }}>👤 {ev.name}{ev.email ? <> · <a href={`mailto:${ev.email}`} onClick={e=>e.stopPropagation()} style={{ color: BRAND.lila, textDecoration:"none" }}>{ev.email}</a></> : ""}</div>}
-                      {ev.phone && <div style={{ fontSize:13, color:"#666", marginBottom:2 }}>📞 <a href={`tel:${ev.phone.replace(/\s/g,"")}`} onClick={e=>e.stopPropagation()} style={{ color: BRAND.lila, textDecoration:"none" }}>{ev.phone}</a></div>}
-                      {ev.guests && <div style={{ fontSize:13, color:"#666", marginBottom:2 }}>👥 {ev.guests} {ev.type==="gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
-                      {ev.tourGuide && <div style={{ fontSize:13, color:BRAND.moosgruen, marginBottom:2, fontWeight:600 }}>🌿 Führung mit Gartenexpertin (€ {(eventTypes.find(t=>t.id==="gruppenfuehrung")?.guideCost)||80})</div>}
-                      {(Number(ev.cakeCount)>0 || Number(ev.coffeeCount)>0) && (
-                        <div style={{ fontSize:12, color:"#666", marginBottom:2 }}>
-                          ☕ {Number(ev.coffeeCount)||0}× Kaffee · 🍰 {Number(ev.cakeCount)||0}× Kuchen
+                    <div style={{ marginBottom:12 }}>
+                      {ev.label && <div style={{ fontSize:15, fontWeight:700, color: BRAND.aubergine, marginBottom:2 }}>{ev.label}</div>}
+                      {ev.slotLabel && <div style={{ fontSize:12, color:"#888", marginBottom:8 }}><ClockIcon color="#888" />{ev.slotLabel}{ev.allDay ? " · Ganztägig" : ""}</div>}
+
+                      {/* Editable Customer Data Card */}
+                      {(ev.name || ev.email || ev.phone || ev.guests) && (
+                        <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
+                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Kundendaten</div>
+                          {[
+                            ["name", "👤", "Name", ev.name],
+                            ["email", "✉", "E-Mail", ev.email],
+                            ["phone", "📞", "Telefon", ev.phone],
+                            ["guests", "👥", ev.type==="gruppenfuehrung" ? "Teilnehmer" : "Gäste", ev.guests],
+                          ].filter(([,,, val]) => val).map(([field, icon, label, val]) => {
+                            const isEditing = editingField === field;
+                            return (
+                              <div key={field} onClick={() => { if (!isEditing) { setEditingField(field); setEditFieldVal(val || ""); } }}
+                                style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", marginBottom:2, borderRadius:6, cursor:"pointer", transition:"all .12s", background: isEditing ? "#fff" : "transparent", border: isEditing ? `1.5px solid ${BRAND.lila}40` : "1.5px solid transparent" }}
+                                onMouseEnter={e => { if (!isEditing) e.currentTarget.style.background="#f0ecf0"; }}
+                                onMouseLeave={e => { if (!isEditing) e.currentTarget.style.background="transparent"; }}>
+                                <span style={{ fontSize:13, width:18, textAlign:"center", flexShrink:0 }}>{icon}</span>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ fontSize:8, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{label}</div>
+                                  {isEditing ? (
+                                    <input autoFocus value={editFieldVal} onChange={e => setEditFieldVal(e.target.value)}
+                                      onBlur={() => { const updated = { ...events, [selectedDate]: { ...ev, [field]: editFieldVal } }; saveEvents(updated); setEditingField(null); }}
+                                      onKeyDown={e => { if (e.key==="Enter") e.target.blur(); if (e.key==="Escape") setEditingField(null); }}
+                                      style={{ width:"100%", border:"none", outline:"none", background:"transparent", fontSize:13, color:BRAND.aubergine, fontWeight:500, padding:0, fontFamily:"inherit" }} />
+                                  ) : (
+                                    <div style={{ fontSize:13, color: BRAND.aubergine, fontWeight:500 }}>
+                                      {field === "email" ? <a href={`mailto:${val}`} onClick={e => e.stopPropagation()} style={{ color:BRAND.lila, textDecoration:"none" }}>{val}</a>
+                                        : field === "phone" ? <a href={`tel:${val.replace(/\s/g,"")}`} onClick={e => e.stopPropagation()} style={{ color:BRAND.lila, textDecoration:"none" }}>{val}</a>
+                                        : val}
+                                    </div>
+                                  )}
+                                </div>
+                                {!isEditing && <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ opacity:0.3, flexShrink:0 }}><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="#888" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
-                      {ev.message && <div style={{ fontSize:12, color:"#888", marginTop:4, fontStyle:"italic" }}>„{ev.message}"</div>}
+
+                      {ev.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginBottom:4, fontWeight:600 }}>🌿 Führung mit Gartenexpertin</div>}
+                      {(Number(ev.cakeCount)>0 || Number(ev.coffeeCount)>0) && (
+                        <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>☕ {Number(ev.coffeeCount)||0}× Kaffee · 🍰 {Number(ev.cakeCount)||0}× Kuchen</div>
+                      )}
+                      {ev.message && (
+                        <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
+                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Nachricht</div>
+                          <div style={{ fontSize:12, color:"#666", fontStyle:"italic", lineHeight:1.4 }}>„{ev.message}"</div>
+                        </div>
+                      )}
                       {ev.adminNote && (
-                        <div style={{ marginTop:8, padding:"8px 10px", background:"#f8f4f8", borderRadius:6, borderLeft:`3px solid ${BRAND.aprikot}` }}>
-                          <div style={{ fontSize:10, color: BRAND.aprikot, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Interne Notiz</div>
+                        <div style={{ padding:"10px 12px", background:"#f8f4f8", borderRadius:8, borderLeft:`3px solid ${BRAND.aprikot}`, marginBottom:8 }}>
+                          <div style={{ fontSize:9, color: BRAND.aprikot, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Interne Notiz</div>
                           <div style={{ fontSize:12, color:"#666" }}>{ev.adminNote}</div>
                         </div>
                       )}
                       {ev.checklist && ev.checklist.length > 0 && (
-                        <div style={{ marginTop:8, padding:"8px 10px", background:"#f8f4f8", borderRadius:6, borderLeft:`3px solid ${BRAND.aprikot}` }}
-                          onClick={e => e.stopPropagation()}>
-                          <div style={{ fontSize:10, color: BRAND.aprikot, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Checkliste</div>
+                        <div style={{ padding:"10px 12px", background:"#f8f4f8", borderRadius:8, borderLeft:`3px solid ${BRAND.aprikot}`, marginBottom:8 }}>
+                          <div style={{ fontSize:9, color: BRAND.aprikot, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Checkliste</div>
                           <ChecklistNote items={ev.checklist} onChange={(items) => {
                             const updated = { ...events, [selectedDate]: { ...events[selectedDate], checklist: items } };
                             saveEvents(updated);
                           }} />
                         </div>
                       )}
-                      {ev.note && <div style={{ fontSize:12, color:"#999", marginTop:6 }}>Öffentlich: {ev.note}</div>}
-                      <div style={{ fontSize:10, color:"#bbb", marginTop:8, textAlign:"center" }}>Antippen zum Bearbeiten</div>
+                      {ev.note && <div style={{ fontSize:11, color:"#999", marginBottom:4 }}>Öffentlich: {ev.note}</div>}
                     </div>
                   ) : (
                     <div style={{ padding:"16px 0" }}>
@@ -1667,14 +1691,11 @@ export default function App() {
                   )}
 
                   {isAdmin && ev.status === "pending" && (
-                    <div style={{ borderRadius:10, padding:"14px 16px", marginBottom:10, border:`1.5px solid ${BRAND.aprikot}25` }}>
-                      <div style={{ fontSize:12, color: BRAND.aprikot, marginBottom:10, textAlign:"center" }}>Diese Anfrage wartet auf Ihre Bestätigung</div>
-                      <div style={{ display:"flex", gap:10 }}>
+                    <div style={{ display:"flex", gap:10, justifyContent:"center", marginBottom:10 }}>
                         <button onClick={() => handleAdminAction(selectedDate,"confirm")}
-                          style={{ ...primaryBtn, flex:1, background: BRAND.moosgruen, fontSize:14, padding:"11px 0", borderRadius:8 }}>Annehmen</button>
+                          style={{ ...primaryBtn, padding:"10px 28px", background: BRAND.moosgruen, fontSize:13, borderRadius:8 }}>Annehmen</button>
                         <button onClick={() => handleAdminAction(selectedDate,"delete")}
-                          style={{ ...primaryBtn, flex:1, background:"#f5f0f4", color: BRAND.aubergine, fontSize:14, padding:"11px 0", borderRadius:8, border:`1px solid #e0d8de` }}>Ablehnen</button>
-                      </div>
+                          style={{ ...primaryBtn, padding:"10px 28px", background:"#f5f0f4", color: BRAND.aubergine, fontSize:13, borderRadius:8, border:`1px solid #e0d8de` }}>Ablehnen</button>
                     </div>
                   )}
                   {isAdmin && (
@@ -1763,8 +1784,6 @@ export default function App() {
           .day-free:hover { background: rgba(0,154,147,0.08) !important; border-color: rgba(0,154,147,0.3) !important; }
           .day-booked:hover { background: rgba(144,52,134,0.08) !important; border-color: rgba(144,52,134,0.25) !important; }
           .admin-card:hover { background: rgba(144,52,134,0.05) !important; border-left-color: ${BRAND.lila} !important; box-shadow: 0 2px 8px rgba(88,8,74,0.08) !important; }
-          .admin-card:hover .card-delete { opacity: 1 !important; }
-          .card-delete:hover { background: rgba(204,68,68,0.1) !important; }
           .doc-green:hover { background: ${BRAND.moosgruen}12 !important; border-color: ${BRAND.moosgruen}80 !important; }
           .doc-violet:hover { background: ${BRAND.lila}12 !important; border-color: ${BRAND.lila}80 !important; }
         }
