@@ -17,9 +17,9 @@ const BRAND = {
 
 // Dokumente — Pfade anpassen für Deployment (z.B. "/assets/Getraenke.pdf")
 const DOCS = {
-  getraenke: "/assets/Getraenke_Kuchenkarte.pdf",
-  weinkarte: "/assets/Weinkarte.pdf",
-  flyer: "/assets/Paradiesgarten_Flyer.pdf",
+  getraenke: "https://drive.google.com/file/d/1Tsu4DL2fe-_mgkVlMPHGumvB_yYhGVZE/view",
+  weinkarte: "https://drive.google.com/file/d/1dVx73dLkNClROFE9pLwJsoousdOz3SML/view",
+  flyer: "https://drive.google.com/file/d/1YGXvGiLJDPRTYJ1zMoDA0o6WyNfSpHOp/view",
 };
 
 const PGM_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF8AAABgBAMAAACJTrO+AAABAGlDQ1BpY2MAABiVY2BgPMEABCwGDAy5eSVFQe5OChGRUQrsDxgYgRAMEpOLCxhwA6Cqb9cgai/r4lGHC3CmpBYnA+kPQKxSBLQcaKQIkC2SDmFrgNhJELYNiF1eUlACZAeA2EUhQc5AdgqQrZGOxE5CYicXFIHU9wDZNrk5pckIdzPwpOaFBgNpDiCWYShmCGJwZ3AC+R+iJH8RA4PFVwYG5gkIsaSZDAzbWxkYJG4hxFQWMDDwtzAwbDuPEEOESUFiUSJYiAWImdLSGBg+LWdg4I1kYBC+wMDAFQ0LCBxuUwC7zZ0hHwjTGXIYUoEingx5DMkMekCWEYMBgyGDGQCm1j8/yRb+6wAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAHlBMVEX////z8/P8/Pz6+vr+/v7w8PD5+fn9/f34+Pj19fWmxctuAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAHdElNRQfqBAwLFxow6RkxAAADuElEQVRYw62YO2/bMBCAST8SZmNToc2YACrQ0QHczpHE2OomNB06enD3BsgPUAEN6ZbBP7i845t60UAJRHYofrw73oOkCflvjZ85fsHPJLb8y1njl4J/PWf8eiv48RydroUEHtPH0xcAqnQgExLoRJs6ngkFFKlAp4F9kzb+QmhAbFKX1AB1EvARx4sGFGtTLTZAkWqxbNr02fHvhQFO8Hye9bEIgVkRnQMy/KgTFbLA9EJdiT5Q8SSFHCC+TWYBtLsPLz4wrpR2WdkQ2vlAOaIUVTGEEbfwgbGV0gbs4PtKlB4g7qdWFDVelTc+MGTGVSA+q1Et23Z94BjMlRV+lMDKjayosa97kA9Rvf7NR5QySSDe5MwAwHsY1I0oZfohYf7IvxyWHiK1G1ZqaXrlkCVAguiHFyye+9a5E0BzUB8VqELAi6nvumvPoehJgGIu17oGevbpljs1GYYGBSmkiIAitkCrINeGHaD/IQKsFUbPjWIlcIGvNjHwGPpgBxbrlcIXbQxUrrZrX2Za8AW+4DGg3b21QaFkgdBgp4jMZo7uDPDOAqsAKKHr0gp4soryEQB16oxXYGPT8ToKPFivFVbdMIEjoLZpwq0txQzAzKhuELjs2bDUUfcUuVO3RSyA/IAvn5SPrV2ENkNAyWmLpsqVPNneW3QOD3ZUq5BMXVD94HIa/gFbh4BaDtsAsHNFxsRLxuPqgCV2K+VjAjzFedVxHX3MnykTKKE2PvayRD1bHyjQZQcCZ5ZTnFZUmAyygNyI1E6f1b5YFayyh+scZU4hdcYh2ZtvsY7ghZLz6Gp0oTy1h8L4XvTSMEPgylVkqVBmCmZgsQ7WDgHmgFaLKqKd0wA5AgsL2NjEoi56aUuVN1YGqBrj8ZaQ0GQFMAXYXaW1sdmvCyh0qZNXA8/20FUHpV6132oOALYSWOO6MT+SaQhsbIElWOCFvw/xYDt0Zm3xg6IGoNAy3LZ61ZAKDzAVd6AYW6lMAQyB1puRR1u03eV8wJuwHqwMjapFHnD014P01qlVBeFgAZuNZTNY02s1JQJhbBbDRz151IHnZ0gYCPXT0D4dRuyrDhHWD7L+UcOPqagzPMdls0AxdoIeAXoHxesZYDN5xu0Du+lTtMoLNn1IjKqNzBUWVYYZpW59mcNHY3ocA+7Hbif5MFDPXrAioCUphAPupq4oN31g5hJ0EwP7uWvWzwj4ReYaM8FDB4J0mHhxQNp1F+82CFScpBEdVAEq9i1JbOsOJSSPh9iVEs4ZP/7jzz+7xEeN3Xr2xgAAAB50RVh0aWNjOmNvcHlyaWdodABHb29nbGUgSW5jLiAyMDE2rAszOAAAABR0RVh0aWNjOmRlc2NyaXB0aW9uAHNSR0K6kHMHAAAAAElFTkSuQmCC";
@@ -418,11 +418,6 @@ function NumInput({ value, onChange, placeholder, min=0, max=100, color=BRAND.mo
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [loginModal, setLoginModal] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPw, setLoginPw] = useState("");
-  const [loginError, setLoginError] = useState("");
   const [events, setEvents] = useState({});
   const [eventTypes, setEventTypes] = useState(DEFAULT_TYPES);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -523,7 +518,7 @@ export default function App() {
 
   // Lock body scroll when modal is open
   useEffect(() => {
-    if (modalView || editingType) {
+    if (modalView || editingType || loginModal) {
       const scrollY = window.scrollY;
       document.body.style.position = "fixed";
       document.body.style.top = `-${scrollY}px`;
@@ -549,7 +544,7 @@ export default function App() {
       document.body.style.overflow = "";
       window.scrollTo(0, parseInt(scrollY));
     };
-  }, [modalView, editingType, loginModal]);
+  }, [modalView, editingType]);
 
   useEffect(() => { const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); }); return unsub; }, []);
   useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { setEvents(JSON.parse(evData)); } else { setEvents(SEED_EVENTS); try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} setLoading(false); })(); }, []);
@@ -959,7 +954,7 @@ export default function App() {
                 {/* Series indicator for admin - S badge */}
                 {isSeriesAdmin && <div style={{ position:"absolute", top:2, right:2, background:"#009a93", color:"#fff", fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>S</div>}
                 {/* Pending indicator for admin */}
-                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:`${BRAND.aprikot}90`, color:"#fff", fontSize: winW > 900 ? 7 : 5, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "1.5px 0" : "1px 0", letterSpacing:0.3, lineHeight:1 }}>Anfrage</div>}
+                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:`${BRAND.aprikot}`, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "2px 0" : "1.5px 0", letterSpacing:0.5, lineHeight:1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
                   <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>
                   : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0" }} />
@@ -2086,7 +2081,7 @@ export default function App() {
                       })}
                     </div>
                   )}
-                  {isAdmin && !ev.allDay && (ev.status === "blocked" || ev.isSeries) && (
+                  {isAdmin && !ev.allDay && (
                     <button onClick={() => {
                       setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
