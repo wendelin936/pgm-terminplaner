@@ -719,21 +719,35 @@ export default function App() {
       )}
 
       {successModal && (
-        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16, background:"rgba(0,0,0,0.2)", backdropFilter:"blur(8px)" }}>
-          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"#fff", borderRadius:20, padding:"32px 28px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.12)", textAlign:"center" }}>
-            <div style={{ width:56, height:56, borderRadius:"50%", background:`${BRAND.moosgruen}12`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={BRAND.moosgruen} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center", animation:"successBgZoom 14s ease-in-out infinite alternate" }} />
+          <div style={{ position:"absolute", inset:0, background:"rgba(15,42,26,0.65)", backdropFilter:"blur(2px)" }} />
+          {/* Falling leaves */}
+          <div style={{ position:"absolute", top:30, left:"18%", pointerEvents:"none" }}><svg width="14" height="14" viewBox="0 0 16 16" style={{ animation:"successLeaf1 5.5s ease-in-out infinite", animationDelay:"0.3s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#8ec89a" opacity="0.55"/></svg></div>
+          <div style={{ position:"absolute", top:15, right:"20%", pointerEvents:"none" }}><svg width="12" height="12" viewBox="0 0 16 16" style={{ animation:"successLeaf2 6s ease-in-out infinite", animationDelay:"1.2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#6db87d" opacity="0.5"/></svg></div>
+          <div style={{ position:"absolute", top:45, left:"60%", pointerEvents:"none" }}><svg width="9" height="9" viewBox="0 0 16 16" style={{ animation:"successLeaf3 5s ease-in-out infinite", animationDelay:"2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#8ec89a" opacity="0.4"/></svg></div>
+          <div style={{ position:"absolute", top:8, left:"42%", pointerEvents:"none" }}><svg width="11" height="11" viewBox="0 0 16 16" style={{ animation:"successLeaf4 7s ease-in-out infinite", animationDelay:"0.6s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#6db87d" opacity="0.35"/></svg></div>
+          {/* Glass card */}
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(255,255,255,0.08)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", borderRadius:28, padding:"40px 28px 32px", maxWidth:360, width:"100%", border:"1px solid rgba(255,255,255,0.12)", animation:"successFadeUp 0.6s ease-out", textAlign:"center" }}>
+            {/* Animated check icon */}
+            <div style={{ position:"relative", width:68, height:68, margin:"0 auto 22px" }}>
+              <div style={{ position:"absolute", inset:-8, borderRadius:"50%", border:"1.5px solid rgba(142,200,154,0.25)", animation:"successRing 2.5s ease-out infinite" }} />
+              <div style={{ position:"absolute", inset:-16, borderRadius:"50%", border:"1px solid rgba(142,200,154,0.1)", animation:"successRing 2.5s ease-out infinite", animationDelay:"0.4s" }} />
+              <div style={{ width:68, height:68, borderRadius:"50%", background:"linear-gradient(135deg,rgba(5,68,50,0.6),rgba(5,68,50,0.8))", border:"1.5px solid rgba(142,200,154,0.3)", display:"flex", alignItems:"center", justifyContent:"center", animation:"successScaleIn 0.35s ease-out 0.15s both" }}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#8ec89a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="30" style={{ animation:"successCheck 0.4s ease-out 0.4s both" }}/></svg>
+              </div>
             </div>
-            <div style={{ fontSize:20, fontWeight:700, color:BRAND.aubergine, marginBottom:8 }}>Anfrage gesendet!</div>
-            <div style={{ fontSize:14, color:"#888", lineHeight:1.6, marginBottom:20 }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
-            <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer"
-              style={{ display:"block", padding:"14px 16px", background:"#f9f7fa", border:"1px solid #ede8ed", borderRadius:12, textDecoration:"none", marginBottom:16, transition:"all .15s" }}>
-              <div style={{ fontSize:11, color:"#999", fontWeight:500, letterSpacing:0.5, marginBottom:4 }}>Mehr über uns erfahren</div>
-              <div style={{ fontSize:15, fontWeight:600, color:BRAND.lila }}>www.derparadiesgarten.at</div>
-              <div style={{ fontSize:11, color:"#aaa", marginTop:3 }}>Entdecken Sie unseren Paradiesgarten in Klagenfurt</div>
-            </a>
-            <button onClick={() => setSuccessModal(false)}
-              style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"12px 36px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Schließen</button>
+            <div style={{ fontSize:22, fontWeight:600, color:"#fff", marginBottom:6, animation:"successSlide 0.5s ease-out 0.25s both" }}>Anfrage gesendet!</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", lineHeight:1.7, marginBottom:26, animation:"successSlide 0.5s ease-out 0.35s both" }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
+            <div style={{ animation:"successSlide 0.5s ease-out 0.45s both" }}>
+              <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer"
+                style={{ display:"block", padding:"13px 16px", background:"rgba(142,200,154,0.06)", border:"1px solid rgba(142,200,154,0.12)", borderRadius:14, textDecoration:"none", marginBottom:18 }}>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginBottom:3 }}>Mehr über uns</div>
+                <div style={{ fontSize:14, fontWeight:600, color:"#8ec89a" }}>www.derparadiesgarten.at</div>
+              </a>
+              <button onClick={() => setSuccessModal(false)}
+                style={{ padding:"12px 36px", background:"rgba(142,200,154,0.12)", border:"1px solid rgba(142,200,154,0.2)", borderRadius:12, color:"#8ec89a", fontSize:14, fontWeight:600, cursor:"pointer", animation:"successBob 3s ease-in-out infinite" }}>Schließen</button>
+            </div>
           </div>
         </div>
       )}
@@ -2204,6 +2218,17 @@ export default function App() {
         @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
         @keyframes toastProgress { from { width:100% } to { width:0% } }
         @keyframes pendingPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(242,140,90,0.3) } 50% { box-shadow: 0 0 8px 2px rgba(242,140,90,0.25) } }
+        @keyframes successFadeUp { from { opacity:0; transform:translateY(24px) scale(0.97) } to { opacity:1; transform:translateY(0) scale(1) } }
+        @keyframes successScaleIn { from { transform:scale(0) } to { transform:scale(1) } }
+        @keyframes successCheck { from { stroke-dashoffset:30 } to { stroke-dashoffset:0 } }
+        @keyframes successRing { 0% { transform:scale(0.85); opacity:0.5 } 100% { transform:scale(1.3); opacity:0 } }
+        @keyframes successSlide { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:translateY(0) } }
+        @keyframes successLeaf1 { 0%{transform:translate(0,0) rotate(0);opacity:0} 8%{opacity:.55} 85%{opacity:.3} 100%{transform:translate(-50px,220px) rotate(160deg);opacity:0} }
+        @keyframes successLeaf2 { 0%{transform:translate(0,0) rotate(0);opacity:0} 8%{opacity:.5} 85%{opacity:.25} 100%{transform:translate(45px,240px) rotate(-130deg);opacity:0} }
+        @keyframes successLeaf3 { 0%{transform:translate(0,0) rotate(20deg);opacity:0} 8%{opacity:.4} 85%{opacity:.2} 100%{transform:translate(-25px,200px) rotate(110deg);opacity:0} }
+        @keyframes successLeaf4 { 0%{transform:translate(0,0) rotate(-10deg);opacity:0} 10%{opacity:.45} 80%{opacity:.15} 100%{transform:translate(35px,190px) rotate(140deg);opacity:0} }
+        @keyframes successBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+        @keyframes successBgZoom { from{transform:scale(1)} to{transform:scale(1.08)} }
         input[type="time"] { -webkit-appearance: none; }
         input[type="time"]:focus { border-color: ${BRAND.aubergine}60 !important; box-shadow: 0 0 0 2px ${BRAND.aubergine}15 !important; }
         input[type="time"]::-webkit-datetime-edit { padding: 0; }
