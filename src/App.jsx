@@ -14,6 +14,7 @@ const BRAND = {
   white: "#ffffff",
 };
 
+const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
 
 // Dokumente — Pfade anpassen für Deployment (z.B. "/assets/Getraenke.pdf")
 const DOCS = {
@@ -428,10 +429,11 @@ export default function App() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState(null);
+  const [fromCalendar, setFromCalendar] = useState(false);
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
-  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false });
+  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -518,6 +520,7 @@ export default function App() {
   const [seriesYear, setSeriesYear] = useState(null);
   const [heroIdx, setHeroIdx] = useState(0);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
+  useEffect(() => { const img = new Image(); img.src = "/assets/garten-Anfrage-gesendet.jpg"; }, []);
   useEffect(() => { if (isAdmin) return; const t = setInterval(() => setHeroIdx(i => (i+1) % 7), 10000); return () => clearInterval(t); }, [isAdmin]);
 
   // Lock body scroll when modal is open
@@ -571,9 +574,10 @@ export default function App() {
     setSelectedDate(key);
     if (isAdmin) {
       if (ev) {
+        setFromCalendar(true);
         setModalView("info");
       } else {
-        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false });
+        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
         setModalView("admin");
       }
     } else if (ev && ev.allDay && ev.status !== "pending" && !ev.isSeries && !ev.isPublic) {
@@ -598,7 +602,8 @@ export default function App() {
     if (!day) return;
     const key = dateKey(pickerYear, pickerMonth, day);
     const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const ev = events[key];
+    const evRaw = events[key];
+    const ev = evRaw?.status === "deleted" ? null : evRaw;
     const blocked = ev && ev.allDay && ev.status !== "pending" && !ev.isSeries;
     if (isPast || blocked) return;
     setSelectedDate(key);
@@ -609,29 +614,26 @@ export default function App() {
   const handleAdminSave = () => {
     prevEvents.current = { ...events };
     const updated = { ...events };
-    if (adminForm.type === "free") { delete updated[selectedDate]; }
-    else {
-      const st = adminForm.startTime || "08:00";
-      const et = adminForm.endTime || "22:00";
-      const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
-      const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid };
-      if (adminForm.editAllSeries && adminForm.seriesId) {
-        Object.keys(updated).forEach(k => {
-          if (updated[k]?.seriesId === adminForm.seriesId) {
-            const old = updated[k];
-            updated[k] = { ...entry, checklist: entry.checklist.map(c => ({...c})), subEvents: old.subEvents || [] };
-          }
-        });
-      } else if (adminForm.addToExisting && updated[selectedDate]) {
-        const existing = { ...updated[selectedDate] };
-        existing.subEvents = [...(existing.subEvents || []), entry];
-        updated[selectedDate] = existing;
-      } else {
-        const oldSubs = updated[selectedDate]?.subEvents || [];
-        updated[selectedDate] = { ...entry, subEvents: oldSubs };
-        if (adminForm.seriesDates && adminForm.seriesDates.length > 0) {
-          adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, subEvents: updated[dk]?.subEvents || [], checklist: entry.checklist.map(c => ({...c, done:false})) }; });
+    const st = adminForm.startTime || "08:00";
+    const et = adminForm.endTime || "22:00";
+    const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "" };
+    if (adminForm.editAllSeries && adminForm.seriesId) {
+      Object.keys(updated).forEach(k => {
+        if (updated[k]?.seriesId === adminForm.seriesId) {
+          const old = updated[k];
+          updated[k] = { ...entry, checklist: entry.checklist.map(c => ({...c})), subEvents: old.subEvents || [] };
         }
+      });
+    } else if (adminForm.addToExisting && updated[selectedDate]) {
+      const existing = { ...updated[selectedDate] };
+      existing.subEvents = [...(existing.subEvents || []), entry];
+      updated[selectedDate] = existing;
+    } else {
+      const oldSubs = updated[selectedDate]?.subEvents || [];
+      updated[selectedDate] = { ...entry, subEvents: oldSubs };
+      if (adminForm.seriesDates && adminForm.seriesDates.length > 0) {
+        adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, subEvents: updated[dk]?.subEvents || [], checklist: entry.checklist.map(c => ({...c, done:false})) }; });
       }
     }
     saveEvents(updated);
@@ -656,11 +658,40 @@ export default function App() {
       const slotName = slotNames[formData.slot] || "";
       slotLabel = slotName ? `${slotName} (${startTime}–${endTime})` : `${startTime} – ${endTime}`;
     }
-    const updated = { ...events, [selectedDate]: { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData } };
+    const pendingEntry = { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData };
+    const updated = { ...events };
+    const existing = updated[selectedDate];
+    if (existing && existing.status !== "deleted") {
+      // Don't overwrite — add as subEvent
+      updated[selectedDate] = { ...existing, subEvents: [...(existing.subEvents || []), pendingEntry] };
+    } else {
+      updated[selectedDate] = pendingEntry;
+    }
     saveEvents(updated);
     setSubmitAttempted(false);
     setModalView(null);
     setSuccessModal(true);
+    // Send email notification
+    try {
+      const [yy,mm,dd] = selectedDate.split("-").map(Number);
+      const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
+      fetch(EMAIL_WORKER_URL, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: `${dayName}, ${dd}.${mm}.${yy}`,
+          type: et?.label || formData.type,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || "–",
+          guests: formData.guests || "–",
+          slot: slotLabel,
+          message: formData.message || "",
+          tourGuide: formData.tourGuide,
+          cakeCount: formData.cakeCount || 0,
+          coffeeCount: formData.coffeeCount || 0,
+        })
+      }).catch(() => {});
+    } catch {}
   };
 
   const handleAdminAction = (key, action) => {
@@ -684,7 +715,7 @@ export default function App() {
         const [first, ...rest] = ev.subEvents;
         updated[key] = { ...first, subEvents: rest };
       } else {
-        updated[key] = { ...updated[key], status: "deleted", deletedAt: new Date().toISOString() };
+        updated[key] = { ...updated[key], status: "deleted", previousStatus: ev.status, deletedAt: new Date().toISOString() };
       }
       saveEvents(updated);
       setModalView(null);
@@ -737,40 +768,44 @@ export default function App() {
         </div>
       )}
 
-      {successModal && (
-        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }}>
+      {successModal && (() => {
+        const sm = winW < 520;
+        const iconSz = sm ? 60 : 76;
+        const imgH = sm ? 130 : 200;
+        return (
+        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding: sm ? 12 : 16, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }}>
           {/* Falling leaves */}
           <div style={{ position:"absolute", top:30, left:"18%", pointerEvents:"none" }}><svg width="14" height="14" viewBox="0 0 16 16" style={{ animation:"successLeaf1 5.5s ease-in-out infinite", animationDelay:"0.3s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#d4b8d0" opacity="0.4"/></svg></div>
           <div style={{ position:"absolute", top:15, right:"20%", pointerEvents:"none" }}><svg width="12" height="12" viewBox="0 0 16 16" style={{ animation:"successLeaf2 6s ease-in-out infinite", animationDelay:"1.2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#903486" opacity="0.3"/></svg></div>
           <div style={{ position:"absolute", top:45, left:"60%", pointerEvents:"none" }}><svg width="9" height="9" viewBox="0 0 16 16" style={{ animation:"successLeaf3 5s ease-in-out infinite", animationDelay:"2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#d4b8d0" opacity="0.3"/></svg></div>
           <div style={{ position:"absolute", top:8, left:"42%", pointerEvents:"none" }}><svg width="11" height="11" viewBox="0 0 16 16" style={{ animation:"successLeaf4 7s ease-in-out infinite", animationDelay:"0.6s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#903486" opacity="0.2"/></svg></div>
-          {/* Glass card with garden image */}
-          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(88,8,74,0.25)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", borderRadius:28, maxWidth:480, width:"100%", border:"1px solid rgba(144,52,134,0.2)", animation:"successFadeUp 0.6s ease-out", textAlign:"center", overflow:"hidden" }}>
-            {/* Garden image top half - no filter */}
-            <div style={{ height:200, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
-            <div style={{ padding:"32px 36px 40px" }}>
-              <div style={{ position:"relative", width:76, height:76, margin:"-62px auto 20px" }}>
+          {/* Glass card */}
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(88,8,74,0.25)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", borderRadius: sm ? 20 : 28, maxWidth:480, width:"100%", border:"1px solid rgba(144,52,134,0.2)", animation:"successFadeUp 0.6s ease-out", textAlign:"center", overflow:"hidden" }}>
+            <div style={{ height:imgH, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
+            <div style={{ padding: sm ? "20px 20px 24px" : "32px 36px 40px" }}>
+              <div style={{ position:"relative", width:iconSz, height:iconSz, margin:`-${iconSz/2 + 8}px auto ${sm ? 14 : 20}px` }}>
                 <div style={{ position:"absolute", inset:-8, borderRadius:"50%", border:"1.5px solid rgba(255,255,255,0.2)", animation:"successRing 2.5s ease-out infinite" }} />
                 <div style={{ position:"absolute", inset:-16, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.08)", animation:"successRing 2.5s ease-out infinite", animationDelay:"0.4s" }} />
-                <div style={{ width:76, height:76, borderRadius:"50%", background:"linear-gradient(135deg,rgba(88,8,74,0.7),rgba(66,0,69,0.85))", border:"2px solid rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", animation:"successScaleIn 0.35s ease-out 0.15s both" }}>
-                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="30" style={{ animation:"successCheck 0.4s ease-out 0.4s both" }}/></svg>
+                <div style={{ width:iconSz, height:iconSz, borderRadius:"50%", background:"linear-gradient(135deg,rgba(88,8,74,0.7),rgba(66,0,69,0.85))", border:"2px solid rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", animation:"successScaleIn 0.35s ease-out 0.15s both" }}>
+                  <svg width={sm ? 26 : 34} height={sm ? 26 : 34} viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="30" style={{ animation:"successCheck 0.4s ease-out 0.4s both" }}/></svg>
                 </div>
               </div>
-              <div style={{ fontSize:26, fontWeight:600, color:"#fff", marginBottom:8, animation:"successSlide 0.5s ease-out 0.25s both" }}>Anfrage gesendet!</div>
-              <div style={{ fontSize:15, color:"rgba(255,255,255,0.55)", lineHeight:1.7, marginBottom:28, animation:"successSlide 0.5s ease-out 0.35s both" }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
+              <div style={{ fontSize: sm ? 20 : 26, fontWeight:600, color:"#fff", marginBottom: sm ? 4 : 8, animation:"successSlide 0.5s ease-out 0.25s both" }}>Anfrage gesendet!</div>
+              <div style={{ fontSize: sm ? 13 : 15, color:"rgba(255,255,255,0.55)", lineHeight:1.7, marginBottom: sm ? 20 : 28, animation:"successSlide 0.5s ease-out 0.35s both" }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
               <div style={{ animation:"successSlide 0.5s ease-out 0.45s both" }}>
                 <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" className="success-link"
-                  style={{ display:"block", padding:"14px 18px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:14, textDecoration:"none", marginBottom:20, transition:"all .2s" }}>
+                  style={{ display:"block", padding: sm ? "10px 14px" : "14px 18px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius: sm ? 10 : 14, textDecoration:"none", marginBottom: sm ? 14 : 20, transition:"all .2s" }}>
                   <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginBottom:3 }}>Mehr über uns</div>
-                  <div style={{ fontSize:15, fontWeight:600, color:"rgba(255,255,255,0.9)" }}>www.derparadiesgarten.at</div>
+                  <div style={{ fontSize: sm ? 13 : 15, fontWeight:600, color:"rgba(255,255,255,0.9)" }}>www.derparadiesgarten.at</div>
                 </a>
                 <button onClick={() => setSuccessModal(false)} className="success-close"
-                  style={{ padding:"14px 44px", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, color:"rgba(255,255,255,0.85)", fontSize:15, fontWeight:600, cursor:"pointer", transition:"all .2s" }}>Schließen</button>
+                  style={{ padding: sm ? "11px 32px" : "14px 44px", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, color:"rgba(255,255,255,0.85)", fontSize: sm ? 13 : 15, fontWeight:600, cursor:"pointer", transition:"all .2s" }}>Schließen</button>
               </div>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <header style={{ background: BRAND.aubergine, color:"#fff", padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 520 ? "sticky" : "relative", top:0, zIndex:50 }}>
         <div onClick={!isAdmin ? () => { if (loggedIn) { setIsAdmin(true); setModalView(null); } else setLoginModal(true); } : undefined}
@@ -816,7 +851,7 @@ export default function App() {
       <div style={{ maxWidth: winW > 900 ? 1100 : (isAdmin ? 700 : 800), margin:"0 auto", padding: winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
         {/* Customer: Hero Slideshow */}
         {!isAdmin && (
-          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 560 : winW > 520 ? 370 : 265, touchAction:"pan-y" }}
+          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 12 : 20, height: winW > 900 ? `clamp(350px, 42vh, 550px)` : winW > 520 ? 300 : 240, touchAction:"pan-y" }}
             onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
             onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (e.currentTarget._sx||0); const dy = Math.abs(e.changedTouches[0].clientY - (e.currentTarget._sy||0)); if (Math.abs(dx) > 40 && Math.abs(dx) > dy) { if (dx < 0) setHeroIdx(i => (i+1) % 7); else setHeroIdx(i => (i+6) % 7); } }}>
             {heroImages.map((src, idx) => (
@@ -882,8 +917,8 @@ export default function App() {
         )}
         {/* Customer: Event Types */}
         {!isAdmin && (
-          <div style={{ marginBottom:32 }}>
-            <h2 style={{ fontSize: winW < 520 ? 16 : winW > 900 ? 24 : 20, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: winW > 900 ? 24 : 16, textAlign:"center" }}>
+          <div style={{ marginBottom:20 }}>
+            <h2 style={{ fontSize: winW < 520 ? 16 : winW > 900 ? 22 : 18, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: winW > 900 ? 16 : 12, textAlign:"center" }}>
               Unsere Veranstaltungen & Preise
             </h2>
             {(() => {
@@ -893,7 +928,7 @@ export default function App() {
                 const isGroup = et.isGroupTour;
                 return (
                   <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
-                    style={{ "--card-color": et.color, flex: isMobile ? (winW < 380 ? "1 1 100%" : "1 1 calc(50% - 5px)") : winW > 900 ? "1 1 calc(33.33% - 8px)" : "1 1 0", background:"#fff", borderRadius:10, padding: isMobile ? "14px 12px" : winW > 900 ? "20px 18px" : "16px 14px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0 }}>
+                    style={{ "--card-color": et.color, flex: isMobile ? (winW < 380 ? "1 1 100%" : "1 1 calc(50% - 5px)") : winW > 900 ? "1 1 calc(33.33% - 8px)" : "1 1 0", background:"#fff", borderRadius:10, padding: isMobile ? "12px 10px" : winW > 900 ? "16px 16px" : "14px 12px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0 }}>
                     <div>
                       <div style={{ fontWeight:700, color: et.color, fontSize: isMobile ? 12 : winW > 900 ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto" }}>{et.label}</div>
                       <div style={{ fontSize: isMobile ? 9 : winW > 900 ? 12 : 10, color:"#888", lineHeight:1.3, marginBottom:6 }}>{et.desc}</div>
@@ -911,10 +946,10 @@ export default function App() {
               };
               return (
                 <div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 8 : 10, marginBottom:20 }}>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 8 : 8, marginBottom:12 }}>
                     {allTypes.map(renderCard)}
                   </div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 6 : 10, justifyContent:"center", marginBottom:10 }}>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 6 : 8, justifyContent:"center", marginBottom:6 }}>
                     {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
                       <span key={t} style={{ fontSize: isMobile ? 10 : 11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
                     ))}
@@ -1027,7 +1062,7 @@ export default function App() {
                   const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
                   return (
                     <SwipeRow key={key} onSwipeRight={() => handleAdminAction(key,"confirm")} onSwipeLeft={() => handleAdminAction(key,"delete")} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
-                      <div onClick={() => { setSelectedDate(key); setModalView("info"); }} className="admin-card"
+                      <div onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
                         style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
@@ -1077,7 +1112,7 @@ export default function App() {
             const d = new Date(yy,mm-1,dd);
             const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
             return (
-              <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setModalView("info"); }} className="admin-card"
+              <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
                 style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
@@ -1191,13 +1226,13 @@ export default function App() {
                     {showDeleted && deletedAll.map(([key, ev]) => {
                       const [yy,mm,dd] = key.split("-").map(Number);
                       return (
-                        <div key={key} onClick={() => { setSelectedDate(key); setModalView("info"); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#fdf6f6", borderRadius:8, marginBottom:4, border:"1px solid #f0e0e0", opacity:0.6, cursor:"pointer", transition:"opacity .15s" }}
+                        <div key={key} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#fdf6f6", borderRadius:8, marginBottom:4, border:"1px solid #f0e0e0", opacity:0.6, cursor:"pointer", transition:"opacity .15s" }}
                           onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="0.6"}>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontSize:12, fontWeight:600, color:"#888" }}>{fmtDateAT(key)}</div>
                             <div style={{ fontSize:11, color:"#aaa", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ev.label}{ev.name ? ` · ${ev.name}` : ""}</div>
                           </div>
-                          <button onClick={() => { const u = {...events}; u[key] = {...u[key], status:"booked"}; saveEvents(u); }}
+                          <button onClick={(e) => { e.stopPropagation(); const u = {...events}; u[key] = {...u[key], status: u[key].previousStatus || "booked"}; delete u[key].previousStatus; delete u[key].deletedAt; saveEvents(u); }}
                             title="Wiederherstellen"
                             style={{ background:"none", border:`1px solid ${BRAND.moosgruen}40`, borderRadius:6, width:28, height:28, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:BRAND.moosgruen }}>
                             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 7h7a3 3 0 1 1 0 6H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 4L3 7l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -1304,7 +1339,7 @@ export default function App() {
                 } else {
                   prevEvents.current = { ...events };
                   const updated = { ...events };
-                  deleteConfirm.items.forEach(([k]) => { updated[k] = { ...updated[k], status:"deleted" }; });
+                  deleteConfirm.items.forEach(([k]) => { updated[k] = { ...updated[k], status:"deleted", previousStatus: updated[k].status, deletedAt: new Date().toISOString() }; });
                   saveEvents(updated);
                   setToast({ msg:`${deleteConfirm.count} Serientermine gelöscht`, undo:() => saveEvents(prevEvents.current) });
                   setDeleteConfirm(null);
@@ -1478,7 +1513,8 @@ export default function App() {
                     {pDays.map((day, i) => {
                       if (!day) return <div key={`e${i}`} />;
                       const key = dateKey(pickerYear, pickerMonth, day);
-                      const ev = events[key];
+                      const evRaw = events[key];
+                      const ev = evRaw?.status === "deleted" ? null : evRaw;
                       const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                       const isFree = (!ev || !ev.allDay || ev.status === "pending" || ev.isSeries) && !isPast;
                       const isOccupied = !!ev && ev.allDay && ev.status !== "pending" && !ev.isSeries && !isPast;
@@ -1512,7 +1548,7 @@ export default function App() {
             {modalView === "admin" && (
               <>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                  <button onClick={() => { if (events[selectedDate]) { setModalView("info"); } else { setModalView(null); } }}
+                  <button onClick={() => { if (events[selectedDate] && events[selectedDate].status !== "deleted") { setModalView("info"); } else { setModalView(null); } }}
                     style={{ background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center", color:"#aaa", flexShrink:0, transition:"color .15s" }}
                     onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
@@ -1526,7 +1562,7 @@ export default function App() {
                   </div>
                 </div>
                 {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
-                {!events[selectedDate] && !adminForm.editAllSeries && !adminForm.addToExisting && (
+                {(!events[selectedDate] || events[selectedDate]?.status === "deleted") && !adminForm.editAllSeries && !adminForm.addToExisting && (
                 <div style={{ display:"flex", gap:8, marginBottom:14 }}>
                   {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"]].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
@@ -1552,6 +1588,48 @@ export default function App() {
                     })}
                   </div>
                 )}
+
+                {/* Group tour fields - for Gruppenführung */}
+                {adminForm.eventType === "gruppenfuehrung" && adminForm.type === "booked" && (() => {
+                  const gt = eventTypes.find(t => t.id === "gruppenfuehrung");
+                  return (
+                  <div style={{ background:`${BRAND.moosgruen}08`, border:`1px solid ${BRAND.moosgruen}20`, borderRadius:10, padding:"14px", marginBottom:10 }}>
+                    <div style={{ fontSize:10, fontWeight:600, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Gruppenführung Details</div>
+                    <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
+                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                    <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                      <input placeholder="Ansprechpartner" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
+                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      <input placeholder="Telefon" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                    </div>
+                    <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                      <div style={{ flex:1 }}>
+                        <label style={{ fontSize:9, color:"#888", marginBottom:2, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Teilnehmer</label>
+                        <input type="number" min="1" placeholder="Anzahl" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
+                          style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <label style={{ fontSize:9, color:"#888", marginBottom:2, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kaffee</label>
+                        <input type="number" min="0" placeholder="0" value={adminForm.coffeeCount||""} onChange={e => setAdminForm(f=>({...f, coffeeCount:e.target.value}))}
+                          style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <label style={{ fontSize:9, color:"#888", marginBottom:2, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kuchen</label>
+                        <input type="number" min="0" placeholder="0" value={adminForm.cakeCount||""} onChange={e => setAdminForm(f=>({...f, cakeCount:e.target.value}))}
+                          style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      </div>
+                    </div>
+                    <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
+                      style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", padding:"6px 0" }}>
+                      <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.tourGuide ? BRAND.moosgruen : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", transition:"all .15s" }}>
+                        {adminForm.tourGuide && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span style={{ fontSize:12, color:BRAND.aubergine, fontWeight:500 }}>Mit Führung ({gt ? `€ ${gt.guideCost}` : "€ 80"})</span>
+                    </label>
+                  </div>
+                  );
+                })()}
 
                 {/* Public toggle - only for internal events */}
                 {adminForm.type === "blocked" && (
@@ -1984,20 +2062,33 @@ export default function App() {
                       {ev.label && <div style={{ fontSize:15, fontWeight:700, color: BRAND.aubergine, marginBottom:2 }}>{ev.label}</div>}
                       {ev.slotLabel && <div style={{ fontSize:12, color:"#888", marginBottom:8 }}><ClockIcon color="#888" />{ev.slotLabel}{ev.allDay ? " · Ganztägig" : ""}</div>}
 
-                      {/* Editable Customer Data Card */}
-                      {(ev.name || ev.email || ev.phone || ev.guests) && (
-                        <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
-                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Kundendaten</div>
+                      {/* Customer/Group data card */}
+                      {ev.type === "gruppenfuehrung" && isAdmin ? (
+                        <div style={{ background:"#f9f7fa", borderRadius:10, padding:"10px 14px", marginBottom:8, border:"1px solid #ede8ed" }}>
+                          <div style={{ fontSize:9, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Gruppenführung</div>
+                          {(ev.groupName || ev.name) && <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, marginBottom:2 }}>👥 {ev.groupName || ev.name}</div>}
+                          {ev.contactName && <div style={{ fontSize:12, color:"#666", marginBottom:4 }}>👤 {ev.contactName}{ev.contactPhone ? <> · <a href={`tel:${ev.contactPhone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone}</a></> : ""}</div>}
+                          {ev.email && <div style={{ fontSize:12, color:"#666", marginBottom:4 }}>✉ <a href={`mailto:${ev.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.email}</a></div>}
+                          <div style={{ display:"flex", gap:12, marginTop:4, flexWrap:"wrap", fontSize:12, color:"#666" }}>
+                            {ev.guests && <span><span style={{ fontWeight:600, color:BRAND.aubergine }}>{ev.guests}</span> Teilnehmer</span>}
+                            {Number(ev.coffeeCount)>0 && <span><span style={{ fontWeight:600, color:BRAND.aubergine }}>{ev.coffeeCount}</span>× Kaffee</span>}
+                            {Number(ev.cakeCount)>0 && <span><span style={{ fontWeight:600, color:BRAND.aubergine }}>{ev.cakeCount}</span>× Kuchen</span>}
+                          </div>
+                          {ev.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginTop:4, fontWeight:600 }}>🌿 Mit Führung</div>}
+                        </div>
+                      ) : (ev.name || ev.email || ev.phone || ev.guests) && (
+                        <div style={{ background:"#f9f7fa", borderRadius:10, padding:"10px 14px", marginBottom:8, border:"1px solid #ede8ed" }}>
+                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Kundendaten</div>
                           {[
                             ["name", "👤", "Name", ev.name],
                             ["email", "✉", "E-Mail", ev.email],
                             ["phone", "📞", "Telefon", ev.phone],
-                            ["guests", "👥", ev.type==="gruppenfuehrung" ? "Teilnehmer" : "Gäste", ev.guests],
+                            ["guests", "👥", "Gäste", ev.guests],
                           ].filter(([,,, val]) => val).map(([field, icon, label, val]) => {
                             const isEditing = editingField === field;
                             return (
                               <div key={field} onClick={() => { if (!isEditing) { setEditingField(field); setEditFieldVal(val || ""); } }}
-                                style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", marginBottom:2, borderRadius:6, cursor:"pointer", transition:"all .12s", background: isEditing ? "#fff" : "transparent", border: isEditing ? `1.5px solid ${BRAND.lila}40` : "1.5px solid transparent" }}
+                                style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 8px", marginBottom:1, borderRadius:6, cursor:"pointer", transition:"all .12s", background: isEditing ? "#fff" : "transparent", border: isEditing ? `1.5px solid ${BRAND.lila}40` : "1.5px solid transparent" }}
                                 onMouseEnter={e => { if (!isEditing) e.currentTarget.style.background="#f0ecf0"; }}
                                 onMouseLeave={e => { if (!isEditing) e.currentTarget.style.background="transparent"; }}>
                                 <span style={{ fontSize:13, width:18, textAlign:"center", flexShrink:0 }}>{icon}</span>
@@ -2020,14 +2111,14 @@ export default function App() {
                               </div>
                             );
                           })}
+                          {ev.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginTop:4, fontWeight:600, paddingLeft:8 }}>🌿 Führung mit Gartenexpertin</div>}
+                          {(Number(ev.cakeCount)>0 || Number(ev.coffeeCount)>0) && (
+                            <div style={{ fontSize:11, color:"#888", marginTop:2, paddingLeft:8 }}>☕ {Number(ev.coffeeCount)||0}× Kaffee · 🍰 {Number(ev.cakeCount)||0}× Kuchen</div>
+                          )}
                         </div>
                       )}
 
-                      {ev.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginBottom:4, fontWeight:600 }}>🌿 Führung mit Gartenexpertin</div>}
-                      {(Number(ev.cakeCount)>0 || Number(ev.coffeeCount)>0) && (
-                        <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>☕ {Number(ev.coffeeCount)||0}× Kaffee · 🍰 {Number(ev.cakeCount)||0}× Kuchen</div>
-                      )}
-                      {(ev.contactName || ev.contactPhone || ev.contactAddress) && ev.status !== "blocked" && (
+                      {(ev.contactName || ev.contactPhone || ev.contactAddress) && ev.status !== "blocked" && ev.type !== "gruppenfuehrung" && (
                         <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
                           <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Kontaktperson</div>
                           {ev.contactName && <div style={{ fontSize:12, color:BRAND.aubergine, fontWeight:500 }}>👤 {ev.contactName}</div>}
@@ -2153,9 +2244,9 @@ export default function App() {
                       })}
                     </div>
                   )}
-                  {isAdmin && !ev.allDay && ev.status !== "pending" && (
+                  {isAdmin && fromCalendar && !ev.allDay && ev.status !== "pending" && (
                     <button onClick={() => {
-                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true });
+                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                     }}
                       style={{ width:"100%", padding:"10px 0", background:`${BRAND.moosgruen}10`, color: BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s" }}
@@ -2166,7 +2257,7 @@ export default function App() {
                   )}
                   {isAdmin && (
                     <div style={{ display:"flex", gap:8 }}>
-                      <button onClick={() => { setAdminForm({ type: ev.status || "booked", label: ev.label || "", note: ev.note || "", startTime: ev.startTime || "08:00", endTime: ev.endTime || "22:00", adminNote: ev.adminNote || "", eventType: ev.type || "", allDay: ev.allDay || false, checklist: ev.checklist || [], contactName: ev.contactName || "", contactPhone: ev.contactPhone || "", contactAddress: ev.contactAddress || "", publicText: ev.publicText || "", isPublic: ev.isPublic || false, isSeries: false, seriesDates: [] }); setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin"); }} style={{ ...primaryBtn, flex:1, background: BRAND.aubergine, fontSize:12 }}>Bearbeiten</button>
+                      <button onClick={() => { setAdminForm({ type: ev.status || "booked", label: ev.label || "", note: ev.note || "", startTime: ev.startTime || "08:00", endTime: ev.endTime || "22:00", adminNote: ev.adminNote || "", eventType: ev.type || "", allDay: ev.allDay || false, checklist: ev.checklist || [], contactName: ev.contactName || "", contactPhone: ev.contactPhone || "", contactAddress: ev.contactAddress || "", publicText: ev.publicText || "", isPublic: ev.isPublic || false, isSeries: false, seriesDates: [], guests: ev.guests || "", tourGuide: ev.tourGuide || false, cakeCount: ev.cakeCount || 0, coffeeCount: ev.coffeeCount || 0, groupName: ev.groupName || ev.name || "" }); setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin"); }} style={{ ...primaryBtn, flex:1, background: BRAND.aubergine, fontSize:12 }}>Bearbeiten</button>
                       {ev.status !== "pending" && <button onClick={() => handleAdminAction(selectedDate,"delete")}
                         onMouseEnter={e => { e.target.style.background="#f8d0d0"; e.target.style.color="#c44"; }}
                         onMouseLeave={e => { e.target.style.background="#ddd"; e.target.style.color="#666"; }}
