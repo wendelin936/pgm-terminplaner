@@ -524,31 +524,13 @@ export default function App() {
   // Lock body scroll when modal is open
   useEffect(() => {
     if (modalView || editingType) {
-      const scrollY = window.scrollY;
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.left = "0";
-      document.body.style.right = "0";
       document.body.style.overflow = "hidden";
-      document.body.dataset.scrollY = scrollY;
+      document.body.style.touchAction = "none";
     } else {
-      const scrollY = document.body.dataset.scrollY || 0;
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.left = "";
-      document.body.style.right = "";
       document.body.style.overflow = "";
-      window.scrollTo(0, parseInt(scrollY));
+      document.body.style.touchAction = "";
     }
-    return () => {
-      const scrollY = document.body.dataset.scrollY || 0;
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.left = "";
-      document.body.style.right = "";
-      document.body.style.overflow = "";
-      window.scrollTo(0, parseInt(scrollY));
-    };
+    return () => { document.body.style.overflow = ""; document.body.style.touchAction = ""; };
   }, [modalView, editingType, loginModal]);
 
   useEffect(() => { const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); }); return unsub; }, []);
@@ -575,7 +557,7 @@ export default function App() {
         setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false });
         setModalView("admin");
       }
-    } else if (ev && ev.status !== "pending" && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay)) {
+    } else if (ev && ev.allDay && ev.status !== "pending" && !ev.isSeries && !ev.isPublic) {
       setModalView("info");
     } else {
       setSelectedDate(key);
@@ -588,8 +570,8 @@ export default function App() {
     setFormData({ name:"", email:"", phone:"", type: typeId, slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
     setShowTypeSelect(false);
     setSubmitAttempted(false);
-    setPickerMonth(month);
-    setPickerYear(year);
+    setPickerMonth(today.getMonth());
+    setPickerYear(today.getFullYear());
     setModalView("pickDate");
   };
 
@@ -598,7 +580,7 @@ export default function App() {
     const key = dateKey(pickerYear, pickerMonth, day);
     const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const ev = events[key];
-    const blocked = ev && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay);
+    const blocked = ev && ev.allDay && ev.status !== "pending" && !ev.isSeries;
     if (isPast || blocked) return;
     setSelectedDate(key);
     setSubmitAttempted(false);
@@ -648,16 +630,12 @@ export default function App() {
       startTime = String(formData.tourHour).padStart(2,"0")+":"+String(formData.tourMin).padStart(2,"0");
       endTime = String(formData.tourEndHour).padStart(2,"0")+":"+String(formData.tourEndMin).padStart(2,"0");
       slotLabel = `${startTime} – ${endTime}`;
-    } else if (formData.slot === "custom") {
-      startTime = String(formData.tourHour).padStart(2,"0")+":"+String(formData.tourMin).padStart(2,"0");
-      const endH2 = Number(formData.tourEndHour||18);
-      const endM2 = Number(formData.tourEndMin||0);
-      endTime = String(endH2).padStart(2,"0")+":"+String(endM2).padStart(2,"0");
-      slotLabel = `${startTime} – ${endTime}`;
     } else {
-      const slots = { halfDayAM:["Halbtags Vormittag (08:00–13:00)","08:00","13:00"], halfDayPM:["Halbtags Nachmittag (13:00–18:00)","13:00","18:00"], fullDay:["Ganztags (08:00–22:00)","08:00","22:00"] };
-      const s = slots[formData.slot] || slots.fullDay;
-      slotLabel = s[0]; startTime = s[1]; endTime = s[2];
+      startTime = String(formData.tourHour||8).padStart(2,"0")+":"+String(formData.tourMin||0).padStart(2,"0");
+      endTime = String(formData.tourEndHour||22).padStart(2,"0")+":"+String(formData.tourEndMin||0).padStart(2,"0");
+      const slotNames = { halfDayAM:"Halbtags Vormittag", halfDayPM:"Halbtags Nachmittag", fullDay:"Ganztags" };
+      const slotName = slotNames[formData.slot] || "";
+      slotLabel = slotName ? `${slotName} (${startTime}–${endTime})` : `${startTime} – ${endTime}`;
     }
     const updated = { ...events, [selectedDate]: { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData } };
     saveEvents(updated);
@@ -667,8 +645,9 @@ export default function App() {
   };
 
   const handleAdminAction = (key, action) => {
-    if (action === "delete" && confirmDelete !== key && events[key]?.status !== "pending") {
-      setConfirmDelete(key);
+    if (action === "delete") {
+      const ev = events[key];
+      setDeleteConfirm({ type:"single", key, label: ev?.label || "Termin", count:1, items:[[key,ev]] });
       return;
     }
     if (action === "permDelete") {
@@ -677,17 +656,30 @@ export default function App() {
       saveEvents(updated);
       return;
     }
-    setConfirmDelete(null);
+    if (action === "doDelete") {
+      prevEvents.current = { ...events };
+      const ev = events[key];
+      const updated = { ...events };
+      // If main event has subEvents, promote first subEvent
+      if (ev.subEvents && ev.subEvents.length > 0) {
+        const [first, ...rest] = ev.subEvents;
+        updated[key] = { ...first, subEvents: rest };
+      } else {
+        updated[key] = { ...updated[key], status: "deleted", deletedAt: new Date().toISOString() };
+      }
+      saveEvents(updated);
+      setModalView(null);
+      setDeleteConfirm(null);
+      showToast("Gelöscht", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, "#c44");
+      return;
+    }
     prevEvents.current = { ...events };
     const ev = events[key];
     const updated = { ...events };
     if (action === "confirm") updated[key] = { ...updated[key], status: "booked" };
-    else if (action === "delete") updated[key] = { ...updated[key], status: "deleted", deletedAt: new Date().toISOString() };
     saveEvents(updated);
     setModalView(null);
-    const actionLabel = action === "confirm" ? "Bestätigt" : "Gelöscht";
-    const actionColor = action === "confirm" ? BRAND.moosgruen : "#c44";
-    showToast(actionLabel, `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, actionColor);
+    showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, BRAND.moosgruen);
   };
 
   const handleSavePrice = () => {
@@ -727,17 +719,15 @@ export default function App() {
       )}
 
       {successModal && (
-        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center" }} />
-          <div style={{ position:"absolute", inset:0, background:"rgba(88,8,74,0.55)", backdropFilter:"blur(2px)" }} />
-          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(255,255,255,0.97)", borderRadius:20, padding:"32px 28px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(88,8,74,0.35)", textAlign:"center" }}>
-            <div style={{ width:56, height:56, borderRadius:"50%", background:`${BRAND.lila}12`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={BRAND.lila} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16, background:"rgba(0,0,0,0.2)", backdropFilter:"blur(8px)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"#fff", borderRadius:20, padding:"32px 28px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.12)", textAlign:"center" }}>
+            <div style={{ width:56, height:56, borderRadius:"50%", background:`${BRAND.moosgruen}12`, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={BRAND.moosgruen} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>
             </div>
             <div style={{ fontSize:20, fontWeight:700, color:BRAND.aubergine, marginBottom:8 }}>Anfrage gesendet!</div>
             <div style={{ fontSize:14, color:"#888", lineHeight:1.6, marginBottom:20 }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
             <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer"
-              style={{ display:"block", padding:"14px 16px", background:`${BRAND.aubergine}06`, border:`1.5px solid ${BRAND.aubergine}15`, borderRadius:12, textDecoration:"none", marginBottom:16, transition:"all .15s" }}>
+              style={{ display:"block", padding:"14px 16px", background:"#f9f7fa", border:"1px solid #ede8ed", borderRadius:12, textDecoration:"none", marginBottom:16, transition:"all .15s" }}>
               <div style={{ fontSize:11, color:"#999", fontWeight:500, letterSpacing:0.5, marginBottom:4 }}>Mehr über uns erfahren</div>
               <div style={{ fontSize:15, fontWeight:600, color:BRAND.lila }}>www.derparadiesgarten.at</div>
               <div style={{ fontSize:11, color:"#aaa", marginTop:3 }}>Entdecken Sie unseren Paradiesgarten in Klagenfurt</div>
@@ -785,7 +775,7 @@ export default function App() {
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.lila, display:"inline-block" }} /> Gebucht</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, #009a9325 2px, #009a9325 3.5px)`, border:"1px solid #009a9330", display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#009a93", color:"#fff", fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
         </div>
       )}
 
@@ -812,7 +802,7 @@ export default function App() {
             {/* Button bottom-right on mobile */}
             {winW < 520 && (
               <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3 }}>
-                <button onClick={(e) => { e.stopPropagation(); setModalView("selectType"); }}
+                <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                   style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
                   Location buchen
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
@@ -846,7 +836,7 @@ export default function App() {
                 <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
                 <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setModalView("selectType"); }}
+              <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                 onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
                 style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : "12px 20px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease" }}>
@@ -935,31 +925,30 @@ export default function App() {
             const hol = holidays[key];
             const isToday = key === todayKey;
             const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && !ev.isPublic && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay);
+            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && ev.allDay && !ev.isPublic && !ev.isSeries;
             const customerPublic = !isAdmin && ev && ev.isPublic && !ev.isSeries;
             const customerSeries = !isAdmin && ev && ev.isSeries;
-            const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries || (ev.status === "blocked" && !ev.allDay));
+            const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries || !ev.allDay);
             const statusColor = ev ? (ev.status === "booked" ? BRAND.lila : ev.status === "pending" ? BRAND.aprikot : "#009a93") : null;
             const isPending = ev?.status === "pending" && isAdmin;
             const isBlockedAdmin = ev && isAdmin && ev.status === "blocked" && !ev.isSeries;
             const isSeriesAdmin = ev && isAdmin && ev.isSeries;
             return (
-              <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : "day-free"} onClick={() => !isPast && handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : customerPublic ? (ev.label || "Veranstaltung") : isAdmin && ev?.label ? ev.label : ""}
+              <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : "day-free"} onClick={() => handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : customerPublic ? (ev.label || "Veranstaltung") : isAdmin && ev?.label ? ev.label : ""}
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2px solid ${BRAND.aprikot}` : isBlockedAdmin ? `1px solid #009a9330` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${BRAND.aprikot}` : isBlockedAdmin ? `1px solid #009a9330` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, #009a9310 3px, #009a9310 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}15` : customerPublic ? `${BRAND.moosgruen}10` : isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && !ev.isSeries ? `${statusColor}20` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
-                  cursor: isPast || customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
-                  alignItems:"center", justifyContent:"center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
-                  animation: isPending && !isPast ? "pendingPulse 2s ease-in-out infinite" : "none",
+                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, #009a9310 3px, #009a9310 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}15` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? `${statusColor}20` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
+                  cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
+                  alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
                 }}>
                 {/* Series indicator for admin - S badge */}
-                {isSeriesAdmin && <div style={{ position:"absolute", top:2, right:2, background:"#009a93", color:"#fff", fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>S</div>}
+                {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>S</div>}
                 {/* Pending indicator for admin */}
-                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:`${BRAND.aprikot}`, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "2px 0" : "1.5px 0", letterSpacing:0.5, lineHeight:1 }}>Anfrage</div>}
+                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:BRAND.aprikot, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
                   <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>
                   : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0" }} />
@@ -968,12 +957,12 @@ export default function App() {
                 {customerBooked && <div style={{ display:"flex", gap:2, marginTop:2 }}><div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.lila }} /></div>}
                 {customerPublic && <div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
                 {customerSeries && ev.isPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
-                {ev && isAdmin && !ev.isSeries && (() => {
-                  const dots = [{ color: statusColor, type: ev.status }];
-                  if (ev.subEvents) ev.subEvents.forEach(s => dots.push({ color: s.status === "booked" ? BRAND.lila : s.status === "blocked" ? "#009a93" : BRAND.aprikot, type: s.status }));
-                  const sz = winW > 900 ? 7 : 5;
+                {ev && isAdmin && !ev.isSeries && ev.status !== "blocked" && (() => {
+                  const dots = [{ color: statusColor }];
+                  if (ev.subEvents) ev.subEvents.forEach(s => { if (s.status !== "blocked") dots.push({ color: s.status === "booked" ? BRAND.lila : BRAND.aprikot }); });
+                  const sz = winW > 900 ? 6 : 4;
                   return (
-                    <div style={{ display:"flex", gap:2, marginTop:1, justifyContent:"center" }}>
+                    <div style={{ display:"flex", gap:2, marginTop:3, justifyContent:"center" }}>
                       {dots.map((d,i) => <div key={i} style={{ width:sz, height:sz, borderRadius:"50%", background: d.color }} />)}
                     </div>
                   );
@@ -989,49 +978,46 @@ export default function App() {
           const pending = Object.entries(events).filter(([,v]) => v.status === "pending").sort(([a],[b]) => a.localeCompare(b));
           if (!pending.length) return null;
           return (
-            <div style={{ marginBottom:24 }}>
-              <h3 onClick={() => setShowPending(s=>!s)} style={{ fontSize: winW > 900 ? 16 : 14, fontWeight:700, color: BRAND.aprikot, letterSpacing:2, textTransform:"uppercase", marginBottom: showPending ? 12 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-                Offene Anfragen ({pending.length})
-                <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPending ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aprikot} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </h3>
-              {showPending && pending.map(([key, ev]) => {
-                const [yy,mm,dd] = key.split("-").map(Number);
-                const d = new Date(yy,mm-1,dd);
-                const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
-                const dateStr = `${dayName}, ${dd}. ${MONTHS[mm-1]}`;
-                return (
-                <SwipeRow key={key} onSwipeRight={() => handleAdminAction(key,"confirm")} onSwipeLeft={() => handleAdminAction(key,"delete")} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
-                  <div onClick={() => { setSelectedDate(key); setModalView("info"); }}
-                    onMouseEnter={() => setHoveredDate(key)} onMouseLeave={() => setHoveredDate(null)}
-                    style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 10px", borderLeft:`3px solid ${BRAND.aprikot}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", display:"flex", alignItems:"center", gap:10, transition:"all .15s" }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ display:"flex", alignItems:"baseline", gap:6, flexWrap:"wrap" }}>
-                        <span style={{ fontWeight:600, color: BRAND.aprikot, fontSize: winW > 900 ? 15 : 13 }}>{dateStr}</span>
-                        <span style={{ fontSize: winW > 900 ? 13 : 11, color: BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
-                        {winW > 900 && ev.slotLabel && <span style={{ fontSize:10, color:"#aaa" }}><ClockIcon />{ev.slotLabel}</span>}
+            <div style={{ marginBottom:20 }}>
+              <div onClick={() => setShowPending(s=>!s)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", marginBottom: showPending ? 8 : 0 }}>
+                <span style={{ fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:BRAND.aprikot, textTransform:"uppercase", letterSpacing:2 }}>Offene Anfragen</span>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ background:`${BRAND.aprikot}15`, color:BRAND.aprikot, fontSize:11, fontWeight:500, padding:"2px 10px", borderRadius:10 }}>{pending.length}</span>
+                  <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPending ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aprikot} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              </div>
+              {showPending && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                {pending.map(([key, ev]) => {
+                  const [yy,mm,dd] = key.split("-").map(Number);
+                  const d = new Date(yy,mm-1,dd);
+                  const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
+                  return (
+                    <SwipeRow key={key} onSwipeRight={() => handleAdminAction(key,"confirm")} onSwipeLeft={() => handleAdminAction(key,"delete")} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
+                      <div onClick={() => { setSelectedDate(key); setModalView("info"); }} className="admin-card"
+                        style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                            <span style={{ fontWeight:600, color:BRAND.aprikot, fontSize: winW > 900 ? 12 : 11 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
+                            <span style={{ fontSize: winW > 900 ? 12 : 11, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
+                            {ev.slotLabel && <span style={{ fontSize:10, color:"#bbb", display:"flex", alignItems:"center", gap:2 }}><ClockIcon color="#ccc" size={10} />{ev.slotLabel}</span>}
+                          </div>
+                          {ev.name && <div style={{ fontSize:10, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>}
+                        </div>
+                        <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
+                          onMouseEnter={e => e.currentTarget.style.filter="brightness(0.85)"} onMouseLeave={e => e.currentTarget.style.filter="none"}
+                          style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:5, padding:"4px 10px", fontSize:9, fontWeight:700, cursor:"pointer", flexShrink:0, textTransform:"uppercase", letterSpacing:0.5, transition:"all .15s" }}>Annehmen</button>
                       </div>
-                      {ev.name && (
-                        <div style={{ fontSize: winW > 900 ? 10 : 9, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>
-                      )}
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
-                      onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.85)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.filter="none"; }}
-                      style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, padding:"5px 12px", fontSize:10, fontWeight:700, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:4, transition:"all .15s", letterSpacing:0.5, textTransform:"uppercase" }}>
-                      Annehmen
-                    </button>
-                  </div>
-                </SwipeRow>
-                );
-              })}
+                    </SwipeRow>
+                  );
+                })}
+              </div>}
             </div>
           );
         })()}
 
-        {/* Admin: 2. Kommende Termine + 3. Interne + 4. Vergangene */}
+        {/* Admin: 2. Kommende + Intern/Serie + Vergangene + Gelöschte */}
         {isAdmin && (() => {
           const allUpcoming = Object.entries(events).filter(([k,v]) => (v.status === "booked" || v.status === "blocked") && k >= todayKey).sort(([a],[b]) => a.localeCompare(b));
-          // Flatten subEvents into separate list entries
           const subEventRows = [];
           allUpcoming.forEach(([k,v]) => {
             if (v.subEvents) v.subEvents.forEach((sub,i) => {
@@ -1040,130 +1026,124 @@ export default function App() {
           });
           const bookedOnly = [...allUpcoming.filter(([,v]) => v.status === "booked"), ...subEventRows.filter(([,v]) => v.status === "booked")].sort(([a],[b]) => a.localeCompare(b));
           const blockedOnly = allUpcoming.filter(([,v]) => v.status === "blocked");
-          if (!allUpcoming.length) return null;
-          const renderRow = ([key, ev], pastMode) => {
-            const isBlocked = ev.status === "blocked";
+          const regularBlocked = blockedOnly.filter(([,v]) => !v.isSeries);
+          const seriesBlocked = blockedOnly.filter(([,v]) => v.isSeries);
+          const internAndSeries = [...regularBlocked, ...seriesBlocked].sort(([a],[b]) => a.localeCompare(b));
+
+          // Group series by seriesId
+          const seriesGroups = {};
+          seriesBlocked.forEach(([k,v]) => {
+            const sid = v.seriesId || v.label || "serie";
+            if (!seriesGroups[sid]) seriesGroups[sid] = { label: v.label || "Serie", items: [], first: v };
+            seriesGroups[sid].items.push([k,v]);
+          });
+
+          const renderRow = (key, ev, color, badge) => {
             const [yy,mm,dd] = key.split("-").map(Number);
             const d = new Date(yy,mm-1,dd);
             const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
-            const dateStr = `${dayName}, ${dd}. ${MONTHS[mm-1]}`;
             return (
-              <div key={key} style={{ marginBottom:5 }}>
-                <div className="admin-card" onClick={() => { setSelectedDate(key); setModalView("info"); }}
-                  style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 12px", borderLeft:`3px solid ${isBlocked ? "#009a93" : BRAND.aubergine}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", display:"flex", alignItems:"center", gap:10, opacity: pastMode ? 0.7 : 1 }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:"flex", alignItems:"baseline", gap:6, flexWrap:"wrap" }}>
-                      <span style={{ fontWeight:600, color: isBlocked ? "#009a93" : BRAND.aubergine, fontSize: winW > 900 ? 15 : 13 }}>{dateStr}</span>
-                      <span style={{ fontSize: winW > 900 ? 13 : 11, color:"#999", fontWeight:500 }}>{ev.label || (isBlocked ? "" : "")}</span>
-                      {winW > 900 && ev.slotLabel && <span style={{ fontSize: winW > 900 ? 12 : 10, color:"#bbb" }}><ClockIcon color="#bbb" />{ev.slotLabel}</span>}
-                    </div>
-                    {winW > 900 && (ev.name || ev.adminNote) && (
-                      <div style={{ fontSize:10, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
-                        {ev.name && <span>{ev.name}</span>}
-                        {ev.adminNote && <span>{ev.name ? " · " : ""}{ev.adminNote}</span>}
-                      </div>
-                    )}
-                    {winW <= 900 && ev.name && (
-                      <div style={{ fontSize:9, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>
-                    )}
+              <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setModalView("info"); }} className="admin-card"
+                style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                    <span style={{ fontWeight:600, color, fontSize: winW > 900 ? 12 : 11 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
+                    <span style={{ fontSize: winW > 900 ? 12 : 11, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ""}</span>
+                    {ev.slotLabel && <span style={{ fontSize:10, color:"#bbb", display:"flex", alignItems:"center", gap:2 }}><ClockIcon color="#ccc" size={10} />{ev.slotLabel}</span>}
                   </div>
-                  <div style={{ background: isBlocked ? "#009a93" : BRAND.lila, color: "#fff", padding:"5px 12px", borderRadius:6, fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>
-                    {isBlocked ? "Intern" : "Gebucht"}
-                  </div>
+                  {(ev.name || ev.adminNote) && <div style={{ fontSize:10, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}{ev.adminNote ? (ev.name ? " · " : "") + ev.adminNote : ""}</div>}
                 </div>
+                {badge}
               </div>
             );
           };
+
+          const renderSectionHeader = (label, count, color, show, setShow) => (
+            <div onClick={() => setShow(s=>!s)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", marginBottom: show ? 8 : 0, marginTop:16 }}>
+              <span style={{ fontSize: winW > 900 ? 13 : 11, fontWeight:600, color, textTransform:"uppercase", letterSpacing:2 }}>{label}</span>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ background:`${color}12`, color, fontSize:11, fontWeight:500, padding:"2px 10px", borderRadius:10 }}>{count}</span>
+                <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: show ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
+            </div>
+          );
+
           return (
             <div style={{ marginBottom:24 }}>
-              {bookedOnly.length > 0 && (
-                <>
-                  <h3 onClick={() => setShowUpcoming(s=>!s)} style={{ fontSize: winW > 900 ? 16 : 14, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: showUpcoming ? 12 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-                    Kommende Termine ({bookedOnly.length})
-                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showUpcoming ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aubergine} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </h3>
-                  {showUpcoming && bookedOnly.map(r => renderRow(r, false))}
-                </>
-              )}
-              {blockedOnly.length > 0 && (() => {
-                const regularBlocked = blockedOnly.filter(([,v]) => !v.isSeries);
-                const seriesBlocked = blockedOnly.filter(([,v]) => v.isSeries);
-                return (
-                <>
-                  {regularBlocked.length > 0 && (
-                  <>
-                  <h3 onClick={() => setShowInternal(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a93", letterSpacing:2, textTransform:"uppercase", marginBottom: showInternal ? 10 : 0, marginTop: bookedOnly.length > 0 ? 20 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-                    Interne Termine ({regularBlocked.length})
-                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showInternal ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </h3>
-                  {showInternal && regularBlocked.map(r => renderRow(r, false))}
-                  </>
-                  )}
-                  {seriesBlocked.length > 0 && (() => {
-                    const groups = {};
-                    seriesBlocked.forEach(([key, ev]) => {
-                      const sid = ev.seriesId || ev.label || "serie";
-                      if (!groups[sid]) groups[sid] = { label: ev.label || "Serientermin", items: [] };
-                      groups[sid].items.push([key, ev]);
-                    });
+              {bookedOnly.length > 0 && <>
+                {renderSectionHeader("Kommende Termine", bookedOnly.length, BRAND.aubergine, showUpcoming, setShowUpcoming)}
+                {showUpcoming && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  {bookedOnly.map(([key,ev]) => renderRow(key, ev, BRAND.lila,
+                    <div style={{ background:BRAND.lila, color:"#fff", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Gebucht</div>
+                  ))}
+                </div>}
+              </>}
+
+              {(regularBlocked.length > 0 || Object.keys(seriesGroups).length > 0) && <>
+                {renderSectionHeader("Intern & Serie", internAndSeries.length, "#009a93", showInternal, setShowInternal)}
+                {showInternal && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  {regularBlocked.map(([key,ev]) => renderRow(key, ev, "#009a93",
+                    <div style={{ background:"#009a93", color:"#fff", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Intern</div>
+                  ))}
+                  {Object.entries(seriesGroups).map(([sid, group]) => {
+                    const isOpen = expandedSeries === sid;
                     return (
-                    <div style={{ marginTop:20 }}>
-                      <h3 onClick={() => setShowSeries(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a9380", letterSpacing:2, textTransform:"uppercase", marginBottom: showSeries ? 10 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-                        Serientermine ({seriesBlocked.length})
-                        <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showSeries ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a9380" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </h3>
-                      {showSeries && Object.entries(groups).map(([sid, group]) => {
-                        const isOpen = expandedSeries === sid;
-                        const first = group.items[0][1];
-                        return (
-                        <div key={sid} style={{ marginBottom:12 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, padding:"8px 12px", border:`1.5px solid #009a9330`, borderRadius:8, borderLeft:`3px solid #009a93` }}>
-                            <h4 onClick={() => setExpandedSeries(isOpen ? null : sid)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a93", cursor:"pointer", display:"flex", alignItems:"center", gap:6, margin:0, flex:1 }}>
-                              {group.label} <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 }}>S</span>
-                              <span style={{ fontWeight:400, fontSize:11, color:"#009a9360" }}>({group.items.length})</span>
-                              <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                            </h4>
-                            <button onClick={() => {
+                      <div key={sid}>
+                        <div onClick={() => setExpandedSeries(isOpen ? null : sid)} className="admin-card"
+                          style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                              <span style={{ fontWeight:600, color:"#009a93", fontSize: winW > 900 ? 12 : 11 }}>{group.label}</span>
+                              <span style={{ background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:8, fontWeight:700, padding:"0px 4px", borderRadius:3, boxSizing:"border-box" }}>S</span>
+                              <span style={{ fontSize:10, color:"#009a9360" }}>{group.items.length} Termine</span>
+                              <svg width="8" height="8" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </div>
+                            {group.first.slotLabel && <div style={{ fontSize:10, color:"#bbb", marginTop:1, display:"flex", alignItems:"center", gap:2 }}><ClockIcon color="#ccc" size={10} />{group.first.slotLabel}</div>}
+                          </div>
+                          <div style={{ display:"flex", gap:4, flexShrink:0 }}>
+                            <button onClick={(e) => { e.stopPropagation();
                               setSelectedDate(group.items[0][0]);
-                              setAdminForm({ type: first.status || "blocked", label: first.label || "", note: first.note || "", startTime: first.startTime || "08:00", endTime: first.endTime || "22:00", adminNote: first.adminNote || "", eventType: first.type || "", allDay: first.allDay || false, checklist: first.checklist || [], contactName: first.contactName || "", contactPhone: first.contactPhone || "", contactAddress: first.contactAddress || "", publicText: first.publicText || "", isPublic: first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true });
+                              setAdminForm({ type: group.first.status || "blocked", label: group.first.label || "", note: group.first.note || "", startTime: group.first.startTime || "08:00", endTime: group.first.endTime || "22:00", adminNote: group.first.adminNote || "", eventType: group.first.type || "", allDay: group.first.allDay || false, checklist: group.first.checklist || [], contactName: group.first.contactName || "", contactPhone: group.first.contactPhone || "", contactAddress: group.first.contactAddress || "", publicText: group.first.publicText || "", isPublic: group.first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true });
                               setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                             }}
-                              onMouseEnter={e => e.currentTarget.style.background="#009a9315"} onMouseLeave={e => e.currentTarget.style.background="#009a9308"}
-                              style={{ background:"#009a9308", border:`1.5px solid #009a9330`, borderRadius:6, padding: winW < 520 ? "6px 8px" : "5px 14px", fontSize:11, color:"#009a93", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s", display:"flex", alignItems:"center", gap:4 }}>
-                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="#009a93" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                              {winW >= 520 && "Alle bearbeiten"}
+                              onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+                              style={{ background:"none", border:"1px solid #009a9330", borderRadius:5, padding:"3px 6px", cursor:"pointer", display:"flex", alignItems:"center", transition:"opacity .15s" }}>
+                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="#009a93" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </button>
-                            <button onClick={() => {
-                              setDeleteConfirm({ type:"series", sid, label: group.label, count: group.items.length, items: group.items });
-                            }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor="#c44"; }} onMouseLeave={e => { e.currentTarget.style.borderColor="#c4440020"; }}
-                              style={{ background:"#fff", border:`1.5px solid #c4440020`, borderRadius:6, padding: winW < 520 ? "6px 8px" : "5px 14px", fontSize:11, color:"#c44", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s", display:"flex", alignItems:"center", gap:4 }}>
-                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4" stroke="#c44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                              {winW >= 520 && "Alle löschen"}
+                            <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type:"series", sid, label: group.label, count: group.items.length, items: group.items }); }}
+                              onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+                              style={{ background:"none", border:"1px solid #c4440020", borderRadius:5, padding:"3px 6px", cursor:"pointer", display:"flex", alignItems:"center", transition:"opacity .15s" }}>
+                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4" stroke="#c44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </button>
+                            <div style={{ background:"#009a9318", color:"#009a93", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>Serie</div>
                           </div>
-                          {isOpen && group.items.sort(([a],[b]) => a.localeCompare(b)).map(r => renderRow(r, false))}
                         </div>
-                        );
-                      })}
-                    </div>
+                        {isOpen && <div style={{ paddingLeft:12, borderLeft:"2px solid #009a9320", marginLeft:8, marginTop:2 }}>
+                          {group.items.sort(([a],[b]) => a.localeCompare(b)).map(([key,ev]) => renderRow(key, ev, "#009a93",
+                            <div style={{ background:"#009a9318", color:"#009a93", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Serie</div>
+                          ))}
+                        </div>}
+                      </div>
                     );
-                  })()}
-                </>
-                );
-              })()}
+                  })}
+                </div>}
+              </>}
+
+              {/* Vergangene */}
               {(() => {
                 const pastAll = Object.entries(events).filter(([k,v]) => (v.status === "booked" || v.status === "blocked") && k < todayKey).sort(([a],[b]) => b.localeCompare(a));
                 if (!pastAll.length) return null;
-                return (
-                  <div style={{ marginTop:20 }}>
-                    <h3 onClick={() => setShowPast(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#aaa", letterSpacing:2, textTransform:"uppercase", marginBottom: showPast ? 10 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-                      Vergangene Termine ({pastAll.length})
-                      <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPast ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#aaa" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </h3>
-                    {showPast && pastAll.map(r => renderRow(r, true))}
-                  </div>
-                );
+                return <>
+                  {renderSectionHeader("Vergangene Termine", pastAll.length, "#aaa", showPast, setShowPast)}
+                  {showPast && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                    {pastAll.map(([key,ev]) => {
+                      const isBlocked = ev.status === "blocked";
+                      return <div key={key} style={{ opacity:0.6 }}>{renderRow(key, ev, "#aaa",
+                        <div style={{ background: isBlocked ? "#009a9330" : `${BRAND.lila}30`, color: isBlocked ? "#009a93" : BRAND.lila, padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>{isBlocked ? "Intern" : "Gebucht"}</div>
+                      )}</div>;
+                    })}
+                  </div>}
+                </>;
               })()}
               {(() => {
                 const deletedAll = Object.entries(events).filter(([,v]) => v.status === "deleted").sort(([a],[b]) => b.localeCompare(a));
@@ -1171,7 +1151,6 @@ export default function App() {
                 return (
                   <div style={{ marginTop:20 }}>
                     <h3 onClick={() => setShowDeleted(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#c44", letterSpacing:2, textTransform:"uppercase", marginBottom: showDeleted ? 10 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8, opacity:0.7 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c44" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                       Gelöschte Termine ({deletedAll.length})
                       <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showDeleted ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#c44" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </h3>
@@ -1207,27 +1186,42 @@ export default function App() {
         {/* Admin: Preise verwalten */}
         {isAdmin && (
           <div style={{ marginBottom:24 }}>
-            <h3 onClick={() => setShowPrices(s=>!s)} style={{ fontSize: winW > 900 ? 16 : 14, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: showPrices ? 12 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+            <button onClick={() => setShowPrices(true)}
+              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:BRAND.aubergine, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
               Preise verwalten
-              <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPrices ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aubergine} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </h3>
-            {showPrices && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
-              {eventTypes.map(et => (
-                <div key={et.id} onClick={() => setEditingType({...et})}
-                  style={{ flex: winW < 520 ? "1 1 calc(50% - 4px)" : "1 1 0", background:"#fff", borderRadius:8, padding: winW < 520 ? "12px 10px" : "10px 10px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 1px 6px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .15s", minWidth:0 }}>
-                  <div style={{ fontWeight:700, color: BRAND.aubergine, fontSize: winW < 520 ? 12 : 11, marginBottom:4, wordBreak:"break-word" }}>{et.label}</div>
-                  <div style={{ fontSize:10, color:"#888" }}>
-                    {et.isGroupTour ? (
-                      <><div>€ {et.pricePerPerson} p.P.</div><div>ab {et.minPersons} Pers.</div></>
-                    ) : (
-                      <><div>½ {et.halfDay === 0 ? "–" : fmt(et.halfDay)}</div><div>1 {et.fullDay === 0 ? "–" : fmt(et.fullDay)}</div></>
-                    )}
+            </button>
+          </div>
+        )}
+
+        {/* Prices Modal */}
+        {showPrices && (
+          <div onClick={() => setShowPrices(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#f5f3f4", borderRadius:16, padding:"24px 20px", maxWidth:500, width:"100%", maxHeight:"80vh", overflowY:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Preise verwalten</h3>
+                <button onClick={() => setShowPrices(false)} style={{ background:"none", border:"none", fontSize:20, color:"#aaa", cursor:"pointer", padding:4, lineHeight:1 }}
+                  onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>×</button>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {eventTypes.map(et => (
+                  <div key={et.id} onClick={() => { setEditingType({...et}); setShowPrices(false); }}
+                    className="admin-card"
+                    style={{ background:"#fff", borderRadius:10, padding:"14px 16px", borderLeft:`4px solid ${et.color}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between", transition:"all .15s" }}>
+                    <div>
+                      <div style={{ fontWeight:700, color:BRAND.aubergine, fontSize:14, marginBottom:2 }}>{et.label}</div>
+                      <div style={{ fontSize:11, color:"#888" }}>
+                        {et.isGroupTour
+                          ? `€ ${et.pricePerPerson} p.P. · ab ${et.minPersons} Pers.`
+                          : `Halbtags ${et.halfDay === 0 ? "auf Anfrage" : fmt(et.halfDay)} · Ganztags ${et.fullDay === 0 ? "auf Anfrage" : fmt(et.fullDay)}`
+                        }
+                      </div>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink:0, opacity:0.3 }}><path d="M5 3l4 4-4 4" stroke={BRAND.aubergine} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-            )}
           </div>
         )}
 
@@ -1262,18 +1256,25 @@ export default function App() {
             </div>
             <div style={{ fontSize:16, fontWeight:700, color:BRAND.aubergine, marginBottom:6 }}>Wirklich löschen?</div>
             <div style={{ fontSize:13, color:"#888", marginBottom:16, lineHeight:1.4 }}>
-              {deleteConfirm.count} Termine <strong>„{deleteConfirm.label}"</strong> werden unwiderruflich gelöscht.
+              {deleteConfirm.type === "single"
+                ? <><strong>„{deleteConfirm.label}"</strong> wird gelöscht.</>
+                : <>{deleteConfirm.count} Termine <strong>„{deleteConfirm.label}"</strong> werden gelöscht.</>
+              }
             </div>
             <div style={{ display:"flex", gap:10 }}>
               <button onClick={() => setDeleteConfirm(null)}
                 style={{ flex:1, padding:"10px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer" }}>Abbrechen</button>
               <button onClick={() => {
-                prevEvents.current = { ...events };
-                const updated = { ...events };
-                deleteConfirm.items.forEach(([k]) => { updated[k] = { ...updated[k], status:"deleted" }; });
-                saveEvents(updated);
-                setToast({ msg:`${deleteConfirm.count} Serientermine gelöscht`, undo:() => saveEvents(prevEvents.current) });
-                setDeleteConfirm(null);
+                if (deleteConfirm.type === "single") {
+                  handleAdminAction(deleteConfirm.key, "doDelete");
+                } else {
+                  prevEvents.current = { ...events };
+                  const updated = { ...events };
+                  deleteConfirm.items.forEach(([k]) => { updated[k] = { ...updated[k], status:"deleted" }; });
+                  saveEvents(updated);
+                  setToast({ msg:`${deleteConfirm.count} Serientermine gelöscht`, undo:() => saveEvents(prevEvents.current) });
+                  setDeleteConfirm(null);
+                }
               }}
                 style={{ flex:1, padding:"10px 0", background:"#c44", color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer" }}>Ja, löschen</button>
             </div>
@@ -1357,8 +1358,7 @@ export default function App() {
                       setFormData(f => ({ ...f, type: et.id, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:12, tourEndMin:0 }));
                       setSubmitAttempted(false);
                       setShowTypeSelect(false);
-                      setPickerMonth(month);
-                      setPickerYear(year);
+                      if (!selectedDate) { setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear()); }
                       setModalView(selectedDate ? "form" : "pickDate");
                     }}
                       style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"#fff", border:"1.5px solid #e8e0e5", borderRadius:10, borderLeft:`4px solid ${et.color}`, cursor:"pointer", textAlign:"left", transition:"all .15s" }}
@@ -1430,7 +1430,13 @@ export default function App() {
                   <div style={{ fontSize:14, color:"#666", marginBottom:12 }}>Wählen Sie Ihr Wunschdatum:</div>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                     <button onClick={prevPM} style={{ ...navBtn, width:32, height:32, fontSize:16 }}>‹</button>
-                    <span style={{ fontWeight:700, color: BRAND.aubergine, fontSize:15 }}>{MONTHS[pickerMonth]} {pickerYear}</span>
+                    <div style={{ textAlign:"center" }}>
+                      <span style={{ fontWeight:700, color: BRAND.aubergine, fontSize:15 }}>{MONTHS[pickerMonth]} {pickerYear}</span>
+                      {(pickerMonth !== today.getMonth() || pickerYear !== today.getFullYear()) && (
+                        <div><button onClick={() => { setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear()); }}
+                          style={{ background:"none", border:`1px solid ${BRAND.lila}40`, color: BRAND.lila, padding:"1px 8px", borderRadius:10, fontSize:9, fontWeight:600, cursor:"pointer", marginTop:2 }}>Heute</button></div>
+                      )}
+                    </div>
                     <button onClick={nextPM} style={{ ...navBtn, width:32, height:32, fontSize:16 }}>›</button>
                   </div>
                   <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
@@ -1440,19 +1446,20 @@ export default function App() {
                       const key = dateKey(pickerYear, pickerMonth, day);
                       const ev = events[key];
                       const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                      const isFree = (!ev || ev.isSeries || (ev.status === "blocked" && !ev.allDay)) && !isPast;
-                      const isOccupied = !!ev && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay) && !isPast;
+                      const isFree = (!ev || !ev.allDay || ev.status === "pending" || ev.isSeries) && !isPast;
+                      const isOccupied = !!ev && ev.allDay && ev.status !== "pending" && !ev.isSeries && !isPast;
+                      const isPickToday = key === todayKey;
                       const hol = holidays[key];
                       return (
                         <button key={key} onClick={() => handlePickerDateClick(day)}
                           title={isOccupied ? "nicht verfügbar" : hol || ""}
-                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor=`${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}18`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="1"; } }}
-                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor=`${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="0"; } }}
+                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}18`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="1"; } }}
+                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background= isPickToday ? "#8ec89a10" : "#fff"; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="0"; } }}
                           style={{
-                            aspectRatio:"1", border: isFree ? `1.5px solid ${BRAND.aubergine}30` : isOccupied ? `1px solid ${BRAND.lila}30` : "1px solid #eee",
-                            borderRadius:6, background: isFree ? "#fff" : isOccupied ? `${BRAND.lila}10` : "#f8f8f8",
-                            cursor: isFree ? "pointer" : "default", fontSize:13, fontWeight: isFree ? 600 : isOccupied ? 600 : 400,
-                            color: isFree ? BRAND.aubergine : isOccupied ? BRAND.lila : "#ccc", opacity: isPast ? 0.4 : 1, transition:"all .15s",
+                            aspectRatio:"1", border: isPickToday ? `2.5px solid #8ec89a` : isFree ? `1.5px solid ${BRAND.aubergine}30` : isOccupied ? `1px solid ${BRAND.lila}30` : "1px solid #eee",
+                            borderRadius:6, background: isPickToday && isFree ? "#8ec89a10" : isFree ? "#fff" : isOccupied ? `${BRAND.lila}10` : "#f8f8f8",
+                            cursor: isFree ? "pointer" : "default", fontSize:13, fontWeight: isPickToday || isFree ? 600 : isOccupied ? 600 : 400,
+                            color: isPickToday && isFree ? "#8ec89a" : isFree ? BRAND.aubergine : isOccupied ? BRAND.lila : "#ccc", opacity: isPast ? 0.4 : 1, transition:"all .15s",
                             display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden", padding:0,
                           }}>
                           {hol && <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`${BRAND.aubergine}60` }} />}
@@ -1485,14 +1492,16 @@ export default function App() {
                   </div>
                 </div>
                 {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
+                {!events[selectedDate] && !adminForm.editAllSeries && !adminForm.addToExisting && (
                 <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-                  {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"], ...(events[selectedDate] ? [["free","Freigeben","#999"]] : [])].map(([v,l,c]) => (
+                  {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"]].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
                       style={{ flex:1, padding:"8px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 11 : 12, cursor:"pointer" }}>
                       {l}
                     </button>
                   ))}
                 </div>
+                )}
                 <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
 
                 {/* Event type suggestions - only for booked */}
@@ -1588,8 +1597,8 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Serientermin toggle + calendar - only for internal events */}
-                {adminForm.type === "blocked" && (
+                {/* Serientermin toggle + calendar - only for internal events, not when editing all */}
+                {adminForm.type === "blocked" && !adminForm.editAllSeries && (
                 <>
                 <label onClick={() => setAdminForm(f=>({...f, isSeries:!f.isSeries, seriesDates: f.isSeries ? [] : f.seriesDates}))}
                   style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.isSeries ? `#009a9310` : "#fff", border:`1.5px solid ${adminForm.isSeries ? "#009a93" : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
@@ -1817,8 +1826,9 @@ export default function App() {
                         {[["halfDayAM","Halbtags","bis 13 Uhr"],["halfDayPM","Halbtags","ab 13 Uhr"],["fullDay","Ganztags","08:00 – 22:00"]].map(([v,l,sub]) => {
                           const isHalf = v.startsWith("halfDay");
                           const priceVal = isHalf ? et?.halfDay : et?.fullDay;
+                          const defaults = { halfDayAM:[8,0,13,0], halfDayPM:[13,0,18,0], fullDay:[8,0,22,0] };
                           return (
-                            <button key={v} onClick={() => setFormData(f=>({...f, slot:v}))}
+                            <button key={v} onClick={() => { const d = defaults[v]; setFormData(f=>({...f, slot:v, tourHour:d[0], tourMin:d[1], tourEndHour:d[2], tourEndMin:d[3]})); }}
                               onMouseEnter={e => { if (formData.slot!==v) { e.currentTarget.style.background=(et?.color || BRAND.lila)+"10"; e.currentTarget.style.borderColor=(et?.color || BRAND.lila)+"40"; } }}
                               onMouseLeave={e => { if (formData.slot!==v) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#e0d8de"; } }}
                               style={{ flex:1, padding:"8px 4px", border:`2px solid ${formData.slot===v ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:10,
@@ -1835,28 +1845,43 @@ export default function App() {
 
                       {formData.type === "sonstiges" && (
                         <div style={{ marginBottom:8 }}>
-                          <button onClick={() => setFormData(f=>({...f, slot: f.slot==="custom" ? "fullDay" : "custom"}))}
+                          <button onClick={() => { setFormData(f=>({...f, slot:"custom", tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0})); }}
                             style={{ width:"100%", padding:"8px", border:`2px solid ${formData.slot==="custom" ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:10,
-                              background: formData.slot==="custom" ? (et?.color || BRAND.lila)+"20" : "#fff", cursor:"pointer", textAlign:"center", marginBottom:6 }}>
+                              background: formData.slot==="custom" ? (et?.color || BRAND.lila)+"20" : "#fff", cursor:"pointer", textAlign:"center" }}>
                             <div style={{ fontWeight:700, fontSize:12, color: BRAND.aubergine }}>Eigenes Zeitfenster</div>
                           </button>
-                          {formData.slot === "custom" && (
-                            <div style={{ display:"flex", gap:10, alignItems:"center", marginTop:6 }}>
-                              {[["Von","tourHour","tourMin"],["Bis","tourEndHour","tourEndMin"]].map(([lbl,hField,mField]) => {
-                                const h = Number(formData[hField])||0;
-                                const m = Number(formData[mField])||0;
-                                const timeVal = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
-                                return (
-                                  <div key={lbl} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                                    <span style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</span>
-                                    <TimeInput value={timeVal} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f,[hField]:nh,[mField]:nm})); }} />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
                         </div>
                       )}
+
+                      {/* Time fine-tuning */}
+                      <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:8 }}>
+                        {[["Von","tourHour","tourMin"],["Bis","tourEndHour","tourEndMin"]].map(([lbl,hField,mField]) => {
+                          const h = Number(formData[hField])||0;
+                          const m = Number(formData[mField])||0;
+                          const timeVal = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+                          return (
+                            <div key={lbl} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                              <span style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</span>
+                              <TimeInput value={timeVal} onChange={v => {
+                                const [nh,nm]=v.split(":").map(Number);
+                                setFormData(f => {
+                                  const upd = {...f, [hField]:nh, [mField]:nm};
+                                  const sH = hField==="tourHour" ? nh : upd.tourHour;
+                                  const sM = hField==="tourMin" ? nm : upd.tourMin;
+                                  const eH = hField==="tourEndHour" ? nh : upd.tourEndHour;
+                                  const eM = hField==="tourEndMin" ? nm : upd.tourEndMin;
+                                  const startMins = sH*60+sM, endMins = eH*60+eM;
+                                  let slot = "custom";
+                                  if (endMins <= 13*60 && startMins < 13*60) slot = "halfDayAM";
+                                  else if (startMins >= 13*60) slot = "halfDayPM";
+                                  else if (startMins < 13*60 && endMins > 13*60) slot = "fullDay";
+                                  return {...upd, slot};
+                                });
+                              }} accentColor={et?.color} />
+                            </div>
+                          );
+                        })}
+                      </div>
 
 
                       <div style={{ marginBottom:10 }}>
@@ -1914,7 +1939,7 @@ export default function App() {
                     <div>
                       <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
                       <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : "#009a93") : (ev.isPublic ? "#009a93" : BRAND.lila), color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
-                        {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : "Interner Termin") : (ev.isPublic ? "Veranstaltung" : "Gebucht")}
+                        {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : ev.isSeries ? "Serientermin" : "Interner Termin") : (ev.isPublic ? "Veranstaltung" : "Gebucht")}
                       </div>
                     </div>
                   </div>
@@ -2094,7 +2119,7 @@ export default function App() {
                       })}
                     </div>
                   )}
-                  {isAdmin && !ev.allDay && (
+                  {isAdmin && !ev.allDay && ev.status !== "pending" && (
                     <button onClick={() => {
                       setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
