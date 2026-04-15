@@ -511,7 +511,7 @@ export default function App() {
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroHover, setHeroHover] = useState(false);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
-  useEffect(() => { if (isAdmin) return; const t = setInterval(() => setHeroIdx(i => (i+1) % 7), 4000); return () => clearInterval(t); }, [isAdmin]);
+  useEffect(() => { if (isAdmin) return; const t = setInterval(() => setHeroIdx(i => (i+1) % 7), 10000); return () => clearInterval(t); }, [isAdmin]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -742,9 +742,27 @@ export default function App() {
             {heroImages.map((src, idx) => (
               <div key={idx} style={{ position:"absolute", inset:0, backgroundImage:`url(${src})`, backgroundSize:"cover", backgroundPosition:"center 40%", opacity: idx === heroIdx ? 1 : 0, transition:"opacity 1s ease-in-out", zIndex: idx === heroIdx ? 1 : 0 }} />
             ))}
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"55%", background:"linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 55%, transparent 100%)", zIndex:2 }} />
+            {winW < 520 && <div style={{ position:"absolute", top:0, left:0, right:0, height:"55%", background:"linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)", zIndex:2 }} />}
+            {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, width:"60%", height:"55%", background:"linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)", zIndex:2 }} />}
             <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
             <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
+            {/* Text overlay - top-left on mobile, bottom-left on desktop */}
+            {winW < 520 && (
+              <div style={{ position:"absolute", top:0, left:0, right:0, padding:"14px 14px", zIndex:3 }}>
+                <div style={{ fontSize:16, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
+                <div style={{ fontSize:10, color:"rgba(255,255,255,0.85)", marginTop:2, textShadow:"0 1px 4px rgba(0,0,0,0.3)", lineHeight:1.4 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
+              </div>
+            )}
+            {/* Button bottom-right on mobile */}
+            {winW < 520 && (
+              <div style={{ position:"absolute", bottom:0, right:0, padding:"14px 14px", zIndex:3 }}>
+                <button onClick={(e) => { e.stopPropagation(); setModalView("selectType"); }}
+                  style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
+                  Location buchen
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                </button>
+              </div>
+            )}
             {/* Arrows on hover (desktop only) */}
             {heroHover && winW >= 520 && <>
               <div onClick={() => setHeroIdx(i => (i+6) % 7)}
@@ -767,19 +785,19 @@ export default function App() {
                   style={{ width: idx === heroIdx ? 16 : 6, height:6, borderRadius:3, background: idx === heroIdx ? "#fff" : "rgba(255,255,255,0.4)", cursor:"pointer", transition:"all .3s ease" }} />
               ))}
             </div>}
-            <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : winW > 520 ? "18px 20px" : "14px 14px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12, zIndex:3 }}>
+            {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : "18px 20px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12, zIndex:3 }}>
               <div>
-                <div style={{ fontSize: winW > 900 ? 28 : winW > 520 ? 20 : 16, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
-                <div style={{ fontSize: winW > 900 ? 14 : winW > 520 ? 12 : 10, color:"rgba(255,255,255,0.85)", marginTop: winW < 520 ? 2 : 4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
+                <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
+                <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); setModalView("selectType"); }}
                 onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
-                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : winW > 520 ? "12px 20px" : "10px 16px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease" }}>
+                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : "12px 20px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease" }}>
                 Location buchen
                 <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
-            </div>
+            </div>}
           </div>
         )}
         {/* Customer: Event Types */}
