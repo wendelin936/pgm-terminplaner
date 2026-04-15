@@ -508,8 +508,9 @@ export default function App() {
   const [showPending, setShowPending] = useState(true);
   const [showUpcoming, setShowUpcoming] = useState(true);
   const [showInternal, setShowInternal] = useState(true);
-  const [showSeries, setShowSeries] = useState(true);
+  const [showSeries, setShowSeries] = useState(false);
   const [expandedSeries, setExpandedSeries] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [modalPull, setModalPull] = useState(0);
   const [editingField, setEditingField] = useState(null);
   const [editFieldVal, setEditFieldVal] = useState("");
@@ -574,7 +575,7 @@ export default function App() {
         setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false });
         setModalView("admin");
       }
-    } else if (ev && ev.status !== "pending" && !ev.isSeries) {
+    } else if (ev && ev.status !== "pending" && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay)) {
       setModalView("info");
     } else {
       setSelectedDate(key);
@@ -596,7 +597,9 @@ export default function App() {
     if (!day) return;
     const key = dateKey(pickerYear, pickerMonth, day);
     const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    if (isPast || events[key]) return;
+    const ev = events[key];
+    const blocked = ev && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay);
+    if (isPast || blocked) return;
     setSelectedDate(key);
     setSubmitAttempted(false);
     setModalView("form");
@@ -607,21 +610,26 @@ export default function App() {
     const updated = { ...events };
     if (adminForm.type === "free") { delete updated[selectedDate]; }
     else {
-      const st = adminForm.allDay ? "00:00" : adminForm.startTime;
-      const et = adminForm.allDay ? "23:59" : adminForm.endTime;
+      const st = adminForm.startTime || "08:00";
+      const et = adminForm.endTime || "22:00";
       const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
-      const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? "Ganztägig" : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid };
-      // If editing all in series, update all matching seriesId
+      const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid };
       if (adminForm.editAllSeries && adminForm.seriesId) {
         Object.keys(updated).forEach(k => {
           if (updated[k]?.seriesId === adminForm.seriesId) {
-            updated[k] = { ...entry, checklist: entry.checklist.map(c => ({...c})) };
+            const old = updated[k];
+            updated[k] = { ...entry, checklist: entry.checklist.map(c => ({...c})), subEvents: old.subEvents || [] };
           }
         });
+      } else if (adminForm.addToExisting && updated[selectedDate]) {
+        const existing = { ...updated[selectedDate] };
+        existing.subEvents = [...(existing.subEvents || []), entry];
+        updated[selectedDate] = existing;
       } else {
-        updated[selectedDate] = entry;
+        const oldSubs = updated[selectedDate]?.subEvents || [];
+        updated[selectedDate] = { ...entry, subEvents: oldSubs };
         if (adminForm.seriesDates && adminForm.seriesDates.length > 0) {
-          adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, checklist: entry.checklist.map(c => ({...c, done:false})) }; });
+          adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, subEvents: updated[dk]?.subEvents || [], checklist: entry.checklist.map(c => ({...c, done:false})) }; });
         }
       }
     }
@@ -776,7 +784,8 @@ export default function App() {
         <div style={{ background:`${BRAND.aubergine}12`, padding: winW < 520 ? "5px 10px" : "5px 24px", fontSize: winW < 520 ? 9 : 11, display:"flex", gap: winW < 520 ? 8 : 16, alignItems:"center", borderBottom:"1px solid #e8e0e5", flexWrap:"wrap" }}>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.lila, display:"inline-block" }} /> Gebucht</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:"#009a93", display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, #009a9325 2px, #009a9325 3.5px)`, border:"1px solid #009a9330", display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#009a93", color:"#fff", fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
         </div>
       )}
 
@@ -926,33 +935,41 @@ export default function App() {
             const hol = holidays[key];
             const isToday = key === todayKey;
             const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && !ev.isPublic && !ev.isSeries;
+            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && !ev.isPublic && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay);
             const customerPublic = !isAdmin && ev && ev.isPublic && !ev.isSeries;
             const customerSeries = !isAdmin && ev && ev.isSeries;
-            const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries);
+            const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries || (ev.status === "blocked" && !ev.allDay));
             const statusColor = ev ? (ev.status === "booked" ? BRAND.lila : ev.status === "pending" ? BRAND.aprikot : "#009a93") : null;
             const isPending = ev?.status === "pending" && isAdmin;
+            const isBlockedAdmin = ev && isAdmin && ev.status === "blocked" && !ev.isSeries;
+            const isSeriesAdmin = ev && isAdmin && ev.isSeries;
             return (
               <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : "day-free"} onClick={() => !isPast && handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : customerPublic ? (ev.label || "Veranstaltung") : isAdmin && ev?.label ? ev.label : ""}
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid #009a9350` : isPending ? `2px solid ${BRAND.aprikot}` : ev && isAdmin && ev.status==="blocked" ? `1.5px solid #009a9360` : ev && isAdmin ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2px solid ${BRAND.aprikot}` : isBlockedAdmin ? `1px solid #009a9330` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: customerPublic ? "#009a9310" : isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && ev.status==="blocked" ? "#009a9312" : ev && isAdmin ? `${statusColor}18` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, #009a9310 3px, #009a9310 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}15` : customerPublic ? `${BRAND.moosgruen}10` : isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && !ev.isSeries ? `${statusColor}20` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast || customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   animation: isPending && !isPast ? "pendingPulse 2s ease-in-out infinite" : "none",
+                  overflow:"hidden",
                 }}>
+                {/* Series indicator for admin - S badge */}
+                {isSeriesAdmin && <div style={{ position:"absolute", top:2, right:2, background:"#009a93", color:"#fff", fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>S</div>}
+                {/* Pending indicator for admin */}
+                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:`${BRAND.aprikot}90`, color:"#fff", fontSize: winW > 900 ? 7 : 5, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "1.5px 0" : "1px 0", letterSpacing:0.3, lineHeight:1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
                   <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>
                   : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0" }} />
                 )}
-                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? "#8ec89a" : ev && isAdmin && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
+                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin && !ev.isSeries) || customerBooked ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? "#8ec89a" : customerBooked ? BRAND.lila : ev && isAdmin && !ev.isSeries && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.lila, marginTop:2 }} />}
                 {customerPublic && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
                 {customerSeries && ev.isPublic && <div style={{ width:4, height:4, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
-                {ev && isAdmin && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
+                {ev && isAdmin && !ev.isSeries && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
+                {ev && isAdmin && ev.subEvents && ev.subEvents.length > 0 && <div style={{ position:"absolute", bottom:2, left:2, width:5, height:5, borderRadius:"50%", background:BRAND.lila }} />}
               </button>
             );
           })}
@@ -1006,7 +1023,14 @@ export default function App() {
         {/* Admin: 2. Kommende Termine + 3. Interne + 4. Vergangene */}
         {isAdmin && (() => {
           const allUpcoming = Object.entries(events).filter(([k,v]) => (v.status === "booked" || v.status === "blocked") && k >= todayKey).sort(([a],[b]) => a.localeCompare(b));
-          const bookedOnly = allUpcoming.filter(([,v]) => v.status === "booked");
+          // Flatten subEvents into separate list entries
+          const subEventRows = [];
+          allUpcoming.forEach(([k,v]) => {
+            if (v.subEvents) v.subEvents.forEach((sub,i) => {
+              if (sub.status === "booked" || sub.status === "blocked") subEventRows.push([k, { ...sub, _subIndex: i }]);
+            });
+          });
+          const bookedOnly = [...allUpcoming.filter(([,v]) => v.status === "booked"), ...subEventRows.filter(([,v]) => v.status === "booked")].sort(([a],[b]) => a.localeCompare(b));
           const blockedOnly = allUpcoming.filter(([,v]) => v.status === "blocked");
           if (!allUpcoming.length) return null;
           const renderRow = ([key, ev], pastMode) => {
@@ -1074,59 +1098,48 @@ export default function App() {
                       if (!groups[sid]) groups[sid] = { label: ev.label || "Serientermin", items: [] };
                       groups[sid].items.push([key, ev]);
                     });
-                    return Object.entries(groups).map(([sid, group]) => {
-                      const isOpen = expandedSeries === sid;
-                      const first = group.items[0][1];
-                      return (
-                      <div key={sid} style={{ marginTop:16 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: isOpen ? 6 : 0 }}>
-                          <h3 onClick={() => setExpandedSeries(isOpen ? null : sid)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a93", letterSpacing:1, textTransform:"uppercase", cursor:"pointer", display:"flex", alignItems:"center", gap:6, margin:0, flex:1 }}>
-                            {group.label} <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 5px", borderRadius:4, letterSpacing:0, textTransform:"none" }}>S</span>
-                            <span style={{ fontWeight:400, fontSize:10, color:"#009a9380" }}>({group.items.length})</span>
-                            <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          </h3>
-                          <button onClick={() => {
-                            setSelectedDate(group.items[0][0]);
-                            setAdminForm({ type: first.status || "blocked", label: first.label || "", note: first.note || "", startTime: first.startTime || "08:00", endTime: first.endTime || "22:00", adminNote: first.adminNote || "", eventType: first.type || "", allDay: first.allDay || false, checklist: first.checklist || [], contactName: first.contactName || "", contactPhone: first.contactPhone || "", contactAddress: first.contactAddress || "", publicText: first.publicText || "", isPublic: first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true });
-                            setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
-                          }}
-                            onMouseEnter={e => e.currentTarget.style.background="#009a9310"} onMouseLeave={e => e.currentTarget.style.background="none"}
-                            style={{ background:"none", border:`1px solid #009a9330`, borderRadius:5, padding:"3px 8px", fontSize: winW > 900 ? 9 : 8, color:"#009a93", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s" }}>
-                            Alle bearbeiten
-                          </button>
-                          <button onClick={() => {
-                            if (!window.confirm(`Alle ${group.items.length} Termine "${group.label}" löschen?`)) return;
-                            prevEvents.current = { ...events };
-                            const updated = { ...events };
-                            group.items.forEach(([k]) => { updated[k] = { ...updated[k], status:"deleted" }; });
-                            saveEvents(updated);
-                            setToast({ msg:`${group.items.length} Serientermine gelöscht`, undo:() => saveEvents(prevEvents.current) });
-                          }}
-                            onMouseEnter={e => e.currentTarget.style.background="#c4400a"} onMouseLeave={e => e.currentTarget.style.background="none"}
-                            style={{ background:"none", border:`1px solid #c4440025`, borderRadius:5, padding:"3px 8px", fontSize: winW > 900 ? 9 : 8, color:"#c44", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s" }}>
-                            Alle löschen
-                          </button>
-                        </div>
-                        {isOpen && (
-                          <div style={{ paddingLeft:10, borderLeft:"2px solid #009a9325", marginLeft:4 }}>
-                            {group.items.sort(([a],[b]) => a.localeCompare(b)).map(([key, ev]) => {
-                              const [yy2,mm2,dd2] = key.split("-").map(Number);
-                              const d2 = new Date(yy2,mm2-1,dd2);
-                              const dn = ["So","Mo","Di","Mi","Do","Fr","Sa"][d2.getDay()];
-                              return (
-                                <div key={key} onClick={() => { setSelectedDate(key); setModalView("info"); }}
-                                  className="admin-card"
-                                  style={{ background:"#fff", borderRadius:6, padding:"6px 10px", marginBottom:3, cursor:"pointer", boxShadow:"0 1px 3px rgba(0,0,0,0.02)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                                  <span style={{ fontSize:12, fontWeight:500, color:"#009a93" }}>{dn}, {dd2}. {MONTHS[mm2-1]}</span>
-                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="#009a9360" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                                </div>
-                              );
-                            })}
+                    return (
+                    <div style={{ marginTop:20 }}>
+                      <h3 onClick={() => setShowSeries(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a9380", letterSpacing:2, textTransform:"uppercase", marginBottom: showSeries ? 10 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+                        Serientermine ({seriesBlocked.length})
+                        <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showSeries ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a9380" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </h3>
+                      {showSeries && Object.entries(groups).map(([sid, group]) => {
+                        const isOpen = expandedSeries === sid;
+                        const first = group.items[0][1];
+                        return (
+                        <div key={sid} style={{ marginBottom:12 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8, padding:"8px 12px", border:`1.5px solid #009a9330`, borderRadius:8, borderLeft:`3px solid #009a93` }}>
+                            <h4 onClick={() => setExpandedSeries(isOpen ? null : sid)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a93", cursor:"pointer", display:"flex", alignItems:"center", gap:6, margin:0, flex:1 }}>
+                              {group.label} <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4 }}>S</span>
+                              <span style={{ fontWeight:400, fontSize:11, color:"#009a9360" }}>({group.items.length})</span>
+                              <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </h4>
+                            <button onClick={() => {
+                              setSelectedDate(group.items[0][0]);
+                              setAdminForm({ type: first.status || "blocked", label: first.label || "", note: first.note || "", startTime: first.startTime || "08:00", endTime: first.endTime || "22:00", adminNote: first.adminNote || "", eventType: first.type || "", allDay: first.allDay || false, checklist: first.checklist || [], contactName: first.contactName || "", contactPhone: first.contactPhone || "", contactAddress: first.contactAddress || "", publicText: first.publicText || "", isPublic: first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true });
+                              setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
+                            }}
+                              onMouseEnter={e => e.currentTarget.style.background="#009a9315"} onMouseLeave={e => e.currentTarget.style.background="#009a9308"}
+                              style={{ background:"#009a9308", border:`1.5px solid #009a9330`, borderRadius:6, padding: winW < 520 ? "6px 8px" : "5px 14px", fontSize:11, color:"#009a93", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s", display:"flex", alignItems:"center", gap:4 }}>
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="#009a93" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              {winW >= 520 && "Alle bearbeiten"}
+                            </button>
+                            <button onClick={() => {
+                              setDeleteConfirm({ type:"series", sid, label: group.label, count: group.items.length, items: group.items });
+                            }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor="#c44"; }} onMouseLeave={e => { e.currentTarget.style.borderColor="#c4440020"; }}
+                              style={{ background:"#fff", border:`1.5px solid #c4440020`, borderRadius:6, padding: winW < 520 ? "6px 8px" : "5px 14px", fontSize:11, color:"#c44", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s", display:"flex", alignItems:"center", gap:4 }}>
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4" stroke="#c44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              {winW >= 520 && "Alle löschen"}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                      );
-                    });
+                          {isOpen && group.items.sort(([a],[b]) => a.localeCompare(b)).map(r => renderRow(r, false))}
+                        </div>
+                        );
+                      })}
+                    </div>
+                    );
                   })()}
                 </>
                 );
@@ -1232,30 +1245,88 @@ export default function App() {
         )}
       </div>
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div onClick={() => setDeleteConfirm(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", backdropFilter:"blur(3px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:14, padding:"24px 20px", maxWidth:340, width:"100%", boxShadow:"0 20px 50px rgba(0,0,0,0.2)", textAlign:"center" }}>
+            <div style={{ width:44, height:44, borderRadius:"50%", background:"#c4440a", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px" }}>
+              <svg width="22" height="22" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4" stroke="#fff" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            </div>
+            <div style={{ fontSize:16, fontWeight:700, color:BRAND.aubergine, marginBottom:6 }}>Wirklich löschen?</div>
+            <div style={{ fontSize:13, color:"#888", marginBottom:16, lineHeight:1.4 }}>
+              {deleteConfirm.count} Termine <strong>„{deleteConfirm.label}"</strong> werden unwiderruflich gelöscht.
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => setDeleteConfirm(null)}
+                style={{ flex:1, padding:"10px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer" }}>Abbrechen</button>
+              <button onClick={() => {
+                prevEvents.current = { ...events };
+                const updated = { ...events };
+                deleteConfirm.items.forEach(([k]) => { updated[k] = { ...updated[k], status:"deleted" }; });
+                saveEvents(updated);
+                setToast({ msg:`${deleteConfirm.count} Serientermine gelöscht`, undo:() => saveEvents(prevEvents.current) });
+                setDeleteConfirm(null);
+              }}
+                style={{ flex:1, padding:"10px 0", background:"#c44", color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer" }}>Ja, löschen</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal */}
       {(modalView || editingType) && (
-        <div onClick={() => { if (modalView !== "form") { setModalView(null); setEditingType(null); setModalPull(0); } }}
+        <div onClick={() => { if (modalView !== "form") { setModalView(null); setEditingType(null); } }}
           onTouchMove={e => e.preventDefault()}
-          style={{ position:"fixed", inset:0, background:`rgba(0,0,0,${Math.max(0.05, 0.25 - modalPull/800)})`, backdropFilter:`blur(${Math.max(0, 4 - modalPull/50)}px)`, zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none", overscrollBehavior:"none", transition: modalPull ? "none" : "all .3s" }}>
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none", overscrollBehavior:"none", transition:"background .3s" }}
+          id="modal-backdrop">
           <div onClick={e => e.stopPropagation()}
-            onTouchMove={e => {
-              const el = e.currentTarget;
-              const dy = e.touches[0].clientY - (el._touchStartY || 0);
-              // If at top of scroll and pulling down, start pull-to-dismiss
-              if (el.scrollTop <= 0 && dy > 0) {
-                e.preventDefault();
-                setModalPull(Math.max(0, dy * 0.6));
-              } else if (el.scrollHeight <= el.clientHeight && dy > 0) {
-                e.preventDefault();
-                setModalPull(Math.max(0, dy * 0.6));
-              } else if (el.scrollTop + el.clientHeight >= el.scrollHeight && e.touches[0].clientY < (el._touchY || 0)) {
-                e.preventDefault();
-              }
-              el._touchY = e.touches[0].clientY;
+            id="modal-panel"
+            ref={el => {
+              if (!el || el._pullBound) return;
+              el._pullBound = true;
+              let startY = 0, pullY = 0, pulling = false, lastY = 0;
+              const bd = () => document.getElementById("modal-backdrop");
+              el.addEventListener("touchstart", e2 => {
+                startY = e2.touches[0].clientY; lastY = startY; pulling = false; pullY = 0;
+                el.style.transition = "none";
+                const b = bd(); if (b) b.style.transition = "none";
+              }, { passive: true });
+              el.addEventListener("touchmove", e2 => {
+                const cy = e2.touches[0].clientY;
+                const dy = cy - startY;
+                const atTop = el.scrollTop <= 0;
+                const short = el.scrollHeight <= el.clientHeight;
+                if ((atTop || short) && dy > 5 && !pulling) pulling = true;
+                if (pulling) {
+                  pullY = dy * 0.45;
+                  el.style.transform = `translateY(${pullY}px)`;
+                  const b = bd();
+                  if (b) b.style.background = `rgba(0,0,0,${Math.max(0.03, 0.25 - pullY/500)})`;
+                  e2.preventDefault();
+                } else {
+                  const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight;
+                  if (atBottom && cy < lastY) e2.preventDefault();
+                }
+                lastY = cy;
+              }, { passive: false });
+              el.addEventListener("touchend", () => {
+                if (!pulling) return;
+                const b = bd();
+                if (pullY > 100) {
+                  el.style.transition = "transform .28s cubic-bezier(.15,.85,.3,1)";
+                  el.style.transform = "translateY(110vh)";
+                  if (b) { b.style.transition = "background .28s"; b.style.background = "rgba(0,0,0,0)"; }
+                  setTimeout(() => el._dismiss?.(), 220);
+                } else {
+                  el.style.transition = "transform .35s cubic-bezier(.15,.85,.3,1)";
+                  el.style.transform = "translateY(0)";
+                  if (b) { b.style.transition = "background .35s"; b.style.background = "rgba(0,0,0,0.25)"; }
+                }
+                pulling = false; pullY = 0;
+              }, { passive: true });
+              el._dismiss = () => { setModalView(null); setEditingType(null); };
             }}
-            onTouchStart={e => { e.currentTarget._touchStartY = e.touches[0].clientY; e.currentTarget._touchY = e.touches[0].clientY; setModalPull(0); }}
-            onTouchEnd={e => { if (modalPull > 100) { setModalView(null); setEditingType(null); } setModalPull(0); }}
-            style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch", transform: winW < 520 && modalPull > 0 ? `translateY(${modalPull}px)` : "none", transition: modalPull ? "none" : "transform .3s ease" }}>
+            style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch", willChange:"transform" }}>
 
             {/* Pull handle for mobile */}
             {winW < 520 && (
@@ -1361,19 +1432,19 @@ export default function App() {
                       const key = dateKey(pickerYear, pickerMonth, day);
                       const ev = events[key];
                       const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                      const isFree = (!ev || ev.isSeries) && !isPast;
-                      const isOccupied = !!ev && !ev.isSeries && !isPast;
+                      const isFree = (!ev || ev.isSeries || (ev.status === "blocked" && !ev.allDay)) && !isPast;
+                      const isOccupied = !!ev && !ev.isSeries && !(ev.status === "blocked" && !ev.allDay) && !isPast;
                       const hol = holidays[key];
                       return (
                         <button key={key} onClick={() => handlePickerDateClick(day)}
-                          title={isOccupied ? "nicht verfügbar" : ""}
-                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor=`${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="1"; } }}
-                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor=`${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}06`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="0"; } }}
+                          title={isOccupied ? "nicht verfügbar" : hol || ""}
+                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor=`${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}18`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="1"; } }}
+                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor=`${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="0"; } }}
                           style={{
-                            aspectRatio:"1", border: isFree ? `1.5px solid ${BRAND.aubergine}30` : isOccupied ? `1px solid ${BRAND.lila}20` : "1px solid #eee",
-                            borderRadius:6, background: isFree ? "#fff" : isOccupied ? `${BRAND.lila}06` : "#f8f8f8",
-                            cursor: isFree ? "pointer" : "default", fontSize:13, fontWeight: isFree ? 600 : 400,
-                            color: isFree ? BRAND.aubergine : isOccupied ? `${BRAND.lila}80` : "#ccc", opacity: isPast ? 0.4 : 1, transition:"all .15s",
+                            aspectRatio:"1", border: isFree ? `1.5px solid ${BRAND.aubergine}30` : isOccupied ? `1px solid ${BRAND.lila}30` : "1px solid #eee",
+                            borderRadius:6, background: isFree ? "#fff" : isOccupied ? `${BRAND.lila}10` : "#f8f8f8",
+                            cursor: isFree ? "pointer" : "default", fontSize:13, fontWeight: isFree ? 600 : isOccupied ? 600 : 400,
+                            color: isFree ? BRAND.aubergine : isOccupied ? BRAND.lila : "#ccc", opacity: isPast ? 0.4 : 1, transition:"all .15s",
                             display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden", padding:0,
                           }}>
                           {hol && <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`${BRAND.aubergine}60` }} />}
@@ -1453,7 +1524,7 @@ export default function App() {
                   </div>
                   <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Ganztägig</span>
                 </label>
-                {!adminForm.allDay && (() => {
+                {(() => {
                   return (
                   <>
                   <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
@@ -1889,12 +1960,12 @@ export default function App() {
                       {(Number(ev.cakeCount)>0 || Number(ev.coffeeCount)>0) && (
                         <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>☕ {Number(ev.coffeeCount)||0}× Kaffee · 🍰 {Number(ev.cakeCount)||0}× Kuchen</div>
                       )}
-                      {(ev.contactName || ev.contactPhone || ev.contactAddress) && (
+                      {(ev.contactName || ev.contactPhone || ev.contactAddress) && ev.status !== "blocked" && (
                         <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
-                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Kontakt & Ort</div>
+                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Kontaktperson</div>
                           {ev.contactName && <div style={{ fontSize:12, color:BRAND.aubergine, fontWeight:500 }}>👤 {ev.contactName}</div>}
-                          {ev.contactPhone && <div style={{ fontSize:12 }}>{ev.contactPhone.includes("@") ? "✉" : "📞"} <a href={ev.contactPhone.includes("@") ? `mailto:${ev.contactPhone}` : `tel:${ev.contactPhone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone}</a></div>}
-                          {ev.contactAddress && <div style={{ fontSize:12 }}>📍 <a href={`https://maps.google.com/?q=${encodeURIComponent(ev.contactAddress)}`} target="_blank" rel="noopener noreferrer" style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactAddress}</a></div>}
+                          {ev.contactPhone && <div style={{ fontSize:12 }}>📞 <a href={`tel:${ev.contactPhone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone}</a></div>}
+                          {ev.contactAddress && <div style={{ fontSize:12, color:"#666" }}>📍 {ev.contactAddress}</div>}
                         </div>
                       )}
                       {ev.publicText && (
@@ -1903,8 +1974,8 @@ export default function App() {
                           <div style={{ fontSize:12, color:"#666", lineHeight:1.4 }}>{ev.publicText}</div>
                         </div>
                       )}
-                      {ev.isPublic && <div style={{ fontSize:10, color:"#009a93", fontWeight:600, marginBottom:4, display:"flex", alignItems:"center", gap:4 }}>
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#009a93" strokeWidth="1.5"/><path d="M5 8l2 2 4-4" stroke="#009a93" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      {ev.isPublic && <div style={{ fontSize:10, color:BRAND.moosgruen, fontWeight:600, marginBottom:4, display:"flex", alignItems:"center", gap:4 }}>
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke={BRAND.moosgruen} strokeWidth="1.5"/><path d="M5 8l2 2 4-4" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         Öffentlich sichtbar für Kunden
                       </div>}
                       {ev.message && (
@@ -1913,21 +1984,27 @@ export default function App() {
                           <div style={{ fontSize:12, color:"#666", fontStyle:"italic", lineHeight:1.4 }}>„{ev.message}"</div>
                         </div>
                       )}
-                      {ev.adminNote && (
-                        <div style={{ padding:"10px 12px", background:"#f8f4f8", borderRadius:8, borderLeft:`3px solid ${BRAND.aprikot}`, marginBottom:8 }}>
-                          <div style={{ fontSize:9, color: BRAND.aprikot, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>Interne Notiz</div>
+                      {ev.adminNote && (() => {
+                        const nc = ev.status === "blocked" ? "#009a93" : BRAND.aprikot;
+                        return (
+                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${nc}`, marginBottom:8 }}>
+                          <div style={{ fontSize:9, color: nc, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>{ev.status === "blocked" ? "Notiz" : "Interne Notiz"}</div>
                           <div style={{ fontSize:12, color:"#666" }}>{ev.adminNote}</div>
                         </div>
-                      )}
-                      {ev.checklist && ev.checklist.length > 0 && (
-                        <div style={{ padding:"10px 12px", background:"#f8f4f8", borderRadius:8, borderLeft:`3px solid ${BRAND.aprikot}`, marginBottom:8 }}>
-                          <div style={{ fontSize:9, color: BRAND.aprikot, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Checkliste</div>
+                        );
+                      })()}
+                      {ev.checklist && ev.checklist.length > 0 && (() => {
+                        const cc = ev.status === "blocked" ? "#009a93" : BRAND.aprikot;
+                        return (
+                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${cc}`, marginBottom:8 }}>
+                          <div style={{ fontSize:9, color: cc, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Checkliste</div>
                           <ChecklistNote items={ev.checklist} onChange={(items) => {
                             const updated = { ...events, [selectedDate]: { ...events[selectedDate], checklist: items } };
                             saveEvents(updated);
                           }} />
                         </div>
-                      )}
+                        );
+                      })()}
                       {ev.note && <div style={{ fontSize:11, color:"#999", marginBottom:4 }}>Öffentlich: {ev.note}</div>}
                     </div>
                   ) : (
@@ -1978,6 +2055,47 @@ export default function App() {
                         <button onClick={() => handleAdminAction(selectedDate,"delete")}
                           style={{ ...primaryBtn, padding:"10px 28px", background:"#f5f0f4", color: BRAND.aubergine, fontSize:13, borderRadius:8, border:`1px solid #e0d8de` }}>Ablehnen</button>
                     </div>
+                  )}
+                  {/* Sub-Events */}
+                  {isAdmin && ev.subEvents && ev.subEvents.length > 0 && (
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Weitere Termine am selben Tag</div>
+                      {ev.subEvents.map((sub, si) => {
+                        const subColor = sub.status === "booked" ? BRAND.lila : sub.status === "blocked" ? "#009a93" : BRAND.aprikot;
+                        return (
+                          <div key={si} style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:6, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
+                              <div>
+                                <span style={{ fontSize:10, fontWeight:700, color:subColor, textTransform:"uppercase" }}>{sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : "Anfrage"}</span>
+                                {sub.label && <span style={{ fontSize:11, color:BRAND.aubergine, fontWeight:500, marginLeft:6 }}>{sub.label}</span>}
+                              </div>
+                              <button onClick={() => {
+                                const updated = { ...events };
+                                const day = { ...updated[selectedDate] };
+                                day.subEvents = day.subEvents.filter((_,idx) => idx !== si);
+                                updated[selectedDate] = day;
+                                saveEvents(updated);
+                              }} style={{ background:"none", border:"none", cursor:"pointer", color:"#ccc", fontSize:14, padding:2, lineHeight:1 }}
+                                onMouseEnter={e => e.currentTarget.style.color="#c44"} onMouseLeave={e => e.currentTarget.style.color="#ccc"}>×</button>
+                            </div>
+                            <div style={{ fontSize:10, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}</div>
+                            {sub.name && <div style={{ fontSize:10, color:"#aaa", marginTop:1 }}>{sub.name}</div>}
+                            {sub.adminNote && <div style={{ fontSize:10, color:"#999", marginTop:2, fontStyle:"italic" }}>{sub.adminNote}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {isAdmin && !ev.allDay && (ev.status === "blocked" || ev.isSeries) && (
+                    <button onClick={() => {
+                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true });
+                      setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
+                    }}
+                      style={{ width:"100%", padding:"10px 0", background:`${BRAND.moosgruen}10`, color: BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s" }}
+                      onMouseEnter={e => { e.currentTarget.style.background=`${BRAND.moosgruen}20`; }} onMouseLeave={e => { e.currentTarget.style.background=`${BRAND.moosgruen}10`; }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      Zusätzliche Buchung hinzufügen
+                    </button>
                   )}
                   {isAdmin && (
                     <div style={{ display:"flex", gap:8 }}>
