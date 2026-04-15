@@ -431,7 +431,7 @@ export default function App() {
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
-  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[] });
+  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false });
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -522,9 +522,32 @@ export default function App() {
 
   // Lock body scroll when modal is open
   useEffect(() => {
-    if (modalView || editingType || loginModal) { document.body.style.overflow = "hidden"; document.body.style.touchAction = "none"; }
-    else { document.body.style.overflow = ""; document.body.style.touchAction = ""; }
-    return () => { document.body.style.overflow = ""; document.body.style.touchAction = ""; };
+    if (modalView || editingType) {
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.overflow = "hidden";
+      document.body.dataset.scrollY = scrollY;
+    } else {
+      const scrollY = document.body.dataset.scrollY || 0;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.overflow = "";
+      window.scrollTo(0, parseInt(scrollY));
+    }
+    return () => {
+      const scrollY = document.body.dataset.scrollY || 0;
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.overflow = "";
+      window.scrollTo(0, parseInt(scrollY));
+    };
   }, [modalView, editingType, loginModal]);
 
   useEffect(() => { const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); }); return unsub; }, []);
@@ -548,10 +571,10 @@ export default function App() {
       if (ev) {
         setModalView("info");
       } else {
-        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[] });
+        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false });
         setModalView("admin");
       }
-    } else if (ev && ev.status !== "pending") {
+    } else if (ev && ev.status !== "pending" && !ev.isSeries) {
       setModalView("info");
     } else {
       setSelectedDate(key);
@@ -586,10 +609,20 @@ export default function App() {
     else {
       const st = adminForm.allDay ? "00:00" : adminForm.startTime;
       const et = adminForm.allDay ? "23:59" : adminForm.endTime;
-      const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? "Ganztägig" : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 };
-      updated[selectedDate] = entry;
-      if (adminForm.seriesDates && adminForm.seriesDates.length > 0) {
-        adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, checklist: entry.checklist.map(c => ({...c, done:false})) }; });
+      const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
+      const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? "Ganztägig" : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid };
+      // If editing all in series, update all matching seriesId
+      if (adminForm.editAllSeries && adminForm.seriesId) {
+        Object.keys(updated).forEach(k => {
+          if (updated[k]?.seriesId === adminForm.seriesId) {
+            updated[k] = { ...entry, checklist: entry.checklist.map(c => ({...c})) };
+          }
+        });
+      } else {
+        updated[selectedDate] = entry;
+        if (adminForm.seriesDates && adminForm.seriesDates.length > 0) {
+          adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, checklist: entry.checklist.map(c => ({...c, done:false})) }; });
+        }
       }
     }
     saveEvents(updated);
@@ -893,9 +926,10 @@ export default function App() {
             const hol = holidays[key];
             const isToday = key === todayKey;
             const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && !ev.isPublic;
-            const customerPublic = !isAdmin && ev && ev.isPublic;
-            const customerFree = !isAdmin && (!ev || ev.status === "pending");
+            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && !ev.isPublic && !ev.isSeries;
+            const customerPublic = !isAdmin && ev && ev.isPublic && !ev.isSeries;
+            const customerSeries = !isAdmin && ev && ev.isSeries;
+            const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries);
             const statusColor = ev ? (ev.status === "booked" ? BRAND.lila : ev.status === "pending" ? BRAND.aprikot : "#009a93") : null;
             const isPending = ev?.status === "pending" && isAdmin;
             return (
@@ -916,7 +950,8 @@ export default function App() {
                 )}
                 <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? "#8ec89a" : ev && isAdmin && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.lila, marginTop:2 }} />}
-                {customerPublic && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: "#009a93", marginTop:2 }} />}
+                {customerPublic && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
+                {customerSeries && ev.isPublic && <div style={{ width:4, height:4, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
                 {ev && isAdmin && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
               </button>
             );
@@ -957,7 +992,7 @@ export default function App() {
                     <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
                       onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.85)"; }}
                       onMouseLeave={e => { e.currentTarget.style.filter="none"; }}
-                      style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, padding: winW < 520 ? "3px 8px" : "5px 12px", fontSize: winW < 520 ? 8 : 10, fontWeight:700, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:4, transition:"all .15s", letterSpacing:0.5, textTransform:"uppercase" }}>
+                      style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, padding:"5px 12px", fontSize:10, fontWeight:700, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:4, transition:"all .15s", letterSpacing:0.5, textTransform:"uppercase" }}>
                       Annehmen
                     </button>
                   </div>
@@ -1032,60 +1067,67 @@ export default function App() {
                   {showInternal && regularBlocked.map(r => renderRow(r, false))}
                   </>
                   )}
-                  {seriesBlocked.length > 0 && (
-                  <>
-                  <h3 onClick={() => setShowSeries(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a9380", letterSpacing:2, textTransform:"uppercase", marginBottom: showSeries ? 10 : 0, marginTop: regularBlocked.length > 0 || bookedOnly.length > 0 ? 20 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-                    Serientermine ({seriesBlocked.length})
-                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showSeries ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a9380" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </h3>
-                  {showSeries && (() => {
-                    // Group by label
+                  {seriesBlocked.length > 0 && (() => {
                     const groups = {};
                     seriesBlocked.forEach(([key, ev]) => {
-                      const g = ev.label || "Serientermin";
-                      if (!groups[g]) groups[g] = [];
-                      groups[g].push([key, ev]);
+                      const sid = ev.seriesId || ev.label || "serie";
+                      if (!groups[sid]) groups[sid] = { label: ev.label || "Serientermin", items: [] };
+                      groups[sid].items.push([key, ev]);
                     });
-                    return Object.entries(groups).map(([label, items]) => {
-                      const isOpen = expandedSeries === label;
-                      const firstEv = items[0][1];
+                    return Object.entries(groups).map(([sid, group]) => {
+                      const isOpen = expandedSeries === sid;
+                      const first = group.items[0][1];
                       return (
-                        <div key={label} style={{ marginBottom:6 }}>
-                          <div className="admin-card" onClick={() => setExpandedSeries(isOpen ? null : label)}
-                            style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 12px", borderLeft:"3px solid #009a93", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", display:"flex", alignItems:"center", gap:10 }}>
-                            <div style={{ flex:1, minWidth:0 }}>
-                              <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
-                                <span style={{ fontWeight:600, color:"#009a93", fontSize: winW > 900 ? 15 : 13 }}>{label}</span>
-                                <span style={{ fontSize:10, color:"#aaa" }}>{items.length} Termine</span>
-                              </div>
-                              {firstEv.slotLabel && winW > 900 && <div style={{ fontSize:10, color:"#bbb", marginTop:1 }}><ClockIcon color="#bbb" />{firstEv.slotLabel}</div>}
-                            </div>
-                            <div style={{ background:"#009a93", color:"#fff", padding:"5px 12px", borderRadius:6, fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Serie</div>
-                            <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)", flexShrink:0 }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          </div>
-                          {isOpen && (
-                            <div style={{ paddingLeft:12, borderLeft:"2px solid #009a9330", marginLeft:6, marginTop:4 }}>
-                              {items.map(([key, ev]) => {
-                                const [yy2,mm2,dd2] = key.split("-").map(Number);
-                                const d2 = new Date(yy2,mm2-1,dd2);
-                                const dn = ["So","Mo","Di","Mi","Do","Fr","Sa"][d2.getDay()];
-                                return (
-                                  <div key={key} onClick={() => { setSelectedDate(key); setModalView("info"); }}
-                                    className="admin-card"
-                                    style={{ background:"#fff", borderRadius:6, padding:"6px 10px", marginBottom:3, cursor:"pointer", boxShadow:"0 1px 3px rgba(0,0,0,0.02)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                                    <span style={{ fontSize:12, fontWeight:500, color:"#009a93" }}>{dn}, {dd2}. {MONTHS[mm2-1]}</span>
-                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="#009a9380" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                      <div key={sid} style={{ marginTop:16 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: isOpen ? 6 : 0 }}>
+                          <h3 onClick={() => setExpandedSeries(isOpen ? null : sid)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a93", letterSpacing:1, textTransform:"uppercase", cursor:"pointer", display:"flex", alignItems:"center", gap:6, margin:0, flex:1 }}>
+                            {group.label} <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 5px", borderRadius:4, letterSpacing:0, textTransform:"none" }}>S</span>
+                            <span style={{ fontWeight:400, fontSize:10, color:"#009a9380" }}>({group.items.length})</span>
+                            <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </h3>
+                          <button onClick={() => {
+                            setSelectedDate(group.items[0][0]);
+                            setAdminForm({ type: first.status || "blocked", label: first.label || "", note: first.note || "", startTime: first.startTime || "08:00", endTime: first.endTime || "22:00", adminNote: first.adminNote || "", eventType: first.type || "", allDay: first.allDay || false, checklist: first.checklist || [], contactName: first.contactName || "", contactPhone: first.contactPhone || "", contactAddress: first.contactAddress || "", publicText: first.publicText || "", isPublic: first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true });
+                            setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.background="#009a9310"} onMouseLeave={e => e.currentTarget.style.background="none"}
+                            style={{ background:"none", border:`1px solid #009a9330`, borderRadius:5, padding:"3px 8px", fontSize: winW > 900 ? 9 : 8, color:"#009a93", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s" }}>
+                            Alle bearbeiten
+                          </button>
+                          <button onClick={() => {
+                            if (!window.confirm(`Alle ${group.items.length} Termine "${group.label}" löschen?`)) return;
+                            prevEvents.current = { ...events };
+                            const updated = { ...events };
+                            group.items.forEach(([k]) => { updated[k] = { ...updated[k], status:"deleted" }; });
+                            saveEvents(updated);
+                            setToast({ msg:`${group.items.length} Serientermine gelöscht`, undo:() => saveEvents(prevEvents.current) });
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.background="#c4400a"} onMouseLeave={e => e.currentTarget.style.background="none"}
+                            style={{ background:"none", border:`1px solid #c4440025`, borderRadius:5, padding:"3px 8px", fontSize: winW > 900 ? 9 : 8, color:"#c44", cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", transition:"all .15s" }}>
+                            Alle löschen
+                          </button>
                         </div>
+                        {isOpen && (
+                          <div style={{ paddingLeft:10, borderLeft:"2px solid #009a9325", marginLeft:4 }}>
+                            {group.items.sort(([a],[b]) => a.localeCompare(b)).map(([key, ev]) => {
+                              const [yy2,mm2,dd2] = key.split("-").map(Number);
+                              const d2 = new Date(yy2,mm2-1,dd2);
+                              const dn = ["So","Mo","Di","Mi","Do","Fr","Sa"][d2.getDay()];
+                              return (
+                                <div key={key} onClick={() => { setSelectedDate(key); setModalView("info"); }}
+                                  className="admin-card"
+                                  style={{ background:"#fff", borderRadius:6, padding:"6px 10px", marginBottom:3, cursor:"pointer", boxShadow:"0 1px 3px rgba(0,0,0,0.02)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                                  <span style={{ fontSize:12, fontWeight:500, color:"#009a93" }}>{dn}, {dd2}. {MONTHS[mm2-1]}</span>
+                                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="#009a9360" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                       );
                     });
                   })()}
-                  </>
-                  )}
                 </>
                 );
               })()}
@@ -1319,8 +1361,8 @@ export default function App() {
                       const key = dateKey(pickerYear, pickerMonth, day);
                       const ev = events[key];
                       const isPast = new Date(pickerYear, pickerMonth, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                      const isFree = !ev && !isPast;
-                      const isOccupied = !!ev && !isPast;
+                      const isFree = (!ev || ev.isSeries) && !isPast;
+                      const isOccupied = !!ev && !ev.isSeries && !isPast;
                       const hol = holidays[key];
                       return (
                         <button key={key} onClick={() => handlePickerDateClick(day)}
@@ -1356,7 +1398,10 @@ export default function App() {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
                   </button>
                   <div>
-                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>Termin bearbeiten</h3>
+                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>
+                      {adminForm.editAllSeries ? "Serie bearbeiten" : "Termin bearbeiten"}
+                      {adminForm.editAllSeries && <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4, marginLeft:8, verticalAlign:"middle" }}>S</span>}
+                    </h3>
                     <div style={{ fontSize:13, color:"#999" }}>{fmtDateAT(selectedDate)}</div>
                   </div>
                 </div>
