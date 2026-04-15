@@ -517,20 +517,23 @@ export default function App() {
   const [seriesMonth, setSeriesMonth] = useState(null);
   const [seriesYear, setSeriesYear] = useState(null);
   const [heroIdx, setHeroIdx] = useState(0);
-  const [heroHover, setHeroHover] = useState(false);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
   useEffect(() => { if (isAdmin) return; const t = setInterval(() => setHeroIdx(i => (i+1) % 7), 10000); return () => clearInterval(t); }, [isAdmin]);
 
   // Lock body scroll when modal is open
   useEffect(() => {
     if (modalView || editingType) {
+      const sy = window.scrollY;
+      document.documentElement.style.overflow = "hidden";
       document.body.style.overflow = "hidden";
       document.body.style.touchAction = "none";
+      window.scrollTo(0, sy);
     } else {
+      document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
     }
-    return () => { document.body.style.overflow = ""; document.body.style.touchAction = ""; };
+    return () => { document.documentElement.style.overflow = ""; document.body.style.overflow = ""; document.body.style.touchAction = ""; };
   }, [modalView, editingType, loginModal]);
 
   useEffect(() => { const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); }); return unsub; }, []);
@@ -719,34 +722,37 @@ export default function App() {
       )}
 
       {successModal && (
-        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div style={{ position:"absolute", inset:0, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center", animation:"successBgZoom 14s ease-in-out infinite alternate" }} />
-          <div style={{ position:"absolute", inset:0, background:"rgba(15,42,26,0.65)", backdropFilter:"blur(2px)" }} />
+        <div onClick={() => setSuccessModal(false)} style={{ position:"fixed", inset:0, zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)" }}>
           {/* Falling leaves */}
-          <div style={{ position:"absolute", top:30, left:"18%", pointerEvents:"none" }}><svg width="14" height="14" viewBox="0 0 16 16" style={{ animation:"successLeaf1 5.5s ease-in-out infinite", animationDelay:"0.3s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#8ec89a" opacity="0.55"/></svg></div>
-          <div style={{ position:"absolute", top:15, right:"20%", pointerEvents:"none" }}><svg width="12" height="12" viewBox="0 0 16 16" style={{ animation:"successLeaf2 6s ease-in-out infinite", animationDelay:"1.2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#6db87d" opacity="0.5"/></svg></div>
-          <div style={{ position:"absolute", top:45, left:"60%", pointerEvents:"none" }}><svg width="9" height="9" viewBox="0 0 16 16" style={{ animation:"successLeaf3 5s ease-in-out infinite", animationDelay:"2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#8ec89a" opacity="0.4"/></svg></div>
-          <div style={{ position:"absolute", top:8, left:"42%", pointerEvents:"none" }}><svg width="11" height="11" viewBox="0 0 16 16" style={{ animation:"successLeaf4 7s ease-in-out infinite", animationDelay:"0.6s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#6db87d" opacity="0.35"/></svg></div>
-          {/* Glass card */}
-          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(255,255,255,0.08)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", borderRadius:28, padding:"40px 28px 32px", maxWidth:360, width:"100%", border:"1px solid rgba(255,255,255,0.12)", animation:"successFadeUp 0.6s ease-out", textAlign:"center" }}>
-            {/* Animated check icon */}
-            <div style={{ position:"relative", width:68, height:68, margin:"0 auto 22px" }}>
-              <div style={{ position:"absolute", inset:-8, borderRadius:"50%", border:"1.5px solid rgba(142,200,154,0.25)", animation:"successRing 2.5s ease-out infinite" }} />
-              <div style={{ position:"absolute", inset:-16, borderRadius:"50%", border:"1px solid rgba(142,200,154,0.1)", animation:"successRing 2.5s ease-out infinite", animationDelay:"0.4s" }} />
-              <div style={{ width:68, height:68, borderRadius:"50%", background:"linear-gradient(135deg,rgba(5,68,50,0.6),rgba(5,68,50,0.8))", border:"1.5px solid rgba(142,200,154,0.3)", display:"flex", alignItems:"center", justifyContent:"center", animation:"successScaleIn 0.35s ease-out 0.15s both" }}>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#8ec89a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="30" style={{ animation:"successCheck 0.4s ease-out 0.4s both" }}/></svg>
-              </div>
+          <div style={{ position:"absolute", top:30, left:"18%", pointerEvents:"none" }}><svg width="14" height="14" viewBox="0 0 16 16" style={{ animation:"successLeaf1 5.5s ease-in-out infinite", animationDelay:"0.3s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#d4b8d0" opacity="0.4"/></svg></div>
+          <div style={{ position:"absolute", top:15, right:"20%", pointerEvents:"none" }}><svg width="12" height="12" viewBox="0 0 16 16" style={{ animation:"successLeaf2 6s ease-in-out infinite", animationDelay:"1.2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#903486" opacity="0.3"/></svg></div>
+          <div style={{ position:"absolute", top:45, left:"60%", pointerEvents:"none" }}><svg width="9" height="9" viewBox="0 0 16 16" style={{ animation:"successLeaf3 5s ease-in-out infinite", animationDelay:"2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#d4b8d0" opacity="0.3"/></svg></div>
+          <div style={{ position:"absolute", top:8, left:"42%", pointerEvents:"none" }}><svg width="11" height="11" viewBox="0 0 16 16" style={{ animation:"successLeaf4 7s ease-in-out infinite", animationDelay:"0.6s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#903486" opacity="0.2"/></svg></div>
+          {/* Glass card with garden image */}
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(88,8,74,0.25)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", borderRadius:28, maxWidth:360, width:"100%", border:"1px solid rgba(144,52,134,0.2)", animation:"successFadeUp 0.6s ease-out", textAlign:"center", overflow:"hidden" }}>
+            {/* Garden image top half */}
+            <div style={{ height:140, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%", position:"relative" }}>
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(88,8,74,0.2) 0%, rgba(88,8,74,0.5) 100%)" }} />
             </div>
-            <div style={{ fontSize:22, fontWeight:600, color:"#fff", marginBottom:6, animation:"successSlide 0.5s ease-out 0.25s both" }}>Anfrage gesendet!</div>
-            <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", lineHeight:1.7, marginBottom:26, animation:"successSlide 0.5s ease-out 0.35s both" }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
-            <div style={{ animation:"successSlide 0.5s ease-out 0.45s both" }}>
-              <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer"
-                style={{ display:"block", padding:"13px 16px", background:"rgba(142,200,154,0.06)", border:"1px solid rgba(142,200,154,0.12)", borderRadius:14, textDecoration:"none", marginBottom:18 }}>
-                <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", marginBottom:3 }}>Mehr über uns</div>
-                <div style={{ fontSize:14, fontWeight:600, color:"#8ec89a" }}>www.derparadiesgarten.at</div>
-              </a>
-              <button onClick={() => setSuccessModal(false)}
-                style={{ padding:"12px 36px", background:"rgba(142,200,154,0.12)", border:"1px solid rgba(142,200,154,0.2)", borderRadius:12, color:"#8ec89a", fontSize:14, fontWeight:600, cursor:"pointer", animation:"successBob 3s ease-in-out infinite" }}>Schließen</button>
+            <div style={{ padding:"28px 28px 32px" }}>
+              <div style={{ position:"relative", width:68, height:68, margin:"-56px auto 18px" }}>
+                <div style={{ position:"absolute", inset:-8, borderRadius:"50%", border:"1.5px solid rgba(255,255,255,0.2)", animation:"successRing 2.5s ease-out infinite" }} />
+                <div style={{ position:"absolute", inset:-16, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.08)", animation:"successRing 2.5s ease-out infinite", animationDelay:"0.4s" }} />
+                <div style={{ width:68, height:68, borderRadius:"50%", background:"linear-gradient(135deg,rgba(88,8,74,0.7),rgba(66,0,69,0.85))", border:"2px solid rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", animation:"successScaleIn 0.35s ease-out 0.15s both" }}>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="30" style={{ animation:"successCheck 0.4s ease-out 0.4s both" }}/></svg>
+                </div>
+              </div>
+              <div style={{ fontSize:22, fontWeight:600, color:"#fff", marginBottom:6, animation:"successSlide 0.5s ease-out 0.25s both" }}>Anfrage gesendet!</div>
+              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", lineHeight:1.7, marginBottom:24, animation:"successSlide 0.5s ease-out 0.35s both" }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
+              <div style={{ animation:"successSlide 0.5s ease-out 0.45s both" }}>
+                <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer"
+                  style={{ display:"block", padding:"13px 16px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:14, textDecoration:"none", marginBottom:18 }}>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginBottom:3 }}>Mehr über uns</div>
+                  <div style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.9)" }}>www.derparadiesgarten.at</div>
+                </a>
+                <button onClick={() => setSuccessModal(false)}
+                  style={{ padding:"12px 36px", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, color:"rgba(255,255,255,0.85)", fontSize:14, fontWeight:600, cursor:"pointer", animation:"successBob 3s ease-in-out infinite" }}>Schließen</button>
+              </div>
             </div>
           </div>
         </div>
@@ -797,7 +803,6 @@ export default function App() {
         {/* Customer: Hero Slideshow */}
         {!isAdmin && (
           <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 16 : 28, height: winW > 900 ? 560 : winW > 520 ? 370 : 265, touchAction:"pan-y" }}
-            onMouseEnter={() => setHeroHover(true)} onMouseLeave={() => setHeroHover(false)}
             onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
             onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (e.currentTarget._sx||0); const dy = Math.abs(e.changedTouches[0].clientY - (e.currentTarget._sy||0)); if (Math.abs(dx) > 40 && Math.abs(dx) > dy) { if (dx < 0) setHeroIdx(i => (i+1) % 7); else setHeroIdx(i => (i+6) % 7); } }}>
             {heroImages.map((src, idx) => (
@@ -807,13 +812,11 @@ export default function App() {
             {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, width:"70%", height:"70%", background:"radial-gradient(ellipse at bottom left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.35) 40%, transparent 70%)", zIndex:2 }} />}
             <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
             <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
-            {/* Text overlay - top-left on mobile, bottom-left on desktop */}
             {winW < 520 && (
               <div style={{ position:"absolute", top:0, left:0, right:0, padding:"16px 16px", zIndex:3 }}>
                 <div style={{ fontSize:21, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)", lineHeight:1.3 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
               </div>
             )}
-            {/* Button bottom-right on mobile */}
             {winW < 520 && (
               <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3 }}>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
@@ -823,27 +826,30 @@ export default function App() {
                 </button>
               </div>
             )}
-            {/* Arrows on hover (desktop only) */}
-            {heroHover && winW >= 520 && <>
-              <div onClick={() => setHeroIdx(i => (i+6) % 7)}
-                style={{ position:"absolute", left: winW > 900 ? 20 : 14, top:"50%", transform:"translateY(-50%)", zIndex:4, cursor:"pointer", width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", transition:"all .2s", border:"1px solid rgba(255,255,255,0.2)" }}
-                onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.3)"}
-                onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.15)"}>
+            {/* Left arrow hover zone */}
+            {winW >= 520 && <div className="hero-arrow-zone"
+              onClick={() => setHeroIdx(i => (i+6) % 7)}
+              style={{ position:"absolute", left:0, top:"15%", width: winW > 900 ? 80 : 60, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div className="hero-arrow-btn" style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
               </div>
-              <div onClick={() => setHeroIdx(i => (i+1) % 7)}
-                style={{ position:"absolute", right: winW > 900 ? 20 : 14, top:"50%", transform:"translateY(-50%)", zIndex:4, cursor:"pointer", width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", transition:"all .2s", border:"1px solid rgba(255,255,255,0.2)" }}
-                onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.3)"}
-                onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.15)"}>
+            </div>}
+            {/* Right arrow hover zone */}
+            {winW >= 520 && <div className="hero-arrow-zone"
+              onClick={() => setHeroIdx(i => (i+1) % 7)}
+              style={{ position:"absolute", right:0, top:"15%", width: winW > 900 ? 80 : 60, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div className="hero-arrow-btn" style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
               </div>
-            </>}
-            {/* Dot indicators - desktop/tablet only, on hover */}
-            {heroHover && winW >= 520 && <div style={{ position:"absolute", bottom: winW > 900 ? 14 : 10, left:"50%", transform:"translateX(-50%)", display:"flex", gap:6, zIndex:4 }}>
-              {heroImages.map((_, idx) => (
-                <div key={idx} onClick={e => { e.stopPropagation(); setHeroIdx(idx); }}
-                  style={{ width: idx === heroIdx ? 16 : 6, height:6, borderRadius:3, background: idx === heroIdx ? "#fff" : "rgba(255,255,255,0.4)", cursor:"pointer", transition:"all .3s ease" }} />
-              ))}
+            </div>}
+            {/* Dots hover zone */}
+            {winW >= 520 && <div className="hero-dots-zone" style={{ position:"absolute", bottom:0, left:"25%", right:"25%", height: winW > 900 ? 50 : 40, zIndex:4, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom: winW > 900 ? 14 : 10 }}>
+              <div className="hero-dots-inner" style={{ display:"flex", gap:6, opacity:0, transition:"opacity .25s" }}>
+                {heroImages.map((_, idx) => (
+                  <div key={idx} onClick={e => { e.stopPropagation(); setHeroIdx(idx); }}
+                    style={{ width: idx === heroIdx ? 16 : 6, height:6, borderRadius:3, background: idx === heroIdx ? "#fff" : "rgba(255,255,255,0.4)", cursor:"pointer", transition:"all .3s ease" }} />
+                ))}
+              </div>
             </div>}
             {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : "18px 20px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12, zIndex:3 }}>
               <div>
@@ -2237,6 +2243,9 @@ export default function App() {
         .doc-green, .doc-violet { transition: all .15s ease; }
         @media (hover: hover) and (pointer: fine) {
           button:hover { filter: brightness(0.97) }
+          .hero-arrow-zone:hover .hero-arrow-btn { opacity: 1 !important; }
+          .hero-arrow-zone:hover .hero-arrow-btn:hover { background: rgba(255,255,255,0.3) !important; }
+          .hero-dots-zone:hover .hero-dots-inner { opacity: 1 !important; }
           .evt-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.10) !important; border-left-width: 4px !important; background: color-mix(in srgb, var(--card-color) 6%, #fff) !important; }
           .day-free:hover { background: rgba(0,154,147,0.08) !important; border-color: rgba(0,154,147,0.3) !important; }
           .day-booked:hover { background: rgba(144,52,134,0.08) !important; border-color: rgba(144,52,134,0.25) !important; }
