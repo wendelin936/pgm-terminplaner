@@ -508,6 +508,7 @@ export default function App() {
   const [showPending, setShowPending] = useState(true);
   const [showUpcoming, setShowUpcoming] = useState(true);
   const [showInternal, setShowInternal] = useState(true);
+  const [modalPull, setModalPull] = useState(0);
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroHover, setHeroHover] = useState(false);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
@@ -743,19 +744,18 @@ export default function App() {
               <div key={idx} style={{ position:"absolute", inset:0, backgroundImage:`url(${src})`, backgroundSize:"cover", backgroundPosition:"center 40%", opacity: idx === heroIdx ? 1 : 0, transition:"opacity 1s ease-in-out", zIndex: idx === heroIdx ? 1 : 0 }} />
             ))}
             {winW < 520 && <div style={{ position:"absolute", top:0, left:0, right:0, height:"55%", background:"linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)", zIndex:2 }} />}
-            {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, width:"60%", height:"55%", background:"linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)", zIndex:2 }} />}
+            {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, width:"70%", height:"70%", background:"radial-gradient(ellipse at bottom left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.35) 40%, transparent 70%)", zIndex:2 }} />}
             <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
             <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
             {/* Text overlay - top-left on mobile, bottom-left on desktop */}
             {winW < 520 && (
-              <div style={{ position:"absolute", top:0, left:0, right:0, padding:"14px 14px", zIndex:3 }}>
-                <div style={{ fontSize:16, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
-                <div style={{ fontSize:10, color:"rgba(255,255,255,0.85)", marginTop:2, textShadow:"0 1px 4px rgba(0,0,0,0.3)", lineHeight:1.4 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
+              <div style={{ position:"absolute", top:0, left:0, right:0, padding:"16px 16px", zIndex:3 }}>
+                <div style={{ fontSize:21, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)", lineHeight:1.3 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
               </div>
             )}
             {/* Button bottom-right on mobile */}
             {winW < 520 && (
-              <div style={{ position:"absolute", bottom:0, right:0, padding:"14px 14px", zIndex:3 }}>
+              <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3 }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("selectType"); }}
                   style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
                   Location buchen
@@ -1135,26 +1135,32 @@ export default function App() {
 
       {/* Modal */}
       {(modalView || editingType) && (
-        <div onClick={() => { if (modalView !== "form") { setModalView(null); setEditingType(null); } }}
+        <div onClick={() => { if (modalView !== "form") { setModalView(null); setEditingType(null); setModalPull(0); } }}
           onTouchMove={e => e.preventDefault()}
-          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none", overscrollBehavior:"none" }}>
+          style={{ position:"fixed", inset:0, background:`rgba(0,0,0,${Math.max(0.05, 0.25 - modalPull/800)})`, backdropFilter:`blur(${Math.max(0, 4 - modalPull/50)}px)`, zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none", overscrollBehavior:"none", transition: modalPull ? "none" : "all .3s" }}>
           <div onClick={e => e.stopPropagation()}
             onTouchMove={e => {
               const el = e.currentTarget;
-              if (el.scrollHeight <= el.clientHeight) { e.preventDefault(); }
-              else if (el.scrollTop <= 0 && e.touches[0].clientY > (el._touchY || 0)) { e.preventDefault(); }
-              else if (el.scrollTop + el.clientHeight >= el.scrollHeight && e.touches[0].clientY < (el._touchY || 0)) { e.preventDefault(); }
+              const dy = e.touches[0].clientY - (el._touchStartY || 0);
+              // If at top of scroll and pulling down, start pull-to-dismiss
+              if (el.scrollTop <= 0 && dy > 0) {
+                e.preventDefault();
+                setModalPull(Math.max(0, dy * 0.6));
+              } else if (el.scrollHeight <= el.clientHeight && dy > 0) {
+                e.preventDefault();
+                setModalPull(Math.max(0, dy * 0.6));
+              } else if (el.scrollTop + el.clientHeight >= el.scrollHeight && e.touches[0].clientY < (el._touchY || 0)) {
+                e.preventDefault();
+              }
               el._touchY = e.touches[0].clientY;
             }}
-            onTouchStart={e => { e.currentTarget._touchY = e.touches[0].clientY; }}
-            style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch" }}>
+            onTouchStart={e => { e.currentTarget._touchStartY = e.touches[0].clientY; e.currentTarget._touchY = e.touches[0].clientY; setModalPull(0); }}
+            onTouchEnd={e => { if (modalPull > 100) { setModalView(null); setEditingType(null); } setModalPull(0); }}
+            style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch", transform: winW < 520 && modalPull > 0 ? `translateY(${modalPull}px)` : "none", transition: modalPull ? "none" : "transform .3s ease" }}>
 
             {/* Pull handle for mobile */}
             {winW < 520 && (
-              <div
-                onTouchStart={e => { e.currentTarget._sy = e.touches[0].clientY; }}
-                onTouchEnd={e => { if (e.changedTouches[0].clientY - (e.currentTarget._sy||0) > 60) { setModalView(null); setEditingType(null); } }}
-                style={{ display:"flex", justifyContent:"center", padding:"4px 0 12px", marginTop:-8, cursor:"grab" }}>
+              <div style={{ display:"flex", justifyContent:"center", padding:"4px 0 12px", marginTop:-8 }}>
                 <div style={{ width:36, height:4, borderRadius:2, background:"#ddd" }} />
               </div>
             )}
