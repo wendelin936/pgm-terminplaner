@@ -431,7 +431,7 @@ export default function App() {
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
-  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[] });
+  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[] });
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -508,9 +508,13 @@ export default function App() {
   const [showPending, setShowPending] = useState(true);
   const [showUpcoming, setShowUpcoming] = useState(true);
   const [showInternal, setShowInternal] = useState(true);
+  const [showSeries, setShowSeries] = useState(true);
+  const [expandedSeries, setExpandedSeries] = useState(null);
   const [modalPull, setModalPull] = useState(0);
   const [editingField, setEditingField] = useState(null);
   const [editFieldVal, setEditFieldVal] = useState("");
+  const [seriesMonth, setSeriesMonth] = useState(null);
+  const [seriesYear, setSeriesYear] = useState(null);
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroHover, setHeroHover] = useState(false);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
@@ -544,7 +548,7 @@ export default function App() {
       if (ev) {
         setModalView("info");
       } else {
-        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[] });
+        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[] });
         setModalView("admin");
       }
     } else if (ev && ev.status !== "pending") {
@@ -579,7 +583,15 @@ export default function App() {
     prevEvents.current = { ...events };
     const updated = { ...events };
     if (adminForm.type === "free") { delete updated[selectedDate]; }
-    else { const st = adminForm.allDay ? "00:00" : adminForm.startTime; const et = adminForm.allDay ? "23:59" : adminForm.endTime; updated[selectedDate] = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? "Ganztägig" : `${st} – ${et}` }; }
+    else {
+      const st = adminForm.allDay ? "00:00" : adminForm.startTime;
+      const et = adminForm.allDay ? "23:59" : adminForm.endTime;
+      const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? "Ganztägig" : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 };
+      updated[selectedDate] = entry;
+      if (adminForm.seriesDates && adminForm.seriesDates.length > 0) {
+        adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, checklist: entry.checklist.map(c => ({...c, done:false})) }; });
+      }
+    }
     saveEvents(updated);
     setModalView(null);
   };
@@ -881,18 +893,19 @@ export default function App() {
             const hol = holidays[key];
             const isToday = key === todayKey;
             const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked");
+            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && !ev.isPublic;
+            const customerPublic = !isAdmin && ev && ev.isPublic;
             const customerFree = !isAdmin && (!ev || ev.status === "pending");
             const statusColor = ev ? (ev.status === "booked" ? BRAND.lila : ev.status === "pending" ? BRAND.aprikot : "#009a93") : null;
             const isPending = ev?.status === "pending" && isAdmin;
             return (
-              <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : "day-free"} onClick={() => !isPast && handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : isAdmin && ev?.label ? ev.label : ""}
+              <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : "day-free"} onClick={() => !isPast && handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : customerPublic ? (ev.label || "Veranstaltung") : isAdmin && ev?.label ? ev.label : ""}
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2.5px solid #8ec89a` : isPending ? `2px solid ${BRAND.aprikot}` : ev && isAdmin && ev.status==="blocked" ? `1.5px solid #009a9360` : ev && isAdmin ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid #009a9350` : isPending ? `2px solid ${BRAND.aprikot}` : ev && isAdmin && ev.status==="blocked" ? `1.5px solid #009a9360` : ev && isAdmin ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && ev.status==="blocked" ? "#009a9312" : ev && isAdmin ? `${statusColor}18` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
+                  background: customerPublic ? "#009a9310" : isPending ? `${BRAND.sonnengelb}30` : ev && isAdmin && ev.status==="blocked" ? "#009a9312" : ev && isAdmin ? `${statusColor}18` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast || customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.4 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   animation: isPending && !isPast ? "pendingPulse 2s ease-in-out infinite" : "none",
@@ -903,6 +916,7 @@ export default function App() {
                 )}
                 <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin) ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? "#8ec89a" : ev && isAdmin && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: BRAND.lila, marginTop:2 }} />}
+                {customerPublic && <div style={{ width: winW > 900 ? 8 : 6, height: winW > 900 ? 8 : 6, borderRadius:"50%", background: "#009a93", marginTop:2 }} />}
                 {ev && isAdmin && <div style={{ fontSize:7, color: statusColor, marginTop:1, fontWeight:600, lineHeight:1, overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%" }}>{ev.status === "booked" ? "●" : ev.status === "pending" ? "◐" : "○"}</div>}
               </button>
             );
@@ -929,30 +943,23 @@ export default function App() {
                 <SwipeRow key={key} onSwipeRight={() => handleAdminAction(key,"confirm")} onSwipeLeft={() => handleAdminAction(key,"delete")} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
                   <div onClick={() => { setSelectedDate(key); setModalView("info"); }}
                     onMouseEnter={() => setHoveredDate(key)} onMouseLeave={() => setHoveredDate(null)}
-                    style={{ background:"#fff", borderRadius:8, padding: winW < 520 ? "8px 10px" : "10px 12px", borderLeft:`3px solid ${BRAND.aprikot}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", transition:"all .15s" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: winW < 520 ? 0 : 2, gap:8 }}>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ display:"flex", alignItems:"baseline", gap: winW < 520 ? 4 : 6, flexWrap:"wrap" }}>
-                          <span style={{ fontWeight:600, color: BRAND.aprikot, fontSize: winW < 520 ? 12 : 13 }}>{dateStr}</span>
-                          <span style={{ fontSize: winW < 520 ? 10 : 11, color: BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
-                        </div>
+                    style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 10px", borderLeft:`3px solid ${BRAND.aprikot}`, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", position:"relative", display:"flex", alignItems:"center", gap:10, transition:"all .15s" }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"baseline", gap:6, flexWrap:"wrap" }}>
+                        <span style={{ fontWeight:600, color: BRAND.aprikot, fontSize: winW > 900 ? 15 : 13 }}>{dateStr}</span>
+                        <span style={{ fontSize: winW > 900 ? 13 : 11, color: BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
                         {winW > 900 && ev.slotLabel && <span style={{ fontSize:10, color:"#aaa" }}><ClockIcon />{ev.slotLabel}</span>}
-                        {winW <= 900 && ev.name && <div style={{ fontSize:9, color:"#888", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>}
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
-                        onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.85)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.filter="none"; }}
-                        style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius: winW < 520 ? 6 : 8, padding: winW < 520 ? "6px 8px" : "6px 14px", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:4, transition:"all .15s", letterSpacing:0.3 }}>
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l4 4 6-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        {winW >= 520 && "Annehmen"}
-                      </button>
+                      {ev.name && (
+                        <div style={{ fontSize: winW > 900 ? 10 : 9, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>
+                      )}
                     </div>
-                    {winW > 900 && <div style={{ fontSize:10, color:"#888", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
-                      👤 {ev.name}
-                      {ev.email && <> · <a href={`mailto:${ev.email}`} onClick={e=>e.stopPropagation()} style={{ color: BRAND.lila, textDecoration:"none", fontSize:10 }}>{ev.email}</a></>}
-                      {ev.guests && <> · {ev.guests} Gäste</>}
-                      {ev.message && <> · <span style={{ fontStyle:"italic", color:"#aaa" }}>„{ev.message}"</span></>}
-                    </div>}
+                    <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
+                      onMouseEnter={e => { e.currentTarget.style.filter="brightness(0.85)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.filter="none"; }}
+                      style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, padding: winW < 520 ? "3px 8px" : "5px 12px", fontSize: winW < 520 ? 8 : 10, fontWeight:700, cursor:"pointer", flexShrink:0, display:"flex", alignItems:"center", gap:4, transition:"all .15s", letterSpacing:0.5, textTransform:"uppercase" }}>
+                      Annehmen
+                    </button>
                   </div>
                 </SwipeRow>
                 );
@@ -993,7 +1000,7 @@ export default function App() {
                       <div style={{ fontSize:9, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>
                     )}
                   </div>
-                  <div style={{ background: isBlocked ? "#009a93" : BRAND.lila, color: "#fff", padding:"3px 8px", borderRadius:6, fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>
+                  <div style={{ background: isBlocked ? "#009a93" : BRAND.lila, color: "#fff", padding:"5px 12px", borderRadius:6, fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>
                     {isBlocked ? "Intern" : "Gebucht"}
                   </div>
                 </div>
@@ -1011,15 +1018,77 @@ export default function App() {
                   {showUpcoming && bookedOnly.map(r => renderRow(r, false))}
                 </>
               )}
-              {blockedOnly.length > 0 && (
+              {blockedOnly.length > 0 && (() => {
+                const regularBlocked = blockedOnly.filter(([,v]) => !v.isSeries);
+                const seriesBlocked = blockedOnly.filter(([,v]) => v.isSeries);
+                return (
                 <>
+                  {regularBlocked.length > 0 && (
+                  <>
                   <h3 onClick={() => setShowInternal(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a93", letterSpacing:2, textTransform:"uppercase", marginBottom: showInternal ? 10 : 0, marginTop: bookedOnly.length > 0 ? 20 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
-                    Interne Termine ({blockedOnly.length})
+                    Interne Termine ({regularBlocked.length})
                     <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showInternal ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </h3>
-                  {showInternal && blockedOnly.map(r => renderRow(r, false))}
+                  {showInternal && regularBlocked.map(r => renderRow(r, false))}
+                  </>
+                  )}
+                  {seriesBlocked.length > 0 && (
+                  <>
+                  <h3 onClick={() => setShowSeries(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#009a9380", letterSpacing:2, textTransform:"uppercase", marginBottom: showSeries ? 10 : 0, marginTop: regularBlocked.length > 0 || bookedOnly.length > 0 ? 20 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8 }}>
+                    Serientermine ({seriesBlocked.length})
+                    <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showSeries ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a9380" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </h3>
+                  {showSeries && (() => {
+                    // Group by label
+                    const groups = {};
+                    seriesBlocked.forEach(([key, ev]) => {
+                      const g = ev.label || "Serientermin";
+                      if (!groups[g]) groups[g] = [];
+                      groups[g].push([key, ev]);
+                    });
+                    return Object.entries(groups).map(([label, items]) => {
+                      const isOpen = expandedSeries === label;
+                      const firstEv = items[0][1];
+                      return (
+                        <div key={label} style={{ marginBottom:6 }}>
+                          <div className="admin-card" onClick={() => setExpandedSeries(isOpen ? null : label)}
+                            style={{ background:"#fff", borderRadius:8, padding: winW > 900 ? "10px 16px" : "8px 12px", borderLeft:"3px solid #009a93", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.03)", display:"flex", alignItems:"center", gap:10 }}>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+                                <span style={{ fontWeight:600, color:"#009a93", fontSize: winW > 900 ? 15 : 13 }}>{label}</span>
+                                <span style={{ fontSize:10, color:"#aaa" }}>{items.length} Termine</span>
+                              </div>
+                              {firstEv.slotLabel && winW > 900 && <div style={{ fontSize:10, color:"#bbb", marginTop:1 }}><ClockIcon color="#bbb" />{firstEv.slotLabel}</div>}
+                            </div>
+                            <div style={{ background:"#009a93", color:"#fff", padding:"5px 12px", borderRadius:6, fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Serie</div>
+                            <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)", flexShrink:0 }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          </div>
+                          {isOpen && (
+                            <div style={{ paddingLeft:12, borderLeft:"2px solid #009a9330", marginLeft:6, marginTop:4 }}>
+                              {items.map(([key, ev]) => {
+                                const [yy2,mm2,dd2] = key.split("-").map(Number);
+                                const d2 = new Date(yy2,mm2-1,dd2);
+                                const dn = ["So","Mo","Di","Mi","Do","Fr","Sa"][d2.getDay()];
+                                return (
+                                  <div key={key} onClick={() => { setSelectedDate(key); setModalView("info"); }}
+                                    className="admin-card"
+                                    style={{ background:"#fff", borderRadius:6, padding:"6px 10px", marginBottom:3, cursor:"pointer", boxShadow:"0 1px 3px rgba(0,0,0,0.02)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                                    <span style={{ fontSize:12, fontWeight:500, color:"#009a93" }}>{dn}, {dd2}. {MONTHS[mm2-1]}</span>
+                                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M3 1l4 4-4 4" stroke="#009a9380" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                  </>
+                  )}
                 </>
-              )}
+                );
+              })()}
               {(() => {
                 const pastAll = Object.entries(events).filter(([k,v]) => (v.status === "booked" || v.status === "blocked") && k < todayKey).sort(([a],[b]) => b.localeCompare(a));
                 if (!pastAll.length) return null;
@@ -1280,8 +1349,17 @@ export default function App() {
             {/* Admin Form */}
             {modalView === "admin" && (
               <>
-                <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700, marginBottom:4 }}>Termin bearbeiten</h3>
-                <div style={{ fontSize:13, color:"#999", marginBottom: holidays[selectedDate] ? 6 : 12 }}>{fmtDateAT(selectedDate)}</div>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
+                  <button onClick={() => { if (events[selectedDate]) { setModalView("info"); } else { setModalView(null); } }}
+                    style={{ background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center", color:"#aaa", flexShrink:0, transition:"color .15s" }}
+                    onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+                  </button>
+                  <div>
+                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>Termin bearbeiten</h3>
+                    <div style={{ fontSize:13, color:"#999" }}>{fmtDateAT(selectedDate)}</div>
+                  </div>
+                </div>
                 {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
                 <div style={{ display:"flex", gap:8, marginBottom:14 }}>
                   {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"], ...(events[selectedDate] ? [["free","Freigeben","#999"]] : [])].map(([v,l,c]) => (
@@ -1291,18 +1369,38 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <input placeholder="Bezeichnung (z.B. Hochzeit Müller)" value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
-                <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
-                  {eventTypes.map(t => {
-                    const typeLabels = eventTypes.map(x => x.label);
-                    return (
-                    <button key={t.id} onClick={() => setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label}))}
-                      style={{ padding:"5px 10px", border:`1.5px solid ${adminForm.eventType===t.id ? t.color : "#e0d8de"}`, borderRadius:6, background: adminForm.eventType===t.id ? t.color+"15" : "#fff", color: adminForm.eventType===t.id ? t.color : "#999", fontSize:10, fontWeight:600, cursor:"pointer", borderLeft:`3px solid ${t.color}` }}>
-                      {t.label}
-                    </button>
-                    );
-                  })}
-                </div>
+                <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
+
+                {/* Event type suggestions - only for booked */}
+                {adminForm.type === "booked" && (
+                  <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+                    {eventTypes.map(t => {
+                      const typeLabels = eventTypes.map(x => x.label);
+                      return (
+                      <button key={t.id} onClick={() => setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label}))}
+                        style={{ padding:"5px 10px", border:`1.5px solid ${adminForm.eventType===t.id ? t.color : "#e0d8de"}`, borderRadius:6, background: adminForm.eventType===t.id ? t.color+"15" : "#fff", color: adminForm.eventType===t.id ? t.color : "#999", fontSize:10, fontWeight:600, cursor:"pointer", borderLeft:`3px solid ${t.color}` }}>
+                        {t.label}
+                      </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Public toggle - only for internal events */}
+                {adminForm.type === "blocked" && (
+                <label onClick={() => setAdminForm(f=>({...f, isPublic:!f.isPublic, contactAddress: !f.isPublic && !f.contactAddress ? "Emmersdorfer Straße 86, 9061 Klagenfurt" : f.contactAddress}))}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.isPublic ? "#009a9310" : "#fff", border:`1.5px solid ${adminForm.isPublic ? "#009a93" : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
+                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.isPublic ? "#009a93" : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.isPublic ? "#009a93" : "#fff", transition:"all .15s" }}>
+                    {adminForm.isPublic && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                  <div>
+                    <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Öffentlich sichtbar</span>
+                    <div style={{ fontSize:9, color:"#aaa" }}>Bezeichnung, Beschreibung, Kontakt & Adresse werden für Kunden sichtbar</div>
+                  </div>
+                </label>
+                )}
+
+                {/* Ganztägig */}
                 <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
                   style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.allDay ? `${adminForm.type==="blocked" ? "#009a93" : BRAND.lila}10` : "#fff", border:`1.5px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
                   <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff" }}>
@@ -1327,10 +1425,16 @@ export default function App() {
                   </>
                   );
                 })()}
-                <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Interne Notiz</label>
-                <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))} style={{ ...inputStyle, height:70, resize:"vertical", background:"#f8f4f8", borderColor:"#e0d5df" }} />
-                <div style={{ marginBottom:10 }}>
-                  <label style={{ fontSize:10, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6, display:"block" }}>Checkliste</label>
+
+                {/* Interne Notiz - framed */}
+                <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
+                  <label style={{ fontSize:9, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Interne Notiz</label>
+                  <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))} style={{ ...inputStyle, height:60, resize:"vertical", background:"#fff", borderColor:"#e0d5df", marginBottom:0 }} />
+                </div>
+
+                {/* Checkliste - framed */}
+                <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
+                  <label style={{ fontSize:9, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6, display:"block" }}>Checkliste</label>
                   <ChecklistNote items={adminForm.checklist||[]} onChange={(items) => setAdminForm(f=>({...f, checklist:items}))} />
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, cursor:"text" }}
                     onClick={e => { const inp = e.currentTarget.querySelector("input"); if(inp) inp.focus(); }}>
@@ -1340,8 +1444,103 @@ export default function App() {
                       style={{ border:"none", outline:"none", background:"transparent", fontSize:13, color:BRAND.aubergine, flex:1, padding:"4px 0", fontFamily:"inherit" }} />
                   </div>
                 </div>
-                <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Öffentliche Notiz</label>
-                <textarea placeholder="Für Kunden sichtbar…" value={adminForm.note} onChange={e => setAdminForm(f=>({...f, note:e.target.value}))} style={{ ...inputStyle, height:50, resize:"vertical" }} />
+
+                {/* PUBLIC SECTION - only for internal events when isPublic is checked */}
+                {adminForm.type === "blocked" && adminForm.isPublic && (
+                  <div style={{ background:"#009a9306", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #009a9320" }}>
+                    <div style={{ fontSize:9, color:"#009a93", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Für Kunden sichtbar</div>
+                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Beschreibung</label>
+                    <textarea placeholder="Text für Kunden…" value={adminForm.publicText} onChange={e => setAdminForm(f=>({...f, publicText:e.target.value}))} style={{ ...inputStyle, height:50, resize:"vertical", fontSize:13 }} />
+                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Öffentliche Notiz</label>
+                    <textarea placeholder="Kurze Notiz für Kunden…" value={adminForm.note} onChange={e => setAdminForm(f=>({...f, note:e.target.value}))} style={{ ...inputStyle, height:40, resize:"vertical", fontSize:13 }} />
+                    <div style={{ fontSize:9, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Kontaktperson</div>
+                    <input placeholder="Name" value={adminForm.contactName} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
+                      style={{ ...inputStyle, fontSize:13, padding:"8px 10px" }} />
+                    <input placeholder="Telefon oder E-Mail" value={adminForm.contactPhone} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                      style={{ ...inputStyle, fontSize:13, padding:"8px 10px" }} />
+                    <div style={{ fontSize:9, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Veranstaltungsort</div>
+                    <input placeholder="Adresse" value={adminForm.contactAddress} onChange={e => setAdminForm(f=>({...f, contactAddress:e.target.value}))}
+                      style={{ ...inputStyle, marginBottom:0, fontSize:13, padding:"8px 10px" }} />
+                  </div>
+                )}
+
+                {/* Serientermin toggle + calendar - only for internal events */}
+                {adminForm.type === "blocked" && (
+                <>
+                <label onClick={() => setAdminForm(f=>({...f, isSeries:!f.isSeries, seriesDates: f.isSeries ? [] : f.seriesDates}))}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.isSeries ? `#009a9310` : "#fff", border:`1.5px solid ${adminForm.isSeries ? "#009a93" : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
+                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.isSeries ? "#009a93" : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.isSeries ? "#009a93" : "#fff", transition:"all .15s" }}>
+                    {adminForm.isSeries && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                  <div>
+                    <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Serientermin</span>
+                    <div style={{ fontSize:9, color:"#aaa" }}>An weiteren Tagen wiederholen</div>
+                  </div>
+                </label>
+
+                {adminForm.isSeries && (
+                <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:12, border:"1px solid #ede8ed" }}>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:8 }}>
+                    {(adminForm.seriesDates||[]).map(dk => {
+                      const [sy,sm,sd] = dk.split("-").map(Number);
+                      const dObj = new Date(sy,sm-1,sd);
+                      return (
+                        <span key={dk} style={{ display:"inline-flex", alignItems:"center", gap:4, background:BRAND.lila+"15", color:BRAND.aubergine, padding:"3px 8px", borderRadius:12, fontSize:10, fontWeight:500 }}>
+                          {["So","Mo","Di","Mi","Do","Fr","Sa"][dObj.getDay()]}, {sd}.{sm}.
+                          <span onClick={() => setAdminForm(f=>({...f, seriesDates:f.seriesDates.filter(x=>x!==dk)}))} style={{ cursor:"pointer", color:"#c44", fontWeight:700, fontSize:12, lineHeight:1 }}>×</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {(() => {
+                    const sm = seriesMonth ?? month;
+                    const sy = seriesYear ?? year;
+                    return (
+                    <>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                      <button onClick={() => { const nm = sm === 0 ? 11 : sm - 1; const ny = sm === 0 ? sy - 1 : sy; setSeriesMonth(nm); setSeriesYear(ny); }}
+                        style={{ background:"none", border:"none", cursor:"pointer", padding:4, color:"#999" }}>
+                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9 3L5 7L9 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
+                      <span style={{ fontSize:11, fontWeight:600, color:BRAND.aubergine }}>{MONTHS[sm]} {sy}</span>
+                      <button onClick={() => { const nm = sm === 11 ? 0 : sm + 1; const ny = sm === 11 ? sy + 1 : sy; setSeriesMonth(nm); setSeriesYear(ny); }}
+                        style={{ background:"none", border:"none", cursor:"pointer", padding:4, color:"#999" }}>
+                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 3L9 7L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </button>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+                      {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => <div key={d} style={{ fontSize:8, color:"#bbb", textAlign:"center", fontWeight:600 }}>{d}</div>)}
+                      {(() => {
+                        const firstDay = (new Date(sy,sm,1).getDay()+6)%7;
+                        const daysInMonth = new Date(sy,sm+1,0).getDate();
+                        const cells = [];
+                        for (let i=0;i<firstDay;i++) cells.push(<div key={`e${i}`} />);
+                        for (let d=1;d<=daysInMonth;d++) {
+                          const dk = dateKey(sy,sm,d);
+                          const isSel = dk === selectedDate;
+                          const isInSeries = (adminForm.seriesDates||[]).includes(dk);
+                          const hasEv = events[dk] && dk !== selectedDate;
+                          const isPast = new Date(sy,sm,d) < new Date(today.getFullYear(),today.getMonth(),today.getDate());
+                          cells.push(
+                            <button key={dk} disabled={isSel||hasEv||isPast}
+                              onClick={() => setAdminForm(f=>({...f, seriesDates: isInSeries ? f.seriesDates.filter(x=>x!==dk) : [...(f.seriesDates||[]),dk]}))}
+                              style={{ aspectRatio:"1", border: isInSeries ? `2px solid ${BRAND.lila}` : isSel ? `2px solid ${BRAND.aubergine}` : "1px solid #eee", borderRadius:4, background: isSel ? `${BRAND.aubergine}20` : isInSeries ? `${BRAND.lila}15` : hasEv ? "#f5f3f4" : "#fff", cursor: isSel||hasEv||isPast ? "default" : "pointer", fontSize:10, fontWeight: isSel||isInSeries ? 700 : 400, color: isPast ? "#ccc" : hasEv ? "#bbb" : isSel ? BRAND.aubergine : isInSeries ? BRAND.lila : "#666", padding:0 }}>
+                              {d}
+                            </button>
+                          );
+                        }
+                        return cells;
+                      })()}
+                    </div>
+                    </>
+                    );
+                  })()}
+                  {(adminForm.seriesDates||[]).length > 0 && <div style={{ fontSize:10, color:BRAND.lila, marginTop:6, fontWeight:500 }}>+ {adminForm.seriesDates.length} weitere Termine</div>}
+                </div>
+                )}
+                </>
+                )}
+
                 <button onClick={handleAdminSave} style={primaryBtn}>Speichern</button>
               </>
             )}
@@ -1590,8 +1789,8 @@ export default function App() {
                     {et && <div style={{ width:4, height:36, borderRadius:2, background: et.color }} />}
                     <div>
                       <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
-                      <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : "#009a93") : BRAND.lila, color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
-                        {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : "Blockiert") : "Gebucht"}
+                      <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : "#009a93") : (ev.isPublic ? "#009a93" : BRAND.lila), color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
+                        {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : "Interner Termin") : (ev.isPublic ? "Veranstaltung" : "Gebucht")}
                       </div>
                     </div>
                   </div>
@@ -1645,6 +1844,24 @@ export default function App() {
                       {(Number(ev.cakeCount)>0 || Number(ev.coffeeCount)>0) && (
                         <div style={{ fontSize:11, color:"#888", marginBottom:4 }}>☕ {Number(ev.coffeeCount)||0}× Kaffee · 🍰 {Number(ev.cakeCount)||0}× Kuchen</div>
                       )}
+                      {(ev.contactName || ev.contactPhone || ev.contactAddress) && (
+                        <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
+                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Kontakt & Ort</div>
+                          {ev.contactName && <div style={{ fontSize:12, color:BRAND.aubergine, fontWeight:500 }}>👤 {ev.contactName}</div>}
+                          {ev.contactPhone && <div style={{ fontSize:12 }}>{ev.contactPhone.includes("@") ? "✉" : "📞"} <a href={ev.contactPhone.includes("@") ? `mailto:${ev.contactPhone}` : `tel:${ev.contactPhone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone}</a></div>}
+                          {ev.contactAddress && <div style={{ fontSize:12 }}>📍 <a href={`https://maps.google.com/?q=${encodeURIComponent(ev.contactAddress)}`} target="_blank" rel="noopener noreferrer" style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactAddress}</a></div>}
+                        </div>
+                      )}
+                      {ev.publicText && (
+                        <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
+                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Öffentlicher Text</div>
+                          <div style={{ fontSize:12, color:"#666", lineHeight:1.4 }}>{ev.publicText}</div>
+                        </div>
+                      )}
+                      {ev.isPublic && <div style={{ fontSize:10, color:"#009a93", fontWeight:600, marginBottom:4, display:"flex", alignItems:"center", gap:4 }}>
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#009a93" strokeWidth="1.5"/><path d="M5 8l2 2 4-4" stroke="#009a93" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Öffentlich sichtbar für Kunden
+                      </div>}
                       {ev.message && (
                         <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
                           <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Nachricht</div>
@@ -1670,9 +1887,28 @@ export default function App() {
                     </div>
                   ) : (
                     <div style={{ padding:"16px 0" }}>
-                      <div style={{ fontSize:14, color: BRAND.aubergine, fontWeight:600, marginBottom:4 }}>Dieser Termin ist bereits vergeben.</div>
-                      {ev.note && <div style={{ fontSize:13, color:"#888", marginTop:4 }}>{ev.note}</div>}
-                      <div style={{ fontSize:13, color:"#999", marginTop:8, marginBottom:12 }}>Wählen Sie ein anderes freies Datum oder kontaktieren Sie uns direkt:</div>
+                      {ev.isPublic ? (
+                        <>
+                          {ev.label && <div style={{ fontSize:16, fontWeight:700, color:BRAND.aubergine, marginBottom:6 }}>{ev.label}</div>}
+                          {ev.slotLabel && <div style={{ fontSize:13, color:"#666", marginBottom:6 }}><ClockIcon color="#666" />{ev.slotLabel}</div>}
+                          {ev.publicText && <div style={{ fontSize:13, color:"#555", lineHeight:1.5, marginBottom:10 }}>{ev.publicText}</div>}
+                          {ev.note && <div style={{ fontSize:13, color:"#888", marginBottom:10, fontStyle:"italic" }}>{ev.note}</div>}
+                          {(ev.contactName || ev.contactPhone || ev.contactAddress) && (
+                            <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
+                              <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Kontakt & Ort</div>
+                              {ev.contactName && <div style={{ fontSize:13, color:BRAND.aubergine, fontWeight:500, marginBottom:2 }}>👤 {ev.contactName}</div>}
+                              {ev.contactPhone && <div style={{ fontSize:13, marginBottom:2 }}>{ev.contactPhone.includes("@") ? "✉" : "📞"} <a href={ev.contactPhone.includes("@") ? `mailto:${ev.contactPhone}` : `tel:${ev.contactPhone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone}</a></div>}
+                              {ev.contactAddress && <div style={{ fontSize:13 }}>📍 <a href={`https://maps.google.com/?q=${encodeURIComponent(ev.contactAddress)}`} target="_blank" rel="noopener noreferrer" style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactAddress}</a></div>}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize:14, color: BRAND.aubergine, fontWeight:600, marginBottom:4 }}>Dieser Termin ist bereits vergeben.</div>
+                          {ev.note && <div style={{ fontSize:13, color:"#888", marginTop:4 }}>{ev.note}</div>}
+                          <div style={{ fontSize:13, color:"#999", marginTop:8, marginBottom:12 }}>Wählen Sie ein anderes freies Datum oder kontaktieren Sie uns direkt:</div>
+                        </>
+                      )}
                       <div style={{ display:"flex", gap:8 }}>
                         <a href="tel:+4346349119" style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"10px 0", background:"#f9f6f8", borderRadius:8, textDecoration:"none", color: BRAND.aubergine, fontSize:12, fontWeight:600 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" stroke={BRAND.aubergine} strokeWidth="1.5" strokeLinecap="round"/></svg>
@@ -1700,7 +1936,7 @@ export default function App() {
                   )}
                   {isAdmin && (
                     <div style={{ display:"flex", gap:8 }}>
-                      <button onClick={() => { setAdminForm({ type: ev.status || "booked", label: ev.label || "", note: ev.note || "", startTime: ev.startTime || "08:00", endTime: ev.endTime || "22:00", adminNote: ev.adminNote || "", eventType: ev.type || "", allDay: ev.allDay || false, checklist: ev.checklist || [] }); setEditingTime(null); setModalView("admin"); }} style={{ ...primaryBtn, flex:1, background: BRAND.aubergine, fontSize:12 }}>Bearbeiten</button>
+                      <button onClick={() => { setAdminForm({ type: ev.status || "booked", label: ev.label || "", note: ev.note || "", startTime: ev.startTime || "08:00", endTime: ev.endTime || "22:00", adminNote: ev.adminNote || "", eventType: ev.type || "", allDay: ev.allDay || false, checklist: ev.checklist || [], contactName: ev.contactName || "", contactPhone: ev.contactPhone || "", contactAddress: ev.contactAddress || "", publicText: ev.publicText || "", isPublic: ev.isPublic || false, isSeries: false, seriesDates: [] }); setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin"); }} style={{ ...primaryBtn, flex:1, background: BRAND.aubergine, fontSize:12 }}>Bearbeiten</button>
                       {ev.status !== "pending" && <button onClick={() => handleAdminAction(selectedDate,"delete")}
                         onMouseEnter={e => { e.target.style.background="#f8d0d0"; e.target.style.color="#c44"; }}
                         onMouseLeave={e => { e.target.style.background="#ddd"; e.target.style.color="#666"; }}
