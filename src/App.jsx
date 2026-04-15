@@ -524,16 +524,32 @@ export default function App() {
   useEffect(() => {
     if (modalView || editingType) {
       const sy = window.scrollY;
-      document.documentElement.style.overflow = "hidden";
+      document.body.dataset.lockedScroll = sy;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${sy}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
       document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-      window.scrollTo(0, sy);
-    } else {
-      document.documentElement.style.overflow = "";
+    } else if (document.body.style.position === "fixed") {
+      const sy = parseInt(document.body.dataset.lockedScroll || "0");
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
       document.body.style.overflow = "";
-      document.body.style.touchAction = "";
+      window.scrollTo(0, sy);
     }
-    return () => { document.documentElement.style.overflow = ""; document.body.style.overflow = ""; document.body.style.touchAction = ""; };
+    return () => {
+      if (document.body.style.position === "fixed") {
+        const sy = parseInt(document.body.dataset.lockedScroll || "0");
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.overflow = "";
+        window.scrollTo(0, sy);
+      }
+    };
   }, [modalView, editingType, loginModal]);
 
   useEffect(() => { const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); }); return unsub; }, []);
@@ -729,29 +745,27 @@ export default function App() {
           <div style={{ position:"absolute", top:45, left:"60%", pointerEvents:"none" }}><svg width="9" height="9" viewBox="0 0 16 16" style={{ animation:"successLeaf3 5s ease-in-out infinite", animationDelay:"2s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#d4b8d0" opacity="0.3"/></svg></div>
           <div style={{ position:"absolute", top:8, left:"42%", pointerEvents:"none" }}><svg width="11" height="11" viewBox="0 0 16 16" style={{ animation:"successLeaf4 7s ease-in-out infinite", animationDelay:"0.6s" }}><path d="M8 0C8 0 2 6 2 10s2.5 6 6 6 6-2 6-6S8 0 8 0z" fill="#903486" opacity="0.2"/></svg></div>
           {/* Glass card with garden image */}
-          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(88,8,74,0.25)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", borderRadius:28, maxWidth:360, width:"100%", border:"1px solid rgba(144,52,134,0.2)", animation:"successFadeUp 0.6s ease-out", textAlign:"center", overflow:"hidden" }}>
-            {/* Garden image top half */}
-            <div style={{ height:140, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%", position:"relative" }}>
-              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, rgba(88,8,74,0.2) 0%, rgba(88,8,74,0.5) 100%)" }} />
-            </div>
-            <div style={{ padding:"28px 28px 32px" }}>
-              <div style={{ position:"relative", width:68, height:68, margin:"-56px auto 18px" }}>
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", background:"rgba(88,8,74,0.25)", backdropFilter:"blur(28px)", WebkitBackdropFilter:"blur(28px)", borderRadius:28, maxWidth:480, width:"100%", border:"1px solid rgba(144,52,134,0.2)", animation:"successFadeUp 0.6s ease-out", textAlign:"center", overflow:"hidden" }}>
+            {/* Garden image top half - no filter */}
+            <div style={{ height:200, backgroundImage:"url(/assets/garten-Anfrage-gesendet.jpg)", backgroundSize:"cover", backgroundPosition:"center 40%" }} />
+            <div style={{ padding:"32px 36px 40px" }}>
+              <div style={{ position:"relative", width:76, height:76, margin:"-62px auto 20px" }}>
                 <div style={{ position:"absolute", inset:-8, borderRadius:"50%", border:"1.5px solid rgba(255,255,255,0.2)", animation:"successRing 2.5s ease-out infinite" }} />
                 <div style={{ position:"absolute", inset:-16, borderRadius:"50%", border:"1px solid rgba(255,255,255,0.08)", animation:"successRing 2.5s ease-out infinite", animationDelay:"0.4s" }} />
-                <div style={{ width:68, height:68, borderRadius:"50%", background:"linear-gradient(135deg,rgba(88,8,74,0.7),rgba(66,0,69,0.85))", border:"2px solid rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", animation:"successScaleIn 0.35s ease-out 0.15s both" }}>
-                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="30" style={{ animation:"successCheck 0.4s ease-out 0.4s both" }}/></svg>
+                <div style={{ width:76, height:76, borderRadius:"50%", background:"linear-gradient(135deg,rgba(88,8,74,0.7),rgba(66,0,69,0.85))", border:"2px solid rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center", animation:"successScaleIn 0.35s ease-out 0.15s both" }}>
+                  <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="30" style={{ animation:"successCheck 0.4s ease-out 0.4s both" }}/></svg>
                 </div>
               </div>
-              <div style={{ fontSize:22, fontWeight:600, color:"#fff", marginBottom:6, animation:"successSlide 0.5s ease-out 0.25s both" }}>Anfrage gesendet!</div>
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", lineHeight:1.7, marginBottom:24, animation:"successSlide 0.5s ease-out 0.35s both" }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
+              <div style={{ fontSize:26, fontWeight:600, color:"#fff", marginBottom:8, animation:"successSlide 0.5s ease-out 0.25s both" }}>Anfrage gesendet!</div>
+              <div style={{ fontSize:15, color:"rgba(255,255,255,0.55)", lineHeight:1.7, marginBottom:28, animation:"successSlide 0.5s ease-out 0.35s both" }}>Vielen Dank für Ihr Interesse.<br/>Wir melden uns in Kürze bei Ihnen.</div>
               <div style={{ animation:"successSlide 0.5s ease-out 0.45s both" }}>
-                <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer"
-                  style={{ display:"block", padding:"13px 16px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:14, textDecoration:"none", marginBottom:18 }}>
+                <a href="https://www.derparadiesgarten.at" target="_blank" rel="noopener noreferrer" className="success-link"
+                  style={{ display:"block", padding:"14px 18px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:14, textDecoration:"none", marginBottom:20, transition:"all .2s" }}>
                   <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginBottom:3 }}>Mehr über uns</div>
-                  <div style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.9)" }}>www.derparadiesgarten.at</div>
+                  <div style={{ fontSize:15, fontWeight:600, color:"rgba(255,255,255,0.9)" }}>www.derparadiesgarten.at</div>
                 </a>
-                <button onClick={() => setSuccessModal(false)}
-                  style={{ padding:"12px 36px", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, color:"rgba(255,255,255,0.85)", fontSize:14, fontWeight:600, cursor:"pointer", animation:"successBob 3s ease-in-out infinite" }}>Schließen</button>
+                <button onClick={() => setSuccessModal(false)} className="success-close"
+                  style={{ padding:"14px 44px", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:12, color:"rgba(255,255,255,0.85)", fontSize:15, fontWeight:600, cursor:"pointer", transition:"all .2s" }}>Schließen</button>
               </div>
             </div>
           </div>
@@ -2246,6 +2260,8 @@ export default function App() {
           .hero-arrow-zone:hover .hero-arrow-btn { opacity: 1 !important; }
           .hero-arrow-zone:hover .hero-arrow-btn:hover { background: rgba(255,255,255,0.3) !important; }
           .hero-dots-zone:hover .hero-dots-inner { opacity: 1 !important; }
+          .success-link:hover { background: rgba(255,255,255,0.12) !important; border-color: rgba(255,255,255,0.25) !important; transform: translateY(-1px); }
+          .success-close:hover { background: rgba(255,255,255,0.22) !important; border-color: rgba(255,255,255,0.35) !important; transform: translateY(-1px); }
           .evt-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.10) !important; border-left-width: 4px !important; background: color-mix(in srgb, var(--card-color) 6%, #fff) !important; }
           .day-free:hover { background: rgba(0,154,147,0.08) !important; border-color: rgba(0,154,147,0.3) !important; }
           .day-booked:hover { background: rgba(144,52,134,0.08) !important; border-color: rgba(144,52,134,0.25) !important; }
