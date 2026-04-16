@@ -555,7 +555,25 @@ export default function App() {
     };
   }, [modalView, editingType, loginModal]);
 
-  useEffect(() => { const unsub = onAuthChange(user => { setLoggedIn(!!user); if (user) setIsAdmin(true); }); return unsub; }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const wantsAdmin = params.get("admin") === "1";
+    const unsub = onAuthChange(user => {
+      setLoggedIn(!!user);
+      if (user) {
+        setIsAdmin(true);
+      } else if (wantsAdmin) {
+        setLoginModal(true);
+      }
+    });
+    if (wantsAdmin) {
+      // Clean URL after handling
+      const url = new URL(window.location.href);
+      url.searchParams.delete("admin");
+      window.history.replaceState({}, "", url.toString());
+    }
+    return unsub;
+  }, []);
   useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { setEvents(JSON.parse(evData)); } else { setEvents(SEED_EVENTS); try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated) => { setEvents(updated); try { await saveData("events", JSON.stringify(updated)); } catch {} }, []);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
