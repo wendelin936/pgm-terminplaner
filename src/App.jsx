@@ -889,27 +889,28 @@ export default function App() {
         {!isAdmin && (() => {
           const isDesk = winW >= 900;
           const headerH = isDesk ? 50 : 44;
-          const big = winW >= 1400;
-          const padV = isDesk ? (big ? 28 : 22) : 10;
-          const padH = isDesk ? (big ? 56 : 40) : 12;
+          const big = winW >= 1700;
+          const padV = isDesk ? (big ? 22 : 14) : 10;
+          const padH = isDesk ? (big ? 48 : 36) : 12;
           const maxW = big ? 1400 : isDesk ? 1180 : 780;
-          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(200px, 28vh, 320px)";
-          const titleFs = isDesk ? (big ? 26 : 22) : Math.max(10, Math.min(13, (winW - 2 * 10) / 30));
-          const titleMb = isDesk ? 16 : 10;
-          const cardPad = isDesk ? (big ? "22px 22px" : "18px 18px") : "13px 12px";
-          const cardLabelFs = isDesk ? (big ? 17 : 15) : 14;
-          const cardDescFs = isDesk ? (big ? 13 : 12) : 11;
-          const cardDetailFs = isDesk ? (big ? 12 : 11) : 11;
+          const heroH = isDesk ? "clamp(220px, 30vh, 460px)" : "clamp(200px, 28vh, 320px)";
+          const heroMb = isDesk ? (big ? 14 : 10) : 10;
+          const titleFs = isDesk ? (big ? 24 : 20) : Math.max(10, Math.min(13, (winW - 2 * 10) / 30));
+          const titleMb = isDesk ? (big ? 12 : 8) : 8;
+          const cardPad = isDesk ? (big ? "18px 18px" : "14px 14px") : "13px 12px";
+          const cardLabelFs = isDesk ? (big ? 16 : 14) : 14;
+          const cardDescFs = isDesk ? (big ? 12 : 11) : 11;
+          const cardDetailFs = isDesk ? (big ? 11 : 10) : 10;
           const cardPriceFs = isDesk ? (big ? 14 : 13) : 13;
-          const cardBtnFs = isDesk ? (big ? 12 : 11) : 11;
-          const gapCards = isDesk ? (big ? 14 : 12) : 8;
-          const bulletFs = isDesk ? (big ? 13 : 12) : 10;
-          const bulletMt = isDesk ? (big ? 22 : 16) : 20;
+          const cardBtnFs = isDesk ? (big ? 11 : 10) : 11;
+          const gapCards = isDesk ? (big ? 12 : 10) : 8;
+          const bulletFs = isDesk ? (big ? 12 : 11) : 10;
+          const bulletMt = isDesk ? (big ? 12 : 8) : 8;
           return (
         <>
         <div style={{ ...(isDesk ? { flex:"1 1 auto" } : { minHeight: `calc(100svh - ${headerH}px)` }), display:"flex", flexDirection:"column", padding:`${padV}px ${padH}px ${isDesk ? 0 : 10}px`, boxSizing:"border-box", maxWidth: maxW, margin:"0 auto", width:"100%" }}>
           {/* Hero */}
-          <div style={{ position:"relative", borderRadius: !isDesk ? 12 : 16, overflow:"hidden", marginBottom: !isDesk ? 12 : (big ? 22 : 16), height: heroH, touchAction:"pan-y", flexShrink:0 }}
+          <div style={{ position:"relative", borderRadius: !isDesk ? 12 : 16, overflow:"hidden", marginBottom: !isDesk ? 12 : heroMb, height: heroH, touchAction:"pan-y", flexShrink:0 }}
             onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
             onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (e.currentTarget._sx||0); const dy = Math.abs(e.changedTouches[0].clientY - (e.currentTarget._sy||0)); if (Math.abs(dx) > 40 && Math.abs(dx) > dy) { if (dx < 0) setHeroIdx(i => (i+1) % 7); else setHeroIdx(i => (i+6) % 7); } }}>
             {heroImages.map((src, idx) => (
@@ -978,14 +979,14 @@ export default function App() {
             Unsere Veranstaltungen & Preise
           </h2>
 
-          {/* Event cards — 2x3 desktop, 3x2 mobile — natural height, same proportions */}
-          <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows: isDesk ? "auto" : "1fr", gap: gapCards, flex: isDesk ? "0 0 auto" : "1 1 0", minHeight:0 }}>
+          {/* Event cards — 2x3 desktop, 3x2 mobile — natural height on all sizes */}
+          <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows:"auto", gap: gapCards, flex:"0 0 auto" }}>
             {eventTypes.map(et => {
               const isGroup = et.isGroupTour;
               const showTags = isDesk;
               const showDetail = isDesk;
               const descLines = 2;
-              const detailLines = 3;
+              const detailLines = 2;
               const tagsH = isDesk ? (big ? 22 : 20) : 0;
               return (
                 <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
@@ -1075,9 +1076,9 @@ export default function App() {
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${BRAND.aprikot}` : isBlockedAdmin ? `1px solid #009a9330` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${BRAND.aprikot}` : customerBooked ? `1.5px solid ${BRAND.lila}60` : isBlockedAdmin ? `1px solid #009a9330` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, #009a9310 3px, #009a9310 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}15` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? `${statusColor}20` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, #009a9310 3px, #009a9310 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}30` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? `${statusColor}20` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
@@ -2442,7 +2443,6 @@ export default function App() {
           .success-close:hover { background: rgba(255,255,255,0.22) !important; border-color: rgba(255,255,255,0.35) !important; transform: translateY(-1px); }
           .evt-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.10) !important; border-left-width: 4px !important; background: color-mix(in srgb, var(--card-color) 6%, #fff) !important; }
           .day-free:hover { background: rgba(0,154,147,0.08) !important; border-color: rgba(0,154,147,0.3) !important; }
-          .day-booked:hover { background: rgba(144,52,134,0.08) !important; border-color: rgba(144,52,134,0.25) !important; }
           .admin-card:hover { background: rgba(144,52,134,0.05) !important; border-left-color: ${BRAND.lila} !important; box-shadow: 0 2px 8px rgba(88,8,74,0.08) !important; }
           .doc-green:hover { background: ${BRAND.moosgruen}12 !important; border-color: ${BRAND.moosgruen}80 !important; }
           .doc-violet:hover { background: ${BRAND.lila}12 !important; border-color: ${BRAND.lila}80 !important; }
