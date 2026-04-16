@@ -26,12 +26,12 @@ const DOCS = {
 const PGM_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAF8AAABgBAMAAACJTrO+AAABAGlDQ1BpY2MAABiVY2BgPMEABCwGDAy5eSVFQe5OChGRUQrsDxgYgRAMEpOLCxhwA6Cqb9cgai/r4lGHC3CmpBYnA+kPQKxSBLQcaKQIkC2SDmFrgNhJELYNiF1eUlACZAeA2EUhQc5AdgqQrZGOxE5CYicXFIHU9wDZNrk5pckIdzPwpOaFBgNpDiCWYShmCGJwZ3AC+R+iJH8RA4PFVwYG5gkIsaSZDAzbWxkYJG4hxFQWMDDwtzAwbDuPEEOESUFiUSJYiAWImdLSGBg+LWdg4I1kYBC+wMDAFQ0LCBxuUwC7zZ0hHwjTGXIYUoEingx5DMkMekCWEYMBgyGDGQCm1j8/yRb+6wAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAHlBMVEX////z8/P8/Pz6+vr+/v7w8PD5+fn9/f34+Pj19fWmxctuAAAAAXRSTlMAQObYZgAAAAFiS0dEAIgFHUgAAAAHdElNRQfqBAwLFxow6RkxAAADuElEQVRYw62YO2/bMBCAST8SZmNToc2YACrQ0QHczpHE2OomNB06enD3BsgPUAEN6ZbBP7i845t60UAJRHYofrw73oOkCflvjZ85fsHPJLb8y1njl4J/PWf8eiv48RydroUEHtPH0xcAqnQgExLoRJs6ngkFFKlAp4F9kzb+QmhAbFKX1AB1EvARx4sGFGtTLTZAkWqxbNr02fHvhQFO8Hye9bEIgVkRnQMy/KgTFbLA9EJdiT5Q8SSFHCC+TWYBtLsPLz4wrpR2WdkQ2vlAOaIUVTGEEbfwgbGV0gbs4PtKlB4g7qdWFDVelTc+MGTGVSA+q1Et23Z94BjMlRV+lMDKjayosa97kA9Rvf7NR5QySSDe5MwAwHsY1I0oZfohYf7IvxyWHiK1G1ZqaXrlkCVAguiHFyye+9a5E0BzUB8VqELAi6nvumvPoehJgGIu17oGevbpljs1GYYGBSmkiIAitkCrINeGHaD/IQKsFUbPjWIlcIGvNjHwGPpgBxbrlcIXbQxUrrZrX2Za8AW+4DGg3b21QaFkgdBgp4jMZo7uDPDOAqsAKKHr0gp4soryEQB16oxXYGPT8ToKPFivFVbdMIEjoLZpwq0txQzAzKhuELjs2bDUUfcUuVO3RSyA/IAvn5SPrV2ENkNAyWmLpsqVPNneW3QOD3ZUq5BMXVD94HIa/gFbh4BaDtsAsHNFxsRLxuPqgCV2K+VjAjzFedVxHX3MnykTKKE2PvayRD1bHyjQZQcCZ5ZTnFZUmAyygNyI1E6f1b5YFayyh+scZU4hdcYh2ZtvsY7ghZLz6Gp0oTy1h8L4XvTSMEPgylVkqVBmCmZgsQ7WDgHmgFaLKqKd0wA5AgsL2NjEoi56aUuVN1YGqBrj8ZaQ0GQFMAXYXaW1sdmvCyh0qZNXA8/20FUHpV6132oOALYSWOO6MT+SaQhsbIElWOCFvw/xYDt0Zm3xg6IGoNAy3LZ61ZAKDzAVd6AYW6lMAQyB1puRR1u03eV8wJuwHqwMjapFHnD014P01qlVBeFgAZuNZTNY02s1JQJhbBbDRz151IHnZ0gYCPXT0D4dRuyrDhHWD7L+UcOPqagzPMdls0AxdoIeAXoHxesZYDN5xu0Du+lTtMoLNn1IjKqNzBUWVYYZpW59mcNHY3ocA+7Hbif5MFDPXrAioCUphAPupq4oN31g5hJ0EwP7uWvWzwj4ReYaM8FDB4J0mHhxQNp1F+82CFScpBEdVAEq9i1JbOsOJSSPh9iVEs4ZP/7jzz+7xEeN3Xr2xgAAAB50RVh0aWNjOmNvcHlyaWdodABHb29nbGUgSW5jLiAyMDE2rAszOAAAABR0RVh0aWNjOmRlc2NyaXB0aW9uAHNSR0K6kHMHAAAAAElFTkSuQmCC";
 
 const DEFAULT_TYPES = [
-  { id:"hochzeit", label:"Hochzeit", halfDay:1500, fullDay:2500, color:BRAND.lila, desc:"Ihre Traumhochzeit in paradiesischer Kulisse" },
-  { id:"firmenfeier", label:"Firmenfeier", halfDay:700, fullDay:1200, color:BRAND.tuerkis, desc:"Professionelles Ambiente für Ihr Firmenevent" },
-  { id:"geburtstag", label:"Geburtstagsfeier", halfDay:500, fullDay:800, color:BRAND.aprikot, desc:"Feiern Sie Ihren besonderen Tag bei uns" },
-  { id:"seminar", label:"Seminar / Workshop", halfDay:350, fullDay:600, color:BRAND.mintgruen, desc:"Inspirierende Räumlichkeiten für Ihre Veranstaltung" },
-  { id:"gruppenfuehrung", label:"Gruppenführung", halfDay:0, fullDay:0, color:BRAND.moosgruen, desc:"Garten erleben mit allen Sinnen – inkl. Café im Paradiesglashaus", isGroupTour:true, pricePerPerson:9, minPersons:10, guideCost:80, maxPerTour:20 },
-  { id:"sonstiges", label:"Sonstiges", halfDay:0, fullDay:0, color:"#420045", desc:"Individuelle Veranstaltungen nach Ihren Wünschen" },
+  { id:"hochzeit", label:"Hochzeit", halfDay:1500, fullDay:2500, color:BRAND.lila, desc:"Ihre Traumhochzeit in paradiesischer Kulisse", detail:"Romantische Location mit Glashaus, Terrasse und historischen Gartenräumen – für den schönsten Tag Ihres Lebens.", tags:["Trauungen","Glashaus","bis 80 Gäste"] },
+  { id:"firmenfeier", label:"Firmenfeier", halfDay:700, fullDay:1200, color:BRAND.tuerkis, desc:"Professionelles Ambiente für Ihr Firmenevent", detail:"Inspirieren Sie Ihr Team in außergewöhnlicher Atmosphäre – ideal für Kundenabende, Sommerfeste oder Jubiläen.", tags:["Teamevents","Empfänge","Jubiläen"] },
+  { id:"geburtstag", label:"Geburtstagsfeier", halfDay:500, fullDay:800, color:BRAND.aprikot, desc:"Feiern Sie Ihren besonderen Tag bei uns", detail:"Ob runder Geburtstag oder entspannte Gartenparty – Ihr Fest mit Freunden und Familie wird unvergesslich.", tags:["Jubiläen","Gartenparty","familiär"] },
+  { id:"seminar", label:"Seminar / Workshop", halfDay:350, fullDay:600, color:BRAND.mintgruen, desc:"Inspirierende Räume für Ihr Event", detail:"Klare Gedanken in grüner Umgebung – der perfekte Rahmen für Workshops, Schulungen oder Klausurtage im Grünen.", tags:["Workshops","Klausurtage","Seminare"] },
+  { id:"gruppenfuehrung", label:"Gruppenführung", halfDay:0, fullDay:0, color:BRAND.moosgruen, desc:"Garten erleben mit allen Sinnen", detail:"Entdecken Sie mit unseren Experten seltene Pflanzen, historische Beete und das Paradiesglashaus – inkl. Café.", tags:["Führung","Café & Kuchen","ab 10 Pers."], isGroupTour:true, pricePerPerson:9, minPersons:10, guideCost:80, maxPerTour:20 },
+  { id:"sonstiges", label:"Sonstiges", halfDay:0, fullDay:0, color:"#420045", desc:"Individuelle Events nach Ihren Wünschen", detail:"Fotoshootings, Präsentationen, Filmaufnahmen – sprechen Sie mit uns, wir finden gemeinsam die passende Lösung.", tags:["Fotoshoots","Filmdrehs","individuell"] },
 ];
 
 const MONTHS = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
@@ -888,30 +888,43 @@ export default function App() {
       <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
         {!isAdmin && (() => {
           const isDesk = winW >= 900;
-          const headerH = winW < 520 ? 44 : 50;
-          const padV = winW < 520 ? 10 : isDesk ? 20 : 14;
-          const padH = winW < 520 ? 10 : isDesk ? 40 : 16;
-          const maxW = isDesk ? 1100 : 800;
+          const headerH = isDesk ? 50 : 44;
+          const big = winW >= 1400;
+          const padV = isDesk ? (big ? 28 : 22) : 10;
+          const padH = isDesk ? (big ? 56 : 40) : 12;
+          const maxW = big ? 1400 : isDesk ? 1180 : 780;
+          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(300px, 40vh, 420px)";
+          const titleFs = isDesk ? (big ? 26 : 22) : Math.max(11, Math.min(18, (winW - 2 * 10) / 22));
+          const titleMb = isDesk ? 16 : 10;
+          const cardPad = isDesk ? (big ? "22px 22px" : "18px 18px") : "13px 12px";
+          const cardLabelFs = isDesk ? (big ? 17 : 15) : 14;
+          const cardDescFs = isDesk ? (big ? 13 : 12) : 11;
+          const cardDetailFs = isDesk ? (big ? 12 : 11) : 11;
+          const cardPriceFs = isDesk ? (big ? 14 : 13) : 13;
+          const cardBtnFs = isDesk ? (big ? 12 : 11) : 11;
+          const gapCards = isDesk ? (big ? 14 : 12) : 8;
+          const bulletFs = isDesk ? (big ? 13 : 12) : 10;
+          const bulletMt = isDesk ? (big ? 22 : 16) : 20;
           return (
         <>
-        <div style={{ minHeight: `calc(100svh - ${headerH}px)`, display:"flex", flexDirection:"column", padding:`${padV}px ${padH}px`, boxSizing:"border-box", maxWidth: maxW, margin:"0 auto", width:"100%" }}>
-        {/* Customer: Hero Slideshow */}
-        <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 12 : 16, height: winW > 900 ? `clamp(350px, 42vh, 550px)` : winW > 520 ? 300 : 240, touchAction:"pan-y", flexShrink:0 }}
+        <div style={{ minHeight: `calc(100svh - ${headerH}px)`, display:"flex", flexDirection:"column", padding:`${padV}px ${padH}px ${isDesk ? padV : 10}px`, boxSizing:"border-box", maxWidth: maxW, margin:"0 auto", width:"100%" }}>
+          {/* Hero */}
+          <div style={{ position:"relative", borderRadius: !isDesk ? 12 : 16, overflow:"hidden", marginBottom: !isDesk ? 12 : (big ? 22 : 16), height: heroH, touchAction:"pan-y", flexShrink:0 }}
             onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
             onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (e.currentTarget._sx||0); const dy = Math.abs(e.changedTouches[0].clientY - (e.currentTarget._sy||0)); if (Math.abs(dx) > 40 && Math.abs(dx) > dy) { if (dx < 0) setHeroIdx(i => (i+1) % 7); else setHeroIdx(i => (i+6) % 7); } }}>
             {heroImages.map((src, idx) => (
               <div key={idx} style={{ position:"absolute", inset:0, backgroundImage:`url(${src})`, backgroundSize:"cover", backgroundPosition:"center 40%", opacity: idx === heroIdx ? 1 : 0, transition:"opacity 1s ease-in-out", zIndex: idx === heroIdx ? 1 : 0 }} />
             ))}
-            {winW < 520 && <div style={{ position:"absolute", top:0, left:0, right:0, height:"55%", background:"linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)", zIndex:2 }} />}
-            {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, width:"70%", height:"70%", background:"radial-gradient(ellipse at bottom left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.35) 40%, transparent 70%)", zIndex:2 }} />}
+            {!isDesk && <div style={{ position:"absolute", top:0, left:0, right:0, height:"55%", background:"linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)", zIndex:2 }} />}
+            {isDesk && <div style={{ position:"absolute", bottom:0, left:0, width:"70%", height:"70%", background:"radial-gradient(ellipse at bottom left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.35) 40%, transparent 70%)", zIndex:2 }} />}
             <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
-            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
-            {winW < 520 && (
+            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: isDesk ? (big ? 26 : 20) : 12, right: isDesk ? (big ? 30 : 24) : 12, height: isDesk ? (big ? 70 : 56) : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
+            {!isDesk && (
               <div style={{ position:"absolute", top:0, left:0, right:0, padding:"16px 16px", zIndex:3 }}>
-                <div style={{ fontSize:21, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)", lineHeight:1.3 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
+                <div style={{ fontSize:20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)", lineHeight:1.3 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
               </div>
             )}
-            {winW < 520 && (
+            {!isDesk && (
               <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3 }}>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                   style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
@@ -921,23 +934,23 @@ export default function App() {
               </div>
             )}
             {/* Left arrow hover zone */}
-            {winW >= 520 && <div className="hero-arrow-zone"
+            {isDesk && <div className="hero-arrow-zone"
               onClick={() => setHeroIdx(i => (i+6) % 7)}
-              style={{ position:"absolute", left:0, top:"15%", width: winW > 900 ? 80 : 60, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <div className="hero-arrow-btn" style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+              style={{ position:"absolute", left:0, top:"15%", width: big ? 100 : 80, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div className="hero-arrow-btn" style={{ width: big ? 50 : 40, height: big ? 50 : 40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
+                <svg width={big ? 22 : 18} height={big ? 22 : 18} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
               </div>
             </div>}
             {/* Right arrow hover zone */}
-            {winW >= 520 && <div className="hero-arrow-zone"
+            {isDesk && <div className="hero-arrow-zone"
               onClick={() => setHeroIdx(i => (i+1) % 7)}
-              style={{ position:"absolute", right:0, top:"15%", width: winW > 900 ? 80 : 60, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <div className="hero-arrow-btn" style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+              style={{ position:"absolute", right:0, top:"15%", width: big ? 100 : 80, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <div className="hero-arrow-btn" style={{ width: big ? 50 : 40, height: big ? 50 : 40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
+                <svg width={big ? 22 : 18} height={big ? 22 : 18} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
               </div>
             </div>}
-            {/* Dots hover zone - only desktop/tablet */}
-            {winW >= 520 && <div className="hero-dots-zone"
+            {/* Dots hover zone - only desktop */}
+            {isDesk && <div className="hero-dots-zone"
               style={{ position:"absolute", bottom:0, left:"50%", transform:"translateX(-50%)", width:"50%", maxWidth:300, height:40, zIndex:4, display:"flex", alignItems:"center", justifyContent:"center" }}>
               <div className="hero-dots-inner" style={{ display:"flex", gap:6, opacity:0, transition:"opacity .25s" }}>
                 {heroImages.map((_, idx) => (
@@ -945,59 +958,79 @@ export default function App() {
                 ))}
               </div>
             </div>}
-            {winW >= 520 && <div style={{ position:"absolute", bottom: winW > 900 ? 28 : 20, left: winW > 900 ? 32 : 20, right: winW > 900 ? 32 : 20, zIndex:3, display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16, pointerEvents:"none" }}>
+            {isDesk && <div style={{ position:"absolute", bottom: big ? 36 : 28, left: big ? 40 : 32, right: big ? 40 : 32, zIndex:3, display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16, pointerEvents:"none" }}>
               <div>
-                <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
-                <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
+                <div style={{ fontSize: big ? 36 : 28, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
+                <div style={{ fontSize: big ? 16 : 14, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
               <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                 onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
-                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : "12px 20px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
+                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: big ? "16px 32px" : "14px 28px", fontSize: big ? 18 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
                 Location buchen
-                <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
             </div>}
           </div>
 
-        {/* Title + Cards — fills remaining height */}
-        <h2 style={{ fontSize: winW < 520 ? 16 : winW > 900 ? 22 : 18, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", margin:0, marginBottom: winW > 900 ? 14 : 10, textAlign:"center", flexShrink:0 }}>
-          Unsere Veranstaltungen & Preise
-        </h2>
-        <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows:"1fr", gap: winW < 520 ? 8 : 10, flex:"1 1 0", minHeight:0 }}>
-          {eventTypes.map(et => {
-            const isGroup = et.isGroupTour;
-            return (
-              <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
-                style={{ "--card-color": et.color, background:"#fff", borderRadius:10, padding: winW < 520 ? "12px 10px" : winW > 900 ? "16px 16px" : "14px 12px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0, minHeight:0 }}>
-                <div>
-                  <div style={{ fontWeight:700, color: et.color, fontSize: winW < 520 ? 12 : winW > 900 ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto", lineHeight:1.2 }}>{et.label}</div>
-                  <div style={{ fontSize: winW < 520 ? 9 : winW > 900 ? 12 : 10, color:"#888", lineHeight:1.3, marginBottom:6 }}>{et.desc}</div>
-                </div>
-                <div style={{ marginTop:"auto" }}>
-                  <div style={{ color: et.color, fontSize: winW < 520 ? 11 : 12, fontWeight:700, textAlign:"left", marginBottom:6 }}>
-                    {isGroup ? <><span>€ {et.pricePerPerson} p.P.</span><span style={{ margin:"0 6px", opacity:0.4 }}>|</span><span>ab {et.minPersons} Pers.</span></> : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
+          {/* Title */}
+          <h2 style={{ margin:0, fontSize: titleFs, fontWeight:700, color: BRAND.aubergine, letterSpacing: isDesk ? 2 : 1.5, textTransform:"uppercase", marginBottom: titleMb, textAlign:"center", flexShrink:0 }}>
+            Unsere Veranstaltungen & Preise
+          </h2>
+
+          {/* Event cards — 2x3 desktop, 3x2 mobile — natural height, same proportions */}
+          <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows:"auto", gap: gapCards, flex:"0 0 auto" }}>
+            {eventTypes.map(et => {
+              const isGroup = et.isGroupTour;
+              const showTags = winW >= 900;
+              const showDetail = winW >= 420;
+              const descLines = 2;
+              const detailLines = 3;
+              const tagsH = isDesk ? (big ? 22 : 20) : 0;
+              return (
+                <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
+                  style={{ "--card-color": et.color, background:"#fff", borderRadius: big ? 12 : 10, padding: cardPad, borderLeft:`${big ? 4 : 3}px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", minWidth:0 }}>
+                  {/* Top section: label, desc, detail, tags — closely stacked */}
+                  <div style={{ fontWeight:700, color: et.color, fontSize: cardLabelFs, marginBottom:3, wordBreak:"break-word", hyphens:"auto", lineHeight:1.2 }}>{et.label}</div>
+                  <div style={{ fontSize: cardDescFs, color:"#666", lineHeight:1.35, marginBottom:8, fontWeight:500, display:"-webkit-box", WebkitBoxOrient:"vertical", WebkitLineClamp: descLines, overflow:"hidden", textOverflow:"ellipsis" }}>{et.desc}</div>
+                  {showDetail && et.detail && (
+                    <div style={{ fontSize: cardDetailFs, color:"#888", lineHeight:1.45, marginBottom:8, display:"-webkit-box", WebkitBoxOrient:"vertical", WebkitLineClamp: detailLines, overflow:"hidden", textOverflow:"ellipsis" }}>{et.detail}</div>
+                  )}
+                  {showTags && et.tags && et.tags.length > 0 && (
+                    <div style={{ display:"flex", flexWrap:"nowrap", gap:5, height: tagsH, overflow:"hidden" }}>
+                      {et.tags.map((tg,ti) => (
+                        <span key={ti} style={{ fontSize: big ? 10 : 9, color: et.color, background: et.color+"15", padding:"2px 8px", borderRadius:10, whiteSpace:"nowrap", fontWeight:500, flexShrink:0 }}>{tg}</span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Bottom section: price + button pinned to bottom */}
+                  <div style={{ marginTop:"auto", paddingTop: isDesk ? 18 : 14 }}>
+                    <div style={{ color: et.color, fontSize: cardPriceFs, fontWeight:700, textAlign:"left", marginBottom: isDesk ? 10 : 8 }}>
+                      {isGroup ? `€ ${et.pricePerPerson} p.P.` : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
+                    </div>
+                    <div style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize: cardBtnFs, color: et.color, fontWeight:600, padding: isDesk ? (big ? "8px 14px" : "7px 13px") : "6px 11px", borderRadius:8, background: et.color+"30", letterSpacing:0.3 }}>
+                      Jetzt anfragen <svg width={big ? 12 : 10} height={big ? 12 : 10} viewBox="0 0 24 24" fill="none" stroke={et.color} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                    </div>
                   </div>
-                  <div style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize: winW < 520 ? 9 : 10, color: et.color, fontWeight:600, padding: winW < 520 ? "5px 10px" : "6px 12px", borderRadius:8, background: et.color+"30", letterSpacing:0.3 }}>
-                    Jetzt anfragen <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={et.color} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-        {isDesk && (
-          <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center", marginTop:14, flexShrink:0 }}>
-            {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
-              <span key={t} style={{ fontSize:11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
-            ))}
+              );
+            })}
           </div>
-        )}
+
+          {/* Bullets inline on desktop */}
+          {isDesk && (
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center", marginTop: bulletMt, flexShrink:0 }}>
+              {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
+                <span key={t} style={{ fontSize: bulletFs, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding: big ? "6px 14px" : "5px 12px", whiteSpace:"nowrap" }}>{t}</span>
+              ))}
+            </div>
+          )}
         </div>
+        {/* Bullets below fold on mobile */}
         {!isDesk && (
-          <div style={{ display:"flex", flexWrap:"wrap", gap: winW < 520 ? 6 : 8, justifyContent:"center", padding:`20px ${padH}px 16px`, flexShrink:0, maxWidth: maxW, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center", padding:"20px 12px 16px", flexShrink:0, maxWidth: 780, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
             {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
-              <span key={t} style={{ fontSize: winW < 520 ? 10 : 11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
+              <span key={t} style={{ fontSize:10, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
             ))}
           </div>
         )}
@@ -1519,8 +1552,12 @@ export default function App() {
                     <input type="number" value={editingType.fullDay} onChange={e => setEditingType(t=>({...t, fullDay: Number(e.target.value)}))} style={inputStyle} placeholder="0 = auf Anfrage" />
                   </>
                 )}
-                <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Beschreibung</label>
+                <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Beschreibung (kurz, Untertitel)</label>
                 <input value={editingType.desc} onChange={e => setEditingType(t=>({...t, desc: e.target.value}))} style={inputStyle} />
+                <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Detailtext (Beschreibung auf Karte)</label>
+                <textarea value={editingType.detail || ""} onChange={e => setEditingType(t=>({...t, detail: e.target.value}))} style={{ ...inputStyle, minHeight:60, fontFamily:"inherit", resize:"vertical" }} placeholder="Ausführlicher Text für die Veranstaltungskarte..." />
+                <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Schlagworte (mit Komma trennen)</label>
+                <input value={(editingType.tags || []).join(", ")} onChange={e => setEditingType(t=>({...t, tags: e.target.value.split(",").map(s=>s.trim()).filter(Boolean)}))} style={inputStyle} placeholder="z.B. Workshops, Tagesseminare, flexibel" />
                 <button onClick={handleSavePrice} style={primaryBtn}>Speichern</button>
                 <button onClick={() => setEditingType(null)}
                   onMouseEnter={e => { e.target.style.color="#c44"; e.target.style.background="#fdf6f6"; }}
