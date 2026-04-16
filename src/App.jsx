@@ -632,7 +632,7 @@ export default function App() {
     const st = adminForm.startTime || "08:00";
     const et = adminForm.endTime || "22:00";
     const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "" };
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "" };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -1643,7 +1643,7 @@ export default function App() {
                   </button>
                   <div>
                     <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>
-                      {adminForm.editAllSeries ? "Serie bearbeiten" : "Termin bearbeiten"}
+                      {adminForm.editAllSeries ? "Serie bearbeiten" : adminForm.addToExisting ? "Termin hinzufügen" : "Termin bearbeiten"}
                       {adminForm.editAllSeries && <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4, marginLeft:8, verticalAlign:"middle" }}>S</span>}
                     </h3>
                     <div style={{ fontSize:13, color:"#999" }}>{fmtDateAT(selectedDate)}</div>
@@ -1674,6 +1674,21 @@ export default function App() {
                       </button>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Customer data fields - for booked events (not Gruppenführung which has own section) */}
+                {adminForm.type === "booked" && adminForm.eventType !== "gruppenfuehrung" && (
+                  <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
+                    <div style={{ fontSize:9, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Kundendaten</div>
+                    <input placeholder="Name (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
+                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                    <div style={{ display:"flex", gap:6 }}>
+                      <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
+                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      <input placeholder="Telefon" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
+                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                    </div>
                   </div>
                 )}
 
@@ -2133,131 +2148,77 @@ export default function App() {
               const ev = events[selectedDate];
               const et = eventTypes.find(e => e.id === ev.type);
               const hasMultiple = isAdmin && ev.subEvents && ev.subEvents.length > 0;
-              const allRequests = hasMultiple ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...ev.subEvents.map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))] : [];
+              const allRequests = isAdmin ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...(ev.subEvents || []).map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))] : [];
               return (
                 <>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom: hasMultiple ? 14 : 8 }}>
-                    {et && !hasMultiple && <div style={{ width:4, height:36, borderRadius:2, background: ev.status === "blocked" || ev.isSeries ? "#009a93" : BRAND.aubergine }} />}
-                    <div>
-                      <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
-                      {!hasMultiple && (
-                        <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : "#009a93") : (ev.isPublic ? "#009a93" : BRAND.lila), color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
-                          {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : ev.isSeries ? "Serientermin" : "Interner Termin") : (ev.isPublic ? "Veranstaltung" : "Gebucht")}
-                        </div>
-                      )}
-                    </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
                   </div>
                   {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:6, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
 
-                  {isAdmin ? (!hasMultiple ? (
-                    <div style={{ marginBottom:12 }}>
-                      {ev.label && <div style={{ fontSize:15, fontWeight:700, color: BRAND.aubergine, marginBottom:2 }}>{ev.label}</div>}
-                      {ev.slotLabel && <div style={{ fontSize:12, color:"#888", marginBottom:8 }}><ClockIcon color="#888" />{ev.slotLabel}{ev.allDay ? " · Ganztägig" : ""}</div>}
-
-                      {/* Customer/Group data card */}
-                      {ev.type === "gruppenfuehrung" && isAdmin ? (
-                        <div style={{ background:"#f9f7fa", borderRadius:10, padding:"10px 14px", marginBottom:8, border:"1px solid #ede8ed" }}>
-                          <div style={{ fontSize:9, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Gruppenführung</div>
-                          {(ev.groupName || ev.name) && <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, marginBottom:2 }}>👥 {ev.groupName || ev.name}</div>}
-                          {ev.contactName && <div style={{ fontSize:12, color:"#666", marginBottom:4 }}>👤 {ev.contactName}{ev.contactPhone ? <> · <a href={`tel:${ev.contactPhone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone}</a></> : ""}</div>}
-                          {ev.email && <div style={{ fontSize:12, color:"#666", marginBottom:4 }}>✉ <a href={`mailto:${ev.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.email}</a></div>}
-                          <div style={{ display:"flex", gap:12, marginTop:4, flexWrap:"wrap", fontSize:12, color:"#666" }}>
-                            {ev.guests && <span><span style={{ fontWeight:600, color:BRAND.aubergine }}>{ev.guests}</span> Teilnehmer</span>}
-                            {Number(ev.coffeeCount)>0 && <span><span style={{ fontWeight:600, color:BRAND.aubergine }}>{ev.coffeeCount}</span>× Kaffee</span>}
-                            {Number(ev.cakeCount)>0 && <span><span style={{ fontWeight:600, color:BRAND.aubergine }}>{ev.cakeCount}</span>× Kuchen</span>}
-                          </div>
-                          {ev.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginTop:4, fontWeight:600 }}>🌿 Mit Führung</div>}
-                        </div>
-                      ) : (ev.name || ev.email || ev.phone || ev.guests) && (
-                        <div style={{ background:"#f9f7fa", borderRadius:10, padding:"10px 14px", marginBottom:8, border:"1px solid #ede8ed" }}>
-                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Kundendaten</div>
-                          {[
-                            ["name", "👤", "Name", ev.name],
-                            ["email", "✉", "E-Mail", ev.email],
-                            ["phone", "📞", "Telefon", ev.phone],
-                            ["guests", "👥", "Gäste", ev.guests],
-                          ].filter(([,,, val]) => val).map(([field, icon, label, val]) => {
-                            const isEditing = editingField === field;
-                            return (
-                              <div key={field} onClick={() => { if (!isEditing) { setEditingField(field); setEditFieldVal(val || ""); } }}
-                                style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 8px", marginBottom:1, borderRadius:6, cursor:"pointer", transition:"all .12s", background: isEditing ? "#fff" : "transparent", border: isEditing ? `1.5px solid ${BRAND.lila}40` : "1.5px solid transparent" }}
-                                onMouseEnter={e => { if (!isEditing) e.currentTarget.style.background="#f0ecf0"; }}
-                                onMouseLeave={e => { if (!isEditing) e.currentTarget.style.background="transparent"; }}>
-                                <span style={{ fontSize:13, width:18, textAlign:"center", flexShrink:0 }}>{icon}</span>
-                                <div style={{ flex:1, minWidth:0 }}>
-                                  <div style={{ fontSize:8, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{label}</div>
-                                  {isEditing ? (
-                                    <input autoFocus value={editFieldVal} onChange={e => setEditFieldVal(e.target.value)}
-                                      onBlur={() => { const updated = { ...events, [selectedDate]: { ...ev, [field]: editFieldVal } }; saveEvents(updated); setEditingField(null); }}
-                                      onKeyDown={e => { if (e.key==="Enter") e.target.blur(); if (e.key==="Escape") setEditingField(null); }}
-                                      style={{ width:"100%", border:"none", outline:"none", background:"transparent", fontSize:13, color:BRAND.aubergine, fontWeight:500, padding:0, fontFamily:"inherit" }} />
-                                  ) : (
-                                    <div style={{ fontSize:13, color: BRAND.aubergine, fontWeight:500 }}>
-                                      {field === "email" ? <a href={`mailto:${val}`} onClick={e => e.stopPropagation()} style={{ color:BRAND.lila, textDecoration:"none" }}>{val}</a>
-                                        : field === "phone" ? <a href={`tel:${val.replace(/\s/g,"")}`} onClick={e => e.stopPropagation()} style={{ color:BRAND.lila, textDecoration:"none" }}>{val}</a>
-                                        : val}
-                                    </div>
-                                  )}
-                                </div>
-                                {!isEditing && <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ opacity:0.3, flexShrink:0 }}><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="#888" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  {isAdmin ? (
+                    <div style={{ marginBottom:10 }}>
+                      {allRequests.map((sub, idx) => {
+                        const subColor = (sub.status === "blocked" || sub.isSeries) ? "#009a93" : sub.status === "pending" ? BRAND.aprikot : BRAND.aubergine;
+                        const subIsPending = sub.status === "pending";
+                        const subIndex = sub._subIndex;
+                        const subEt = eventTypes.find(e => e.id === sub.type);
+                        const editSub = () => {
+                          const src = sub._isMain ? ev : sub;
+                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "" });
+                          setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
+                        };
+                        return (
+                          <div key={idx} style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:6, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
+                              <div>
+                                <span style={{ fontSize:10, fontWeight:700, color:subColor, textTransform:"uppercase" }}>{sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : sub.isSeries ? "Serie" : "Anfrage"}</span>
+                                {sub.label && <span style={{ fontSize:11, color:BRAND.aubergine, fontWeight:500, marginLeft:6 }}>{sub.label}</span>}
                               </div>
-                            );
-                          })}
-                          {ev.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginTop:4, fontWeight:600, paddingLeft:8 }}>🌿 Führung mit Gartenexpertin</div>}
-                          {(Number(ev.cakeCount)>0 || Number(ev.coffeeCount)>0) && (
-                            <div style={{ fontSize:11, color:"#888", marginTop:2, paddingLeft:8 }}>☕ {Number(ev.coffeeCount)||0}× Kaffee · 🍰 {Number(ev.cakeCount)||0}× Kuchen</div>
-                          )}
-                        </div>
-                      )}
-
-                      {(ev.contactName || ev.contactPhone || ev.contactAddress) && ev.status !== "blocked" && ev.type !== "gruppenfuehrung" && (
-                        <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
-                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Kontaktperson</div>
-                          {ev.contactName && <div style={{ fontSize:12, color:BRAND.aubergine, fontWeight:500 }}>👤 {ev.contactName}</div>}
-                          {ev.contactPhone && <div style={{ fontSize:12 }}>📞 <a href={`tel:${ev.contactPhone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone}</a></div>}
-                          {ev.contactAddress && <div style={{ fontSize:12, color:"#666" }}>📍 {ev.contactAddress}</div>}
-                        </div>
-                      )}
-                      {ev.publicText && (
-                        <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
-                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Öffentlicher Text</div>
-                          <div style={{ fontSize:12, color:"#666", lineHeight:1.4 }}>{ev.publicText}</div>
-                        </div>
-                      )}
-                      {ev.isPublic && <div style={{ fontSize:10, color:BRAND.moosgruen, fontWeight:600, marginBottom:4, display:"flex", alignItems:"center", gap:4 }}>
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke={BRAND.moosgruen} strokeWidth="1.5"/><path d="M5 8l2 2 4-4" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        Öffentlich sichtbar für Kunden
-                      </div>}
-                      {ev.message && (
-                        <div style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:8, border:"1px solid #ede8ed" }}>
-                          <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Nachricht</div>
-                          <div style={{ fontSize:12, color:"#666", fontStyle:"italic", lineHeight:1.4 }}>„{ev.message}"</div>
-                        </div>
-                      )}
-                      {ev.adminNote && (() => {
-                        const nc = ev.status === "blocked" || ev.isSeries ? "#009a93" : BRAND.aubergine;
-                        return (
-                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" || ev.isSeries ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${nc}`, marginBottom:8 }}>
-                          <div style={{ fontSize:9, color: nc, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>{ev.status === "blocked" ? "Notiz" : "Interne Notiz"}</div>
-                          <div style={{ fontSize:12, color:"#666" }}>{ev.adminNote}</div>
-                        </div>
+                            </div>
+                            <div style={{ fontSize:10, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}{sub.allDay ? " · Ganztägig" : ""}</div>
+                            {sub.name && <div style={{ fontSize:11, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>👤 {sub.name}</div>}
+                            {sub.email && <div style={{ fontSize:10, color:"#888" }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
+                            {sub.phone && <div style={{ fontSize:10, color:"#888" }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
+                            {sub.guests && <div style={{ fontSize:10, color:"#888", marginTop:1 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
+                            {sub.tourGuide && <div style={{ fontSize:10, color:BRAND.moosgruen, marginTop:1, fontWeight:600 }}>🌿 Mit Führung</div>}
+                            {sub.adminNote && <div style={{ fontSize:10, color:"#999", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>📝 {sub.adminNote}</div>}
+                            {sub.message && <div style={{ fontSize:10, color:"#888", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
+                            {sub.checklist && sub.checklist.length > 0 && (
+                              <div style={{ marginTop:4, fontSize:10, color:"#888" }}>
+                                {sub.checklist.map((c,ci) => (
+                                  <div key={ci} style={{ display:"flex", alignItems:"center", gap:4, marginTop:1 }}>
+                                    <span style={{ color: c.done ? BRAND.moosgruen : "#ccc" }}>{c.done ? "☑" : "☐"}</span>
+                                    <span style={{ textDecoration: c.done ? "line-through" : "none", opacity: c.done ? 0.6 : 1 }}>{c.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Actions per card */}
+                            <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                              {subIsPending ? (
+                                <>
+                                  <button onClick={() => handleAdminAction(selectedDate,"confirm",subIndex)}
+                                    style={{ flex:1, padding:"6px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
+                                  <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
+                                    style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={editSub}
+                                    style={{ flex:1, padding:"6px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Bearbeiten</button>
+                                  <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
+                                    onMouseEnter={e => { e.target.style.background="#f8d0d0"; e.target.style.color="#c44"; }}
+                                    onMouseLeave={e => { e.target.style.background="#f5f0f4"; e.target.style.color=BRAND.aubergine; }}
+                                    style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>Löschen</button>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         );
-                      })()}
-                      {ev.checklist && ev.checklist.length > 0 && (() => {
-                        const cc = ev.status === "blocked" || ev.isSeries ? "#009a93" : BRAND.aubergine;
-                        return (
-                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" || ev.isSeries ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${cc}`, marginBottom:8 }}>
-                          <div style={{ fontSize:9, color: cc, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Checkliste</div>
-                          <ChecklistNote items={ev.checklist} onChange={(items) => {
-                            const updated = { ...events, [selectedDate]: { ...events[selectedDate], checklist: items } };
-                            saveEvents(updated);
-                          }} />
-                        </div>
-                        );
-                      })()}
-                      {ev.note && <div style={{ fontSize:11, color:"#999", marginBottom:4 }}>Öffentlich: {ev.note}</div>}
+                      })}
                     </div>
-                  ) : null) : (
+                  ) : (
                     <div style={{ padding:"16px 0" }}>
                       {ev.isPublic ? (
                         <>
@@ -2298,93 +2259,9 @@ export default function App() {
                     </div>
                   )}
 
-                  {isAdmin && ev.status === "pending" && !hasMultiple && (
-                    <div style={{ display:"flex", gap:10, justifyContent:"center", marginBottom:10 }}>
-                        <button onClick={() => handleAdminAction(selectedDate,"confirm")}
-                          style={{ ...primaryBtn, padding:"10px 28px", background: BRAND.moosgruen, fontSize:13, borderRadius:8 }}>Annehmen</button>
-                        <button onClick={() => handleAdminAction(selectedDate,"delete")}
-                          style={{ ...primaryBtn, padding:"10px 28px", background:"#f5f0f4", color: BRAND.aubergine, fontSize:13, borderRadius:8, border:`1px solid #e0d8de` }}>Ablehnen</button>
-                    </div>
-                  )}
-                  {/* Multi-request view: render all as uniform mini-cards */}
-                  {hasMultiple && (
-                    <div style={{ marginBottom:10 }}>
-                      {allRequests.map((sub, idx) => {
-                        const subColor = sub.status === "booked" ? BRAND.lila : sub.status === "blocked" ? "#009a93" : BRAND.aprikot;
-                        const subIsPending = sub.status === "pending";
-                        const subIndex = sub._subIndex;
-                        return (
-                          <div key={idx} style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:6, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
-                              <div>
-                                <span style={{ fontSize:10, fontWeight:700, color:subColor, textTransform:"uppercase" }}>{sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : "Anfrage"}</span>
-                                {sub.label && <span style={{ fontSize:11, color:BRAND.aubergine, fontWeight:500, marginLeft:6 }}>{sub.label}</span>}
-                              </div>
-                              {!subIsPending && <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
-                                style={{ background:"none", border:"none", cursor:"pointer", color:"#ccc", fontSize:14, padding:2, lineHeight:1 }}
-                                onMouseEnter={e => e.currentTarget.style.color="#c44"} onMouseLeave={e => e.currentTarget.style.color="#ccc"}>×</button>}
-                            </div>
-                            <div style={{ fontSize:10, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}</div>
-                            {sub.name && <div style={{ fontSize:11, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>👤 {sub.name}</div>}
-                            {sub.email && <div style={{ fontSize:10, color:"#888" }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
-                            {sub.phone && <div style={{ fontSize:10, color:"#888" }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
-                            {sub.guests && <div style={{ fontSize:10, color:"#888", marginTop:1 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
-                            {sub.message && <div style={{ fontSize:10, color:"#888", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
-                            {sub.adminNote && <div style={{ fontSize:10, color:"#999", marginTop:2, fontStyle:"italic" }}>{sub.adminNote}</div>}
-                            {subIsPending && (
-                              <div style={{ display:"flex", gap:6, marginTop:8 }}>
-                                <button onClick={() => handleAdminAction(selectedDate,"confirm",subIndex)}
-                                  style={{ flex:1, padding:"6px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
-                                <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
-                                  style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {/* Sub-Events (only when NOT multi-mode — main+subs already shown above in that case) */}
-                  {isAdmin && !hasMultiple && ev.subEvents && ev.subEvents.length > 0 && (
-                    <div style={{ marginBottom:10 }}>
-                      <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Weitere Termine am selben Tag</div>
-                      {ev.subEvents.map((sub, si) => {
-                        const subColor = sub.status === "booked" ? BRAND.lila : sub.status === "blocked" ? "#009a93" : BRAND.aprikot;
-                        const subIsPending = sub.status === "pending";
-                        return (
-                          <div key={si} style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:6, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
-                              <div>
-                                <span style={{ fontSize:10, fontWeight:700, color:subColor, textTransform:"uppercase" }}>{sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : "Anfrage"}</span>
-                                {sub.label && <span style={{ fontSize:11, color:BRAND.aubergine, fontWeight:500, marginLeft:6 }}>{sub.label}</span>}
-                              </div>
-                              {!subIsPending && <button onClick={() => handleAdminAction(selectedDate,"delete",si)}
-                                style={{ background:"none", border:"none", cursor:"pointer", color:"#ccc", fontSize:14, padding:2, lineHeight:1 }}
-                                onMouseEnter={e => e.currentTarget.style.color="#c44"} onMouseLeave={e => e.currentTarget.style.color="#ccc"}>×</button>}
-                            </div>
-                            <div style={{ fontSize:10, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}</div>
-                            {sub.name && <div style={{ fontSize:11, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>👤 {sub.name}</div>}
-                            {sub.email && <div style={{ fontSize:10, color:"#888" }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
-                            {sub.phone && <div style={{ fontSize:10, color:"#888" }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
-                            {sub.guests && <div style={{ fontSize:10, color:"#888", marginTop:1 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
-                            {sub.message && <div style={{ fontSize:10, color:"#888", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
-                            {sub.adminNote && <div style={{ fontSize:10, color:"#999", marginTop:2, fontStyle:"italic" }}>{sub.adminNote}</div>}
-                            {subIsPending && (
-                              <div style={{ display:"flex", gap:6, marginTop:8 }}>
-                                <button onClick={() => handleAdminAction(selectedDate,"confirm",si)}
-                                  style={{ flex:1, padding:"6px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
-                                <button onClick={() => handleAdminAction(selectedDate,"delete",si)}
-                                  style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                   {isAdmin && fromCalendar && !ev.allDay && (
                     <button onClick={() => {
-                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
+                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, groupName:"", customerEmail:"", customerPhone:"" });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                     }}
                       style={{ width:"100%", padding:"10px 0", background:`${BRAND.moosgruen}10`, color: BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s" }}
@@ -2392,15 +2269,6 @@ export default function App() {
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"/></svg>
                       Zusätzliche Buchung hinzufügen
                     </button>
-                  )}
-                  {isAdmin && (
-                    <div style={{ display:"flex", gap:8 }}>
-                      <button onClick={() => { setAdminForm({ type: ev.status || "booked", label: ev.label || "", note: ev.note || "", startTime: ev.startTime || "08:00", endTime: ev.endTime || "22:00", adminNote: ev.adminNote || "", eventType: ev.type || "", allDay: ev.allDay || false, checklist: ev.checklist || [], contactName: ev.contactName || "", contactPhone: ev.contactPhone || "", contactAddress: ev.contactAddress || "", publicText: ev.publicText || "", isPublic: ev.isPublic || false, isSeries: false, seriesDates: [], guests: ev.guests || "", tourGuide: ev.tourGuide || false, cakeCount: ev.cakeCount || 0, coffeeCount: ev.coffeeCount || 0, groupName: ev.groupName || ev.name || "" }); setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin"); }} style={{ ...primaryBtn, flex:1, background: BRAND.aubergine, fontSize:12 }}>Bearbeiten</button>
-                      {ev.status !== "pending" && <button onClick={() => handleAdminAction(selectedDate,"delete")}
-                        onMouseEnter={e => { e.target.style.background="#f8d0d0"; e.target.style.color="#c44"; }}
-                        onMouseLeave={e => { e.target.style.background="#ddd"; e.target.style.color="#666"; }}
-                        style={{ ...primaryBtn, flex:1, background:"#ddd", color:"#666", fontSize:12, transition:"all .15s" }}>Löschen</button>}
-                    </div>
                   )}
                 </>
               );
