@@ -901,7 +901,7 @@ export default function App() {
           const cardLabelFs = isDesk ? (big ? 17 : 15) : 14;
           const cardDescFs = isDesk ? (big ? 13 : 12) : 11;
           const cardDetailFs = isDesk ? (big ? 12 : 11) : 10;
-          const cardPriceFs = isDesk ? (big ? 14 : 13) : 13;
+          const cardPriceFs = isDesk ? (big ? 11 : 10) : 10;
           const cardBtnFs = isDesk ? (big ? 12 : 11) : 11;
           const gapCards = isDesk ? (big ? 14 : 12) : 8;
           const bulletFs = isDesk ? (big ? 13 : 12) : 10;
@@ -998,17 +998,25 @@ export default function App() {
                     <div style={{ fontSize: cardDetailFs, color:"#888", lineHeight:1.45, marginBottom:8, display:"-webkit-box", WebkitBoxOrient:"vertical", WebkitLineClamp: detailLines, overflow:"hidden", textOverflow:"ellipsis" }}>{et.detail}</div>
                   )}
                   {showTags && et.tags && et.tags.length > 0 && (
-                    <div style={{ display:"flex", flexWrap:"nowrap", gap:5, height: tagsH, overflow:"hidden" }}>
+                    <div style={{ display:"flex", alignItems:"center", flexWrap:"nowrap", gap:5, height: tagsH, overflow:"hidden", marginBottom: 6 }}>
                       {et.tags.map((tg,ti) => (
-                        <span key={ti} style={{ fontSize: big ? 10 : 9, color: et.color, background: et.color+"15", padding:"2px 8px", borderRadius:10, whiteSpace:"nowrap", fontWeight:500, flexShrink:0 }}>{tg}</span>
+                        <span key={ti} style={{ fontSize: big ? 10 : 9, color: et.color, background: et.color+"15", padding:"4px 10px", borderRadius:10, whiteSpace:"nowrap", fontWeight:500, flexShrink:0, display:"inline-flex", alignItems:"center", justifyContent:"center", lineHeight:1 }}>{tg}</span>
                       ))}
                     </div>
                   )}
-                  {/* Bottom section: price + button pinned to bottom */}
-                  <div style={{ marginTop:"auto", paddingTop: isDesk ? 18 : 14 }}>
-                    <div style={{ color: et.color, fontSize: cardPriceFs, fontWeight:700, textAlign:"left", marginBottom: isDesk ? 10 : 8 }}>
+                  {/* Price inline under tags on desktop/tablet; with button on mobile */}
+                  {showTags && (
+                    <div style={{ color: et.color, fontSize: cardPriceFs, fontWeight:700, textAlign:"left" }}>
                       {isGroup ? `€ ${et.pricePerPerson} p.P.` : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
                     </div>
+                  )}
+                  {/* Bottom section: button (and price on mobile) pinned to bottom */}
+                  <div style={{ marginTop:"auto", paddingTop: isDesk ? 18 : 14 }}>
+                    {!showTags && (
+                      <div style={{ color: et.color, fontSize: cardPriceFs, fontWeight:700, textAlign:"left", marginBottom: 8 }}>
+                        {isGroup ? `€ ${et.pricePerPerson} p.P.` : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
+                      </div>
+                    )}
                     <div style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize: cardBtnFs, color: et.color, fontWeight:600, padding: isDesk ? (big ? "8px 14px" : "7px 13px") : "6px 11px", borderRadius:8, background: et.color+"30", letterSpacing:0.3 }}>
                       Jetzt anfragen <svg width={big ? 12 : 10} height={big ? 12 : 10} viewBox="0 0 24 24" fill="none" stroke={et.color} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                     </div>
