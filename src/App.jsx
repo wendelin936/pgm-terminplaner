@@ -784,7 +784,7 @@ export default function App() {
   if (loading) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui", color: BRAND.aubergine }}>Laden...</div>;
 
   return (
-    <div style={{ minHeight:"100svh", display:"flex", flexDirection:"column", background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
+    <div style={{ minHeight:"100svh", ...(isAdmin ? {} : { display:"flex", flexDirection:"column" }), background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
       {toast && (
         <div key={toastKey} style={{ position:"fixed", top:56, left:"50%", transform:"translateX(-50%)", background: BRAND.aubergine, color:"#fff", borderRadius:10, zIndex:1100, boxShadow:"0 4px 20px rgba(88,8,74,0.3)", animation:"fadeIn .25s", overflow:"hidden", minWidth:220, maxWidth:"92vw" }}>
           <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
@@ -885,7 +885,7 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px", ...(!isAdmin ? { flex:"1 1 auto", display:"flex", flexDirection:"column" } : {}), width: !isAdmin ? "100%" : undefined, boxSizing:"border-box" }}>
+      <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px", ...(!isAdmin ? { flex:"1 1 auto", display:"flex", flexDirection:"column", width:"100%", boxSizing:"border-box" } : {}) }}>
         {!isAdmin && (() => {
           const isDesk = winW >= 900;
           const headerH = isDesk ? 50 : 44;
@@ -1612,8 +1612,8 @@ export default function App() {
                       return (
                         <button key={key} onClick={() => handlePickerDateClick(day)}
                           title={isOccupied ? "nicht verfügbar" : hol || ""}
-                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}18`; } }}
-                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background= isPickToday ? "#8ec89a10" : "#fff"; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; } }}
+                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.lila}60`; } }}
+                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background= isPickToday ? "#8ec89a10" : "#fff"; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.aubergine}30`; } }}
                           style={{
                             aspectRatio:"1", border: isPickToday ? `2.5px solid #8ec89a` : isFree ? `1.5px solid ${BRAND.aubergine}30` : isOccupied ? `1px solid ${BRAND.lila}30` : "1px solid #eee",
                             borderRadius:6, background: isPickToday && isFree ? "#8ec89a10" : isFree ? "#fff" : isOccupied ? `${BRAND.lila}10` : "#f8f8f8",
@@ -2132,20 +2132,24 @@ export default function App() {
             {modalView === "info" && events[selectedDate] && (() => {
               const ev = events[selectedDate];
               const et = eventTypes.find(e => e.id === ev.type);
+              const hasMultiple = isAdmin && ev.subEvents && ev.subEvents.length > 0;
+              const allRequests = hasMultiple ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...ev.subEvents.map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))] : [];
               return (
                 <>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
-                    {et && <div style={{ width:4, height:36, borderRadius:2, background: et.color }} />}
+                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom: hasMultiple ? 14 : 8 }}>
+                    {et && !hasMultiple && <div style={{ width:4, height:36, borderRadius:2, background: ev.status === "blocked" || ev.isSeries ? "#009a93" : BRAND.aubergine }} />}
                     <div>
                       <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
-                      <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : "#009a93") : (ev.isPublic ? "#009a93" : BRAND.lila), color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
-                        {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : ev.isSeries ? "Serientermin" : "Interner Termin") : (ev.isPublic ? "Veranstaltung" : "Gebucht")}
-                      </div>
+                      {!hasMultiple && (
+                        <div style={{ display:"inline-block", background: isAdmin ? (ev.status==="booked" ? BRAND.lila : ev.status==="pending" ? BRAND.aprikot : "#009a93") : (ev.isPublic ? "#009a93" : BRAND.lila), color:"#fff", padding:"2px 10px", borderRadius:20, fontSize:10, fontWeight:600, marginTop:2 }}>
+                          {isAdmin ? (ev.status==="booked" ? "Gebucht" : ev.status==="pending" ? "Anfrage" : ev.isSeries ? "Serientermin" : "Interner Termin") : (ev.isPublic ? "Veranstaltung" : "Gebucht")}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:6, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
 
-                  {isAdmin ? (
+                  {isAdmin ? (!hasMultiple ? (
                     <div style={{ marginBottom:12 }}>
                       {ev.label && <div style={{ fontSize:15, fontWeight:700, color: BRAND.aubergine, marginBottom:2 }}>{ev.label}</div>}
                       {ev.slotLabel && <div style={{ fontSize:12, color:"#888", marginBottom:8 }}><ClockIcon color="#888" />{ev.slotLabel}{ev.allDay ? " · Ganztägig" : ""}</div>}
@@ -2231,18 +2235,18 @@ export default function App() {
                         </div>
                       )}
                       {ev.adminNote && (() => {
-                        const nc = ev.status === "blocked" ? "#009a93" : BRAND.aprikot;
+                        const nc = ev.status === "blocked" || ev.isSeries ? "#009a93" : BRAND.aubergine;
                         return (
-                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${nc}`, marginBottom:8 }}>
+                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" || ev.isSeries ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${nc}`, marginBottom:8 }}>
                           <div style={{ fontSize:9, color: nc, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>{ev.status === "blocked" ? "Notiz" : "Interne Notiz"}</div>
                           <div style={{ fontSize:12, color:"#666" }}>{ev.adminNote}</div>
                         </div>
                         );
                       })()}
                       {ev.checklist && ev.checklist.length > 0 && (() => {
-                        const cc = ev.status === "blocked" ? "#009a93" : BRAND.aprikot;
+                        const cc = ev.status === "blocked" || ev.isSeries ? "#009a93" : BRAND.aubergine;
                         return (
-                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${cc}`, marginBottom:8 }}>
+                        <div style={{ padding:"10px 12px", background: ev.status === "blocked" || ev.isSeries ? "#009a9308" : "#f8f4f8", borderRadius:8, borderLeft:`3px solid ${cc}`, marginBottom:8 }}>
                           <div style={{ fontSize:9, color: cc, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Checkliste</div>
                           <ChecklistNote items={ev.checklist} onChange={(items) => {
                             const updated = { ...events, [selectedDate]: { ...events[selectedDate], checklist: items } };
@@ -2253,7 +2257,7 @@ export default function App() {
                       })()}
                       {ev.note && <div style={{ fontSize:11, color:"#999", marginBottom:4 }}>Öffentlich: {ev.note}</div>}
                     </div>
-                  ) : (
+                  ) : null) : (
                     <div style={{ padding:"16px 0" }}>
                       {ev.isPublic ? (
                         <>
@@ -2294,7 +2298,7 @@ export default function App() {
                     </div>
                   )}
 
-                  {isAdmin && ev.status === "pending" && (
+                  {isAdmin && ev.status === "pending" && !hasMultiple && (
                     <div style={{ display:"flex", gap:10, justifyContent:"center", marginBottom:10 }}>
                         <button onClick={() => handleAdminAction(selectedDate,"confirm")}
                           style={{ ...primaryBtn, padding:"10px 28px", background: BRAND.moosgruen, fontSize:13, borderRadius:8 }}>Annehmen</button>
@@ -2302,8 +2306,46 @@ export default function App() {
                           style={{ ...primaryBtn, padding:"10px 28px", background:"#f5f0f4", color: BRAND.aubergine, fontSize:13, borderRadius:8, border:`1px solid #e0d8de` }}>Ablehnen</button>
                     </div>
                   )}
-                  {/* Sub-Events */}
-                  {isAdmin && ev.subEvents && ev.subEvents.length > 0 && (
+                  {/* Multi-request view: render all as uniform mini-cards */}
+                  {hasMultiple && (
+                    <div style={{ marginBottom:10 }}>
+                      {allRequests.map((sub, idx) => {
+                        const subColor = sub.status === "booked" ? BRAND.lila : sub.status === "blocked" ? "#009a93" : BRAND.aprikot;
+                        const subIsPending = sub.status === "pending";
+                        const subIndex = sub._subIndex;
+                        return (
+                          <div key={idx} style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:6, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
+                              <div>
+                                <span style={{ fontSize:10, fontWeight:700, color:subColor, textTransform:"uppercase" }}>{sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : "Anfrage"}</span>
+                                {sub.label && <span style={{ fontSize:11, color:BRAND.aubergine, fontWeight:500, marginLeft:6 }}>{sub.label}</span>}
+                              </div>
+                              {!subIsPending && <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
+                                style={{ background:"none", border:"none", cursor:"pointer", color:"#ccc", fontSize:14, padding:2, lineHeight:1 }}
+                                onMouseEnter={e => e.currentTarget.style.color="#c44"} onMouseLeave={e => e.currentTarget.style.color="#ccc"}>×</button>}
+                            </div>
+                            <div style={{ fontSize:10, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}</div>
+                            {sub.name && <div style={{ fontSize:11, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>👤 {sub.name}</div>}
+                            {sub.email && <div style={{ fontSize:10, color:"#888" }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
+                            {sub.phone && <div style={{ fontSize:10, color:"#888" }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
+                            {sub.guests && <div style={{ fontSize:10, color:"#888", marginTop:1 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
+                            {sub.message && <div style={{ fontSize:10, color:"#888", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
+                            {sub.adminNote && <div style={{ fontSize:10, color:"#999", marginTop:2, fontStyle:"italic" }}>{sub.adminNote}</div>}
+                            {subIsPending && (
+                              <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                                <button onClick={() => handleAdminAction(selectedDate,"confirm",subIndex)}
+                                  style={{ flex:1, padding:"6px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
+                                <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
+                                  style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Sub-Events (only when NOT multi-mode — main+subs already shown above in that case) */}
+                  {isAdmin && !hasMultiple && ev.subEvents && ev.subEvents.length > 0 && (
                     <div style={{ marginBottom:10 }}>
                       <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Weitere Termine am selben Tag</div>
                       {ev.subEvents.map((sub, si) => {
@@ -2340,7 +2382,7 @@ export default function App() {
                       })}
                     </div>
                   )}
-                  {isAdmin && fromCalendar && !ev.allDay && ev.status !== "pending" && (
+                  {isAdmin && fromCalendar && !ev.allDay && (
                     <button onClick={() => {
                       setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
@@ -2443,7 +2485,8 @@ export default function App() {
         .admin-card { transition: all .15s ease; }
         .doc-green, .doc-violet { transition: all .15s ease; }
         @media (hover: hover) and (pointer: fine) {
-          button:hover { filter: brightness(0.97) }
+          button:not(.day-booked):hover { filter: brightness(0.97) }
+          .day-booked, .day-booked:hover { filter: none !important; transform: none !important; }
           .hero-arrow-zone:hover .hero-arrow-btn { opacity: 1 !important; }
           .hero-arrow-zone:hover .hero-arrow-btn:hover { background: rgba(255,255,255,0.3) !important; }
           .hero-dots-zone:hover .hero-dots-inner { opacity: 1 !important; }
