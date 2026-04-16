@@ -885,7 +885,7 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
+      <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px", ...(!isAdmin && winW >= 900 ? { minHeight: `calc(100svh - 50px)`, display:"flex", flexDirection:"column" } : {}) }}>
         {!isAdmin && (() => {
           const isDesk = winW >= 900;
           const headerH = isDesk ? 50 : 44;
@@ -894,7 +894,7 @@ export default function App() {
           const padH = isDesk ? (big ? 56 : 40) : 12;
           const maxW = big ? 1400 : isDesk ? 1180 : 780;
           const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(200px, 28vh, 320px)";
-          const titleFs = isDesk ? (big ? 26 : 22) : Math.max(11, Math.min(18, (winW - 2 * 10) / 22));
+          const titleFs = isDesk ? (big ? 26 : 22) : Math.max(10, Math.min(13, (winW - 2 * 10) / 30));
           const titleMb = isDesk ? 16 : 10;
           const cardPad = isDesk ? (big ? "22px 22px" : "18px 18px") : "13px 12px";
           const cardLabelFs = isDesk ? (big ? 17 : 15) : 14;
@@ -907,7 +907,7 @@ export default function App() {
           const bulletMt = isDesk ? (big ? 22 : 16) : 20;
           return (
         <>
-        <div style={{ minHeight: `calc(100svh - ${headerH}px)`, display:"flex", flexDirection:"column", padding:`${padV}px ${padH}px ${isDesk ? padV : 10}px`, boxSizing:"border-box", maxWidth: maxW, margin:"0 auto", width:"100%" }}>
+        <div style={{ ...(isDesk ? { flex:"1 1 auto" } : { minHeight: `calc(100svh - ${headerH}px)` }), display:"flex", flexDirection:"column", padding:`${padV}px ${padH}px ${isDesk ? 0 : 10}px`, boxSizing:"border-box", maxWidth: maxW, margin:"0 auto", width:"100%" }}>
           {/* Hero */}
           <div style={{ position:"relative", borderRadius: !isDesk ? 12 : 16, overflow:"hidden", marginBottom: !isDesk ? 12 : (big ? 22 : 16), height: heroH, touchAction:"pan-y", flexShrink:0 }}
             onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
@@ -1017,23 +1017,13 @@ export default function App() {
             })}
           </div>
 
-          {/* Bullets inline on desktop — sticky to bottom via marginTop:auto */}
-          {isDesk && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center", marginTop:"auto", paddingTop: bulletMt, flexShrink:0 }}>
-              {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
-                <span key={t} style={{ fontSize: bulletFs, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding: big ? "6px 14px" : "5px 12px", whiteSpace:"nowrap" }}>{t}</span>
-              ))}
-            </div>
-          )}
         </div>
-        {/* Bullets below fold on mobile */}
-        {!isDesk && (
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center", padding:"20px 12px 16px", flexShrink:0, maxWidth: 780, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
-            {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
-              <span key={t} style={{ fontSize:10, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
-            ))}
-          </div>
-        )}
+        {/* Footer bar — full width, rectangular, extends edge to edge */}
+        <div style={{ width:"100%", display:"flex", flexWrap:"wrap", gap: isDesk ? 8 : 6, justifyContent:"center", padding: isDesk ? `10px ${padH}px 14px` : "8px 12px 12px", flexShrink:0, boxSizing:"border-box" }}>
+          {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
+            <span key={t} style={{ fontSize: isDesk ? bulletFs : 10, color:BRAND.aubergine, background:`${BRAND.lila}10`, border:`1px solid ${BRAND.lila}20`, borderRadius:20, padding: isDesk ? (big ? "6px 14px" : "5px 12px") : "4px 12px", whiteSpace:"nowrap" }}>{t}</span>
+          ))}
+        </div>
         </>
           );
         })()}
@@ -1613,8 +1603,8 @@ export default function App() {
                       return (
                         <button key={key} onClick={() => handlePickerDateClick(day)}
                           title={isOccupied ? "nicht verfügbar" : hol || ""}
-                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}18`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="1"; } }}
-                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background= isPickToday ? "#8ec89a10" : "#fff"; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; const tip = e.currentTarget.querySelector('.tip'); if(tip) tip.style.opacity="0"; } }}
+                          onMouseEnter={e => { if (isFree) { e.currentTarget.style.background=`${BRAND.lila}12`; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.lila}60`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}18`; } }}
+                          onMouseLeave={e => { if (isFree) { e.currentTarget.style.background= isPickToday ? "#8ec89a10" : "#fff"; e.currentTarget.style.borderColor= isPickToday ? "#8ec89a" : `${BRAND.aubergine}30`; } else if (isOccupied) { e.currentTarget.style.background=`${BRAND.lila}10`; } }}
                           style={{
                             aspectRatio:"1", border: isPickToday ? `2.5px solid #8ec89a` : isFree ? `1.5px solid ${BRAND.aubergine}30` : isOccupied ? `1px solid ${BRAND.lila}30` : "1px solid #eee",
                             borderRadius:6, background: isPickToday && isFree ? "#8ec89a10" : isFree ? "#fff" : isOccupied ? `${BRAND.lila}10` : "#f8f8f8",
@@ -1624,7 +1614,6 @@ export default function App() {
                           }}>
                           {hol && <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`${BRAND.aubergine}60` }} />}
                           {day}
-                          {isOccupied && <span className="tip" style={{ position:"absolute", bottom:2, fontSize:6, color:BRAND.aubergine, opacity:0, transition:"opacity .15s", whiteSpace:"nowrap", fontWeight:500 }}>nicht verfügbar</span>}
                         </button>
                       );
                     })}
