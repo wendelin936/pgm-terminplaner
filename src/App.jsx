@@ -459,7 +459,8 @@ export default function App() {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [winW, setWinW] = useState(typeof window !== "undefined" ? window.innerWidth : 800);
-  useEffect(() => { const h = () => setWinW(window.innerWidth); window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); }, []);
+  const [winH, setWinH] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
+  useEffect(() => { const h = () => { setWinW(window.innerWidth); setWinH(window.innerHeight); }; window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); }, []);
 
   // Auto-adjust end time if same as or before start time
   useEffect(() => {
@@ -884,117 +885,124 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ maxWidth: winW > 900 ? 1100 : (isAdmin ? 700 : 800), margin:"0 auto", padding: winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
-        {/* Customer: Hero Slideshow */}
-        {!isAdmin && (
-          <div style={{ position:"relative", borderRadius: winW < 520 ? 12 : 16, overflow:"hidden", marginBottom: winW < 520 ? 12 : 20, height: winW > 900 ? `clamp(350px, 42vh, 550px)` : winW > 520 ? 300 : 240, touchAction:"pan-y" }}
-            onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
-            onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (e.currentTarget._sx||0); const dy = Math.abs(e.changedTouches[0].clientY - (e.currentTarget._sy||0)); if (Math.abs(dx) > 40 && Math.abs(dx) > dy) { if (dx < 0) setHeroIdx(i => (i+1) % 7); else setHeroIdx(i => (i+6) % 7); } }}>
-            {heroImages.map((src, idx) => (
-              <div key={idx} style={{ position:"absolute", inset:0, backgroundImage:`url(${src})`, backgroundSize:"cover", backgroundPosition:"center 40%", opacity: idx === heroIdx ? 1 : 0, transition:"opacity 1s ease-in-out", zIndex: idx === heroIdx ? 1 : 0 }} />
-            ))}
-            {winW < 520 && <div style={{ position:"absolute", top:0, left:0, right:0, height:"55%", background:"linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)", zIndex:2 }} />}
-            {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, width:"70%", height:"70%", background:"radial-gradient(ellipse at bottom left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.35) 40%, transparent 70%)", zIndex:2 }} />}
-            <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
-            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: winW > 900 ? 20 : 12, right: winW > 900 ? 24 : 12, height: winW > 900 ? 56 : winW > 520 ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
-            {winW < 520 && (
-              <div style={{ position:"absolute", top:0, left:0, right:0, padding:"16px 16px", zIndex:3 }}>
-                <div style={{ fontSize:21, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)", lineHeight:1.3 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
-              </div>
-            )}
-            {winW < 520 && (
-              <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3 }}>
-                <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                  style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
-                  Location buchen
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                </button>
-              </div>
-            )}
-            {/* Left arrow hover zone */}
-            {winW >= 520 && <div className="hero-arrow-zone"
-              onClick={() => setHeroIdx(i => (i+6) % 7)}
-              style={{ position:"absolute", left:0, top:"15%", width: winW > 900 ? 80 : 60, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <div className="hero-arrow-btn" style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
-              </div>
-            </div>}
-            {/* Right arrow hover zone */}
-            {winW >= 520 && <div className="hero-arrow-zone"
-              onClick={() => setHeroIdx(i => (i+1) % 7)}
-              style={{ position:"absolute", right:0, top:"15%", width: winW > 900 ? 80 : 60, height:"70%", zIndex:4, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <div className="hero-arrow-btn" style={{ width:40, height:40, borderRadius:"50%", background:"rgba(255,255,255,0.15)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid rgba(255,255,255,0.2)", opacity:0, transition:"opacity .25s" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
-              </div>
-            </div>}
-            {/* Dots hover zone */}
-            {winW >= 520 && <div className="hero-dots-zone" style={{ position:"absolute", bottom:0, left:"25%", right:"25%", height: winW > 900 ? 50 : 40, zIndex:4, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom: winW > 900 ? 14 : 10 }}>
-              <div className="hero-dots-inner" style={{ display:"flex", gap:6, opacity:0, transition:"opacity .25s" }}>
-                {heroImages.map((_, idx) => (
-                  <div key={idx} onClick={e => { e.stopPropagation(); setHeroIdx(idx); }}
-                    style={{ width: idx === heroIdx ? 16 : 6, height:6, borderRadius:3, background: idx === heroIdx ? "#fff" : "rgba(255,255,255,0.4)", cursor:"pointer", transition:"all .3s ease" }} />
+      <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px" }}>
+        {/* Customer View — viewport-fitted layout */}
+        {!isAdmin && (() => {
+          const isMobileC = winW < 520;
+          const isTabletC = winW >= 520 && winW < 900;
+          const isDesktopC = winW >= 900;
+          const isPortraitC = winH > winW;
+          const fillScreen = isPortraitC && !isDesktopC;
+          const headerH = isMobileC ? 44 : 50;
+          const padTop = isMobileC ? 10 : isDesktopC ? 18 : 14;
+          const padSide = isMobileC ? 10 : isDesktopC ? 40 : 16;
+          const padBot = isMobileC ? 10 : isDesktopC ? 14 : 12;
+          const heroH = isMobileC ? "34vh" : isTabletC ? (isPortraitC ? "28vh" : "38vh") : "clamp(300px, 40vh, 480px)";
+          const gapCards = isMobileC ? 8 : isDesktopC ? 10 : 8;
+          const gridCols = winW < 380 ? "repeat(2, 1fr)" : isMobileC ? "repeat(2, 1fr)" : "repeat(3, 1fr)";
+          return (
+            <div style={{ minHeight: fillScreen ? `calc(100svh - ${headerH}px)` : isDesktopC ? `calc(100vh - ${headerH}px)` : "auto", display:"flex", flexDirection:"column", padding:`${padTop}px ${padSide}px ${padBot}px`, maxWidth: isDesktopC ? 1200 : 800, margin:"0 auto", width:"100%", boxSizing:"border-box" }}>
+              {/* Hero */}
+              <div style={{ position:"relative", borderRadius: isMobileC ? 12 : 16, overflow:"hidden", marginBottom: isMobileC ? 10 : isDesktopC ? 16 : 12, height: heroH, flexShrink:0, touchAction:"pan-y" }}
+                onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
+                onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (e.currentTarget._sx||0); const dy = Math.abs(e.changedTouches[0].clientY - (e.currentTarget._sy||0)); if (Math.abs(dx) > 40 && Math.abs(dx) > dy) { if (dx < 0) setHeroIdx(i => (i+1) % 7); else setHeroIdx(i => (i+6) % 7); } }}>
+                {heroImages.map((src, idx) => (
+                  <div key={idx} style={{ position:"absolute", inset:0, backgroundImage:`url(${src})`, backgroundSize:"cover", backgroundPosition:"center 40%", opacity: idx === heroIdx ? 1 : 0, transition:"opacity 1s ease-in-out", zIndex: idx === heroIdx ? 1 : 0 }} />
                 ))}
-              </div>
-            </div>}
-            {winW >= 520 && <div style={{ position:"absolute", bottom:0, left:0, right:0, padding: winW > 900 ? "28px 32px" : "18px 20px", display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:12, zIndex:3 }}>
-              <div>
-                <div style={{ fontSize: winW > 900 ? 28 : 20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
-                <div style={{ fontSize: winW > 900 ? 14 : 12, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
-              </div>
-              <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
-                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: winW > 900 ? "14px 28px" : "12px 20px", fontSize: winW > 900 ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease" }}>
-                Location buchen
-                <svg width={winW > 900 ? 16 : 14} height={winW > 900 ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-              </button>
-            </div>}
-          </div>
-        )}
-        {/* Customer: Event Types */}
-        {!isAdmin && (
-          <div style={{ marginBottom:20 }}>
-            <h2 style={{ fontSize: winW < 520 ? 16 : winW > 900 ? 22 : 18, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: winW > 900 ? 16 : 12, textAlign:"center" }}>
-              Unsere Veranstaltungen & Preise
-            </h2>
-            {(() => {
-              const allTypes = eventTypes;
-              const isMobile = winW < 520;
-              const renderCard = (et) => {
-                const isGroup = et.isGroupTour;
-                return (
-                  <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
-                    style={{ "--card-color": et.color, flex: isMobile ? (winW < 380 ? "1 1 100%" : "1 1 calc(50% - 5px)") : winW > 900 ? "1 1 calc(33.33% - 8px)" : "1 1 0", background:"#fff", borderRadius:10, padding: isMobile ? "12px 10px" : winW > 900 ? "16px 16px" : "14px 12px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0 }}>
-                    <div>
-                      <div style={{ fontWeight:700, color: et.color, fontSize: isMobile ? 12 : winW > 900 ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto" }}>{et.label}</div>
-                      <div style={{ fontSize: isMobile ? 9 : winW > 900 ? 12 : 10, color:"#888", lineHeight:1.3, marginBottom:6 }}>{et.desc}</div>
-                    </div>
-                    <div style={{ marginTop:"auto" }}>
-                      <div style={{ color: et.color, fontSize: isMobile ? 11 : 12, fontWeight:700, textAlign:"left", marginBottom:6 }}>
-                        {isGroup ? <><span>€ {et.pricePerPerson} p.P.</span><span style={{ margin:"0 6px", opacity:0.4 }}>|</span><span>ab {et.minPersons} Pers.</span></> : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
-                      </div>
-                      <div style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize: isMobile ? 9 : 10, color: et.color, fontWeight:600, padding: isMobile ? "5px 10px" : "6px 12px", borderRadius:8, background: et.color+"30", cursor:"pointer", letterSpacing:0.3 }}>
-                        Jetzt anfragen <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={et.color} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                      </div>
-                    </div>
+                {isMobileC && <div style={{ position:"absolute", top:0, left:0, right:0, height:"55%", background:"linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)", zIndex:2 }} />}
+                {!isMobileC && <div style={{ position:"absolute", bottom:0, left:0, width:"70%", height:"70%", background:"radial-gradient(ellipse at bottom left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.35) 40%, transparent 70%)", zIndex:2 }} />}
+                <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
+                <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: isDesktopC ? 20 : 12, right: isDesktopC ? 24 : 12, height: isDesktopC ? 56 : !isMobileC ? 40 : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
+                {isMobileC && (
+                  <div style={{ position:"absolute", top:0, left:0, right:0, padding:"16px 16px", zIndex:3 }}>
+                    <div style={{ fontSize:20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)", lineHeight:1.3 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
                   </div>
-                );
-              };
-              return (
-                <div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 8 : 8, marginBottom:12 }}>
-                    {allTypes.map(renderCard)}
-                  </div>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap: isMobile ? 6 : 8, justifyContent:"center", marginBottom:6 }}>
-                    {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
-                      <span key={t} style={{ fontSize: isMobile ? 10 : 11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
+                )}
+                {/* Arrow hover zones */}
+                <div className="hero-arrow-zone" style={{ position:"absolute", left:0, top:0, bottom:0, width:80, zIndex:5, display: isMobileC ? "none" : "flex", alignItems:"center", justifyContent:"flex-start", paddingLeft:12, cursor:"pointer" }}
+                  onClick={() => setHeroIdx(i => (i+6) % 7)}>
+                  <button className="hero-arrow-btn" onClick={e => { e.stopPropagation(); setHeroIdx(i => (i+6) % 7); }} style={{ background:"rgba(255,255,255,0.15)", backdropFilter:"blur(8px)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:"50%", width:40, height:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:0, transition:"all .2s", padding:0 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M15 6l-6 6 6 6"/></svg>
+                  </button>
+                </div>
+                <div className="hero-arrow-zone" style={{ position:"absolute", right:0, top:0, bottom:0, width:80, zIndex:5, display: isMobileC ? "none" : "flex", alignItems:"center", justifyContent:"flex-end", paddingRight:12, cursor:"pointer" }}
+                  onClick={() => setHeroIdx(i => (i+1) % 7)}>
+                  <button className="hero-arrow-btn" onClick={e => { e.stopPropagation(); setHeroIdx(i => (i+1) % 7); }} style={{ background:"rgba(255,255,255,0.15)", backdropFilter:"blur(8px)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:"50%", width:40, height:40, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:0, transition:"all .2s", padding:0 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M9 6l6 6-6 6"/></svg>
+                  </button>
+                </div>
+                {/* Dots hover zone */}
+                <div className="hero-dots-zone" style={{ position:"absolute", bottom:0, left:"50%", transform:"translateX(-50%)", height:50, width:180, zIndex:5, display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:12, cursor:"pointer" }}>
+                  <div className="hero-dots-inner" style={{ display:"flex", gap:6, opacity:0, transition:"opacity .2s" }}>
+                    {heroImages.map((_, idx) => (
+                      <button key={idx} onClick={(e) => { e.stopPropagation(); setHeroIdx(idx); }} style={{ width: idx === heroIdx ? 24 : 8, height:8, borderRadius:4, background: idx === heroIdx ? "#fff" : "rgba(255,255,255,0.5)", border:"none", cursor:"pointer", padding:0, transition:"all .3s" }} />
                     ))}
                   </div>
                 </div>
-              );
-            })()}
-          </div>
-        )}
+                {!isMobileC && (
+                  <div style={{ position:"absolute", bottom: isDesktopC ? 28 : 20, left: isDesktopC ? 32 : 20, right: isDesktopC ? 32 : 20, zIndex:4, display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16, pointerEvents:"none" }}>
+                    <div style={{ pointerEvents:"none" }}>
+                      <div style={{ fontSize: isDesktopC ? 30 : 22, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 12px rgba(0,0,0,0.5)", lineHeight:1.15, marginBottom:4 }}>Paradiesgarten Mattuschka</div>
+                      <div style={{ fontSize: isDesktopC ? 15 : 13, color:"rgba(255,255,255,0.92)", fontWeight:500, letterSpacing:0.3, textShadow:"0 2px 6px rgba(0,0,0,0.5)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
+                      onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
+                      style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: isDesktopC ? "13px 26px" : "11px 18px", fontSize: isDesktopC ? 15 : 13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
+                      Location buchen
+                      <svg width={isDesktopC ? 16 : 14} height={isDesktopC ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                    </button>
+                  </div>
+                )}
+                {isMobileC && (
+                  <div style={{ position:"absolute", bottom:16, left:16, right:16, zIndex:4, display:"flex", justifyContent:"center" }}>
+                    <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
+                      style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"11px 22px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
+                      Location buchen
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Section title */}
+              <h2 style={{ margin:0, fontSize: isMobileC ? 14 : isDesktopC ? 20 : 16, fontWeight:700, color: BRAND.aubergine, letterSpacing:2, textTransform:"uppercase", marginBottom: isMobileC ? 8 : isDesktopC ? 12 : 10, textAlign:"center", flexShrink:0 }}>
+                Unsere Veranstaltungen & Preise
+              </h2>
+
+              {/* Event type cards — grid fills remaining space */}
+              <div style={{ display:"grid", gridTemplateColumns: gridCols, gridAutoRows: "1fr", gap: gapCards, flex: fillScreen ? "1 1 0" : isDesktopC ? "1 1 0" : "0 0 auto", minHeight: 0 }}>
+                {eventTypes.map(et => {
+                  const isGroup = et.isGroupTour;
+                  return (
+                    <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
+                      style={{ "--card-color": et.color, background:"#fff", borderRadius:10, padding: isMobileC ? "10px 10px" : isDesktopC ? "14px 14px" : "12px 12px", borderLeft:`3px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", justifyContent:"space-between", minWidth:0, minHeight:0 }}>
+                      <div style={{ minHeight:0 }}>
+                        <div style={{ fontWeight:700, color: et.color, fontSize: isMobileC ? 12 : isDesktopC ? 15 : 13, marginBottom:3, wordBreak:"break-word", hyphens:"auto", lineHeight:1.2 }}>{et.label}</div>
+                        <div style={{ fontSize: isMobileC ? 9 : isDesktopC ? 11 : 10, color:"#888", lineHeight:1.3 }}>{et.desc}</div>
+                      </div>
+                      <div style={{ marginTop:"auto", paddingTop:8 }}>
+                        <div style={{ color: et.color, fontSize: isMobileC ? 11 : 12, fontWeight:700, textAlign:"left", marginBottom:6 }}>
+                          {isGroup ? <><span>€ {et.pricePerPerson} p.P.</span><span style={{ margin:"0 6px", opacity:0.4 }}>|</span><span>ab {et.minPersons} Pers.</span></> : et.halfDay === 0 ? "auf Anfrage" : `ab ${fmt(et.halfDay)}`}
+                        </div>
+                        <div style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize: isMobileC ? 9 : 10, color: et.color, fontWeight:600, padding: isMobileC ? "5px 10px" : "6px 12px", borderRadius:8, background: et.color+"30", letterSpacing:0.3 }}>
+                          Jetzt anfragen <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={et.color} strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bullet points */}
+              <div style={{ display:"flex", flexWrap:"wrap", gap: isMobileC ? 6 : 8, justifyContent:"center", marginTop: fillScreen ? 20 : isDesktopC ? 14 : 10, flexShrink:0 }}>
+                {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
+                  <span key={t} style={{ fontSize: isMobileC ? 10 : 11, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding:"4px 12px", whiteSpace:"nowrap" }}>{t}</span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {isAdmin && <div style={{ maxWidth: isAdmin && winW > 900 ? "80%" : "none", margin: isAdmin && winW > 900 ? "0 auto" : 0 }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: winW < 520 ? 8 : 12 }}>
