@@ -784,7 +784,7 @@ export default function App() {
   if (loading) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui", color: BRAND.aubergine }}>Laden...</div>;
 
   return (
-    <div style={{ minHeight:"100vh", background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
+    <div style={{ minHeight:"100svh", display:"flex", flexDirection:"column", background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
       {toast && (
         <div key={toastKey} style={{ position:"fixed", top:56, left:"50%", transform:"translateX(-50%)", background: BRAND.aubergine, color:"#fff", borderRadius:10, zIndex:1100, boxShadow:"0 4px 20px rgba(88,8,74,0.3)", animation:"fadeIn .25s", overflow:"hidden", minWidth:220, maxWidth:"92vw" }}>
           <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
@@ -844,7 +844,7 @@ export default function App() {
         );
       })()}
 
-      <header style={{ background: BRAND.aubergine, color:"#fff", padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 520 ? "sticky" : "relative", top:0, zIndex:50 }}>
+      <header style={{ background: BRAND.aubergine, color:"#fff", padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 1100 ? "sticky" : "relative", top:0, zIndex:50 }}>
         <div onClick={!isAdmin ? () => { if (loggedIn) { setIsAdmin(true); setModalView(null); } else setLoginModal(true); } : undefined}
           style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1, cursor: !isAdmin ? "pointer" : "default" }}>
           <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? 24 : 26, flexShrink:0 }} />
@@ -885,30 +885,30 @@ export default function App() {
         </div>
       )}
 
-      <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px", ...(!isAdmin && winW >= 900 ? { minHeight: `calc(100svh - 50px)`, display:"flex", flexDirection:"column" } : {}) }}>
+      <div style={{ maxWidth: !isAdmin ? "100%" : winW > 900 ? 1100 : 700, margin:"0 auto", padding: !isAdmin ? 0 : winW < 520 ? "12px 10px" : winW > 900 ? "24px 40px" : "16px 16px", ...(!isAdmin ? { flex:"1 1 auto", display:"flex", flexDirection:"column" } : {}), width: !isAdmin ? "100%" : undefined, boxSizing:"border-box" }}>
         {!isAdmin && (() => {
           const isDesk = winW >= 900;
           const headerH = isDesk ? 50 : 44;
-          const big = winW >= 1700;
-          const padV = isDesk ? (big ? 22 : 14) : 10;
-          const padH = isDesk ? (big ? 48 : 36) : 12;
+          const big = winW >= 1400;
+          const padV = isDesk ? (big ? 28 : 22) : 10;
+          const padH = isDesk ? (big ? 56 : 40) : 12;
           const maxW = big ? 1400 : isDesk ? 1180 : 780;
-          const heroH = isDesk ? "clamp(220px, 30vh, 460px)" : "clamp(200px, 28vh, 320px)";
-          const heroMb = isDesk ? (big ? 14 : 10) : 10;
-          const titleFs = isDesk ? (big ? 24 : 20) : Math.max(10, Math.min(13, (winW - 2 * 10) / 30));
-          const titleMb = isDesk ? (big ? 12 : 8) : 8;
-          const cardPad = isDesk ? (big ? "18px 18px" : "14px 14px") : "13px 12px";
-          const cardLabelFs = isDesk ? (big ? 16 : 14) : 14;
-          const cardDescFs = isDesk ? (big ? 12 : 11) : 11;
-          const cardDetailFs = isDesk ? (big ? 11 : 10) : 10;
+          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(200px, 28vh, 320px)";
+          const heroMb = isDesk ? (big ? 22 : 16) : 12;
+          const titleFs = isDesk ? (big ? 26 : 22) : Math.max(10, Math.min(13, (winW - 2 * 10) / 30));
+          const titleMb = isDesk ? 16 : 8;
+          const cardPad = isDesk ? (big ? "22px 22px" : "18px 18px") : "13px 12px";
+          const cardLabelFs = isDesk ? (big ? 17 : 15) : 14;
+          const cardDescFs = isDesk ? (big ? 13 : 12) : 11;
+          const cardDetailFs = isDesk ? (big ? 12 : 11) : 10;
           const cardPriceFs = isDesk ? (big ? 14 : 13) : 13;
-          const cardBtnFs = isDesk ? (big ? 11 : 10) : 11;
-          const gapCards = isDesk ? (big ? 12 : 10) : 8;
-          const bulletFs = isDesk ? (big ? 12 : 11) : 10;
-          const bulletMt = isDesk ? (big ? 12 : 8) : 8;
+          const cardBtnFs = isDesk ? (big ? 12 : 11) : 11;
+          const gapCards = isDesk ? (big ? 14 : 12) : 8;
+          const bulletFs = isDesk ? (big ? 13 : 12) : 10;
+          const bulletMt = isDesk ? (big ? 16 : 12) : 8;
           return (
         <>
-        <div style={{ ...(isDesk ? { flex:"1 1 auto" } : { minHeight: `calc(100svh - ${headerH}px)` }), display:"flex", flexDirection:"column", padding:`${padV}px ${padH}px ${isDesk ? 0 : 10}px`, boxSizing:"border-box", maxWidth: maxW, margin:"0 auto", width:"100%" }}>
+        <div style={{ flex:"1 1 auto", display:"flex", flexDirection:"column", padding:`${padV}px ${padH}px ${isDesk ? 0 : 10}px`, boxSizing:"border-box", maxWidth: maxW, margin:"0 auto", width:"100%" }}>
           {/* Hero */}
           <div style={{ position:"relative", borderRadius: !isDesk ? 12 : 16, overflow:"hidden", marginBottom: !isDesk ? 12 : heroMb, height: heroH, touchAction:"pan-y", flexShrink:0 }}
             onTouchStart={e => { e.currentTarget._sx = e.touches[0].clientX; e.currentTarget._sy = e.touches[0].clientY; }}
@@ -983,11 +983,11 @@ export default function App() {
           <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows:"auto", gap: gapCards, flex:"0 0 auto" }}>
             {eventTypes.map(et => {
               const isGroup = et.isGroupTour;
-              const showTags = isDesk;
-              const showDetail = isDesk;
+              const showTags = winW >= 600;
+              const showDetail = winW >= 600;
               const descLines = 2;
-              const detailLines = 2;
-              const tagsH = isDesk ? (big ? 22 : 20) : 0;
+              const detailLines = 3;
+              const tagsH = winW >= 600 ? (big ? 22 : 20) : 0;
               return (
                 <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
                   style={{ "--card-color": et.color, background:"#fff", borderRadius: big ? 12 : 10, padding: cardPad, borderLeft:`${big ? 4 : 3}px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", minWidth:0 }}>
