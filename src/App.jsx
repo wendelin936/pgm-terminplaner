@@ -893,7 +893,7 @@ export default function App() {
           const padV = isDesk ? (big ? 28 : 22) : 10;
           const padH = isDesk ? (big ? 56 : 40) : 12;
           const maxW = big ? 1400 : isDesk ? 1180 : 780;
-          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(300px, 40vh, 420px)";
+          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(200px, 28vh, 320px)";
           const titleFs = isDesk ? (big ? 26 : 22) : Math.max(11, Math.min(18, (winW - 2 * 10) / 22));
           const titleMb = isDesk ? 16 : 10;
           const cardPad = isDesk ? (big ? "22px 22px" : "18px 18px") : "13px 12px";
@@ -979,11 +979,11 @@ export default function App() {
           </h2>
 
           {/* Event cards — 2x3 desktop, 3x2 mobile — natural height, same proportions */}
-          <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows:"auto", gap: gapCards, flex:"0 0 auto" }}>
+          <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows: isDesk ? "auto" : "1fr", gap: gapCards, flex: isDesk ? "0 0 auto" : "1 1 0", minHeight:0 }}>
             {eventTypes.map(et => {
               const isGroup = et.isGroupTour;
-              const showTags = winW >= 900;
-              const showDetail = winW >= 420;
+              const showTags = isDesk;
+              const showDetail = isDesk;
               const descLines = 2;
               const detailLines = 3;
               const tagsH = isDesk ? (big ? 22 : 20) : 0;
@@ -1017,9 +1017,9 @@ export default function App() {
             })}
           </div>
 
-          {/* Bullets inline on desktop */}
+          {/* Bullets inline on desktop — sticky to bottom via marginTop:auto */}
           {isDesk && (
-            <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center", marginTop: bulletMt, flexShrink:0 }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:8, justifyContent:"center", marginTop:"auto", paddingTop: bulletMt, flexShrink:0 }}>
               {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
                 <span key={t} style={{ fontSize: bulletFs, color:BRAND.aubergine, background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}15`, borderRadius:20, padding: big ? "6px 14px" : "5px 12px", whiteSpace:"nowrap" }}>{t}</span>
               ))}
