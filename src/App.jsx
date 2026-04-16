@@ -1643,14 +1643,14 @@ export default function App() {
                   </button>
                   <div>
                     <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>
-                      {adminForm.editAllSeries ? "Serie bearbeiten" : adminForm.addToExisting ? "Termin hinzufügen" : "Termin bearbeiten"}
+                      {adminForm.editAllSeries ? "Serie bearbeiten" : (adminForm.addToExisting || !events[selectedDate] || events[selectedDate]?.status === "deleted") ? "Termin hinzufügen" : "Termin bearbeiten"}
                       {adminForm.editAllSeries && <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4, marginLeft:8, verticalAlign:"middle" }}>S</span>}
                     </h3>
                     <div style={{ fontSize:13, color:"#999" }}>{fmtDateAT(selectedDate)}</div>
                   </div>
                 </div>
                 {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
-                {(!events[selectedDate] || events[selectedDate]?.status === "deleted") && !adminForm.editAllSeries && !adminForm.addToExisting && (
+                {((!events[selectedDate] || events[selectedDate]?.status === "deleted") || adminForm.addToExisting) && !adminForm.editAllSeries && (
                 <div style={{ display:"flex", gap:8, marginBottom:14 }}>
                   {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"]].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
@@ -1660,6 +1660,27 @@ export default function App() {
                   ))}
                 </div>
                 )}
+
+                {/* Ganztägig + Zeitangabe — direkt unter Status-Buttons */}
+                <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.allDay ? `${adminForm.type==="blocked" ? "#009a93" : BRAND.lila}10` : "#fff", border:`1.5px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
+                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff" }}>
+                    {adminForm.allDay && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                  <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Ganztägig</span>
+                </label>
+                <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
+                  {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
+                    const timeVal = adminForm[field] || "08:00";
+                    return (
+                      <div key={field} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                        <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
+                        <TimeInput value={timeVal} onChange={v => setAdminForm(f=>({...f,[field]:v}))} />
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
 
                 {/* Event type suggestions - only for booked */}
@@ -1683,12 +1704,14 @@ export default function App() {
                     <div style={{ fontSize:9, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Kundendaten</div>
                     <input placeholder="Name (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
-                    <div style={{ display:"flex", gap:6 }}>
+                    <div style={{ display:"flex", gap:6, marginBottom:6 }}>
                       <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
                         style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
                       <input placeholder="Telefon" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
                         style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
+                    <input placeholder="Anzahl Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
+                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
                   </div>
                 )}
 
@@ -1734,52 +1757,6 @@ export default function App() {
                   );
                 })()}
 
-                {/* Public toggle - only for internal events */}
-                {adminForm.type === "blocked" && (
-                <label onClick={() => setAdminForm(f=>({...f, isPublic:!f.isPublic, contactAddress: !f.isPublic && !f.contactAddress ? "Emmersdorfer Straße 86, 9061 Klagenfurt" : f.contactAddress}))}
-                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.isPublic ? "#009a9310" : "#fff", border:`1.5px solid ${adminForm.isPublic ? "#009a93" : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
-                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.isPublic ? "#009a93" : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.isPublic ? "#009a93" : "#fff", transition:"all .15s" }}>
-                    {adminForm.isPublic && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  </div>
-                  <div>
-                    <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Öffentlich sichtbar</span>
-                    <div style={{ fontSize:9, color:"#aaa" }}>Bezeichnung, Beschreibung, Kontakt & Adresse werden für Kunden sichtbar</div>
-                  </div>
-                </label>
-                )}
-
-                {/* Ganztägig */}
-                <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
-                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.allDay ? `${adminForm.type==="blocked" ? "#009a93" : BRAND.lila}10` : "#fff", border:`1.5px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
-                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff" }}>
-                    {adminForm.allDay && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  </div>
-                  <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Ganztägig</span>
-                </label>
-                {(() => {
-                  return (
-                  <>
-                  <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
-                    {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
-                      const timeVal = adminForm[field] || "08:00";
-                      return (
-                        <div key={field} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                          <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
-                          <TimeInput value={timeVal} onChange={v => setAdminForm(f=>({...f,[field]:v}))} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                  </>
-                  );
-                })()}
-
-                {/* Interne Notiz - framed */}
-                <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
-                  <label style={{ fontSize:9, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Interne Notiz</label>
-                  <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))} style={{ ...inputStyle, height:60, resize:"vertical", background:"#fff", borderColor:"#e0d5df", marginBottom:0 }} />
-                </div>
-
                 {/* Checkliste - framed */}
                 <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
                   <label style={{ fontSize:9, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6, display:"block" }}>Checkliste</label>
@@ -1793,14 +1770,32 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* PUBLIC SECTION - only for internal events when isPublic is checked */}
+                {/* Interne Notiz - framed */}
+                <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
+                  <label style={{ fontSize:9, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Interne Notiz</label>
+                  <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))} style={{ ...inputStyle, height:60, resize:"vertical", background:"#fff", borderColor:"#e0d5df", marginBottom:0 }} />
+                </div>
+
+                {/* Public toggle - only for internal events, directly above Serientermin */}
+                {adminForm.type === "blocked" && (
+                <label onClick={() => setAdminForm(f=>({...f, isPublic:!f.isPublic, contactAddress: !f.isPublic && !f.contactAddress ? "Emmersdorfer Straße 86, 9061 Klagenfurt" : f.contactAddress}))}
+                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.isPublic ? "#009a9310" : "#fff", border:`1.5px solid ${adminForm.isPublic ? "#009a93" : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
+                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.isPublic ? "#009a93" : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.isPublic ? "#009a93" : "#fff", transition:"all .15s" }}>
+                    {adminForm.isPublic && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                  <div>
+                    <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Öffentlich sichtbar</span>
+                    <div style={{ fontSize:9, color:"#aaa" }}>Bezeichnung, Beschreibung, Kontakt & Adresse werden für Kunden sichtbar</div>
+                  </div>
+                </label>
+                )}
+
+                {/* PUBLIC SECTION - expanded details when isPublic checked */}
                 {adminForm.type === "blocked" && adminForm.isPublic && (
                   <div style={{ background:"#009a9306", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #009a9320" }}>
                     <div style={{ fontSize:9, color:"#009a93", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Für Kunden sichtbar</div>
                     <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Beschreibung</label>
                     <textarea placeholder="Text für Kunden…" value={adminForm.publicText} onChange={e => setAdminForm(f=>({...f, publicText:e.target.value}))} style={{ ...inputStyle, height:50, resize:"vertical", fontSize:13 }} />
-                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Öffentliche Notiz</label>
-                    <textarea placeholder="Kurze Notiz für Kunden…" value={adminForm.note} onChange={e => setAdminForm(f=>({...f, note:e.target.value}))} style={{ ...inputStyle, height:40, resize:"vertical", fontSize:13 }} />
                     <div style={{ fontSize:9, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Kontaktperson</div>
                     <input placeholder="Name" value={adminForm.contactName} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
                       style={{ ...inputStyle, fontSize:13, padding:"8px 10px" }} />
