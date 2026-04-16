@@ -560,14 +560,10 @@ export default function App() {
     const wantsAdmin = params.get("admin") === "1";
     const unsub = onAuthChange(user => {
       setLoggedIn(!!user);
-      if (user) {
-        setIsAdmin(true);
-      } else if (wantsAdmin) {
-        setLoginModal(true);
-      }
+      if (user) { setIsAdmin(true); }
+      else if (wantsAdmin) { setLoginModal(true); }
     });
     if (wantsAdmin) {
-      // Clean URL after handling
       const url = new URL(window.location.href);
       url.searchParams.delete("admin");
       window.history.replaceState({}, "", url.toString());
@@ -712,10 +708,10 @@ export default function App() {
     } catch {}
   };
 
-  const handleAdminAction = (key, action) => {
+  const handleAdminAction = (key, action, subIndex = -1) => {
     if (action === "delete") {
-      const ev = events[key];
-      setDeleteConfirm({ type:"single", key, label: ev?.label || "Termin", count:1, items:[[key,ev]] });
+      const ev = subIndex >= 0 ? events[key]?.subEvents?.[subIndex] : events[key];
+      setDeleteConfirm({ type:"single", key, subIndex, label: ev?.label || "Termin", count:1, items:[[key,ev]] });
       return;
     }
     if (action === "permDelete") {
@@ -726,8 +722,19 @@ export default function App() {
     }
     if (action === "doDelete") {
       prevEvents.current = { ...events };
-      const ev = events[key];
       const updated = { ...events };
+      if (subIndex >= 0) {
+        // Delete specific subEvent
+        const day = { ...updated[key] };
+        const sub = day.subEvents?.[subIndex];
+        day.subEvents = (day.subEvents || []).filter((_,i) => i !== subIndex);
+        updated[key] = day;
+        saveEvents(updated);
+        setDeleteConfirm(null);
+        showToast("Gelöscht", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, true, "#c44");
+        return;
+      }
+      const ev = events[key];
       // If main event has subEvents, promote first subEvent
       if (ev.subEvents && ev.subEvents.length > 0) {
         const [first, ...rest] = ev.subEvents;
@@ -742,12 +749,23 @@ export default function App() {
       return;
     }
     prevEvents.current = { ...events };
-    const ev = events[key];
     const updated = { ...events };
-    if (action === "confirm") updated[key] = { ...updated[key], status: "booked" };
-    saveEvents(updated);
-    setModalView(null);
-    showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, BRAND.moosgruen);
+    if (action === "confirm") {
+      if (subIndex >= 0) {
+        const day = { ...updated[key] };
+        const sub = day.subEvents?.[subIndex];
+        day.subEvents = (day.subEvents || []).map((s,i) => i === subIndex ? { ...s, status:"booked" } : s);
+        updated[key] = day;
+        saveEvents(updated);
+        showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, true, BRAND.moosgruen);
+        return;
+      }
+      const ev = events[key];
+      updated[key] = { ...updated[key], status: "booked" };
+      saveEvents(updated);
+      setModalView(null);
+      showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, BRAND.moosgruen);
+    }
   };
 
   const handleSavePrice = () => {
@@ -1062,7 +1080,14 @@ export default function App() {
         </div>}
         {/* Admin: 1. Offene Anfragen */}
         {isAdmin && (() => {
-          const pending = Object.entries(events).filter(([,v]) => v.status === "pending").sort(([a],[b]) => a.localeCompare(b));
+          const pending = [];
+          Object.entries(events).forEach(([key, ev]) => {
+            if (ev.status === "pending") pending.push({ key, ev, subIndex: -1 });
+            (ev.subEvents || []).forEach((sub, si) => {
+              if (sub.status === "pending") pending.push({ key, ev: sub, subIndex: si });
+            });
+          });
+          pending.sort((a,b) => a.key.localeCompare(b.key));
           if (!pending.length) return null;
           return (
             <div style={{ marginBottom:20 }}>
@@ -1074,12 +1099,13 @@ export default function App() {
                 </div>
               </div>
               {showPending && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
-                {pending.map(([key, ev]) => {
+                {pending.map(({ key, ev, subIndex }) => {
                   const [yy,mm,dd] = key.split("-").map(Number);
                   const d = new Date(yy,mm-1,dd);
                   const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
+                  const rowKey = `${key}${subIndex>=0?"-s"+subIndex:""}`;
                   return (
-                    <SwipeRow key={key} onSwipeRight={() => handleAdminAction(key,"confirm")} onSwipeLeft={() => handleAdminAction(key,"delete")} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
+                    <SwipeRow key={rowKey} onSwipeRight={() => handleAdminAction(key,"confirm",subIndex)} onSwipeLeft={() => handleAdminAction(key,"delete",subIndex)} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
                       <div onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
                         style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
                         <div style={{ flex:1, minWidth:0 }}>
@@ -1090,7 +1116,7 @@ export default function App() {
                           </div>
                           {ev.name && <div style={{ fontSize:10, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>}
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm"); }}
+                        <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm",subIndex); }}
                           onMouseEnter={e => e.currentTarget.style.filter="brightness(0.85)"} onMouseLeave={e => e.currentTarget.style.filter="none"}
                           style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:5, padding:"4px 10px", fontSize:9, fontWeight:700, cursor:"pointer", flexShrink:0, textTransform:"uppercase", letterSpacing:0.5, transition:"all .15s" }}>Annehmen</button>
                       </div>
@@ -1353,7 +1379,7 @@ export default function App() {
                 style={{ flex:1, padding:"10px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer" }}>Abbrechen</button>
               <button onClick={() => {
                 if (deleteConfirm.type === "single") {
-                  handleAdminAction(deleteConfirm.key, "doDelete");
+                  handleAdminAction(deleteConfirm.key, "doDelete", deleteConfirm.subIndex ?? -1);
                 } else {
                   prevEvents.current = { ...events };
                   const updated = { ...events };
@@ -2238,6 +2264,7 @@ export default function App() {
                       <div style={{ fontSize:9, color:"#bbb", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Weitere Termine am selben Tag</div>
                       {ev.subEvents.map((sub, si) => {
                         const subColor = sub.status === "booked" ? BRAND.lila : sub.status === "blocked" ? "#009a93" : BRAND.aprikot;
+                        const subIsPending = sub.status === "pending";
                         return (
                           <div key={si} style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:6, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
@@ -2245,18 +2272,25 @@ export default function App() {
                                 <span style={{ fontSize:10, fontWeight:700, color:subColor, textTransform:"uppercase" }}>{sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : "Anfrage"}</span>
                                 {sub.label && <span style={{ fontSize:11, color:BRAND.aubergine, fontWeight:500, marginLeft:6 }}>{sub.label}</span>}
                               </div>
-                              <button onClick={() => {
-                                const updated = { ...events };
-                                const day = { ...updated[selectedDate] };
-                                day.subEvents = day.subEvents.filter((_,idx) => idx !== si);
-                                updated[selectedDate] = day;
-                                saveEvents(updated);
-                              }} style={{ background:"none", border:"none", cursor:"pointer", color:"#ccc", fontSize:14, padding:2, lineHeight:1 }}
-                                onMouseEnter={e => e.currentTarget.style.color="#c44"} onMouseLeave={e => e.currentTarget.style.color="#ccc"}>×</button>
+                              {!subIsPending && <button onClick={() => handleAdminAction(selectedDate,"delete",si)}
+                                style={{ background:"none", border:"none", cursor:"pointer", color:"#ccc", fontSize:14, padding:2, lineHeight:1 }}
+                                onMouseEnter={e => e.currentTarget.style.color="#c44"} onMouseLeave={e => e.currentTarget.style.color="#ccc"}>×</button>}
                             </div>
                             <div style={{ fontSize:10, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}</div>
-                            {sub.name && <div style={{ fontSize:10, color:"#aaa", marginTop:1 }}>{sub.name}</div>}
+                            {sub.name && <div style={{ fontSize:11, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>👤 {sub.name}</div>}
+                            {sub.email && <div style={{ fontSize:10, color:"#888" }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
+                            {sub.phone && <div style={{ fontSize:10, color:"#888" }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
+                            {sub.guests && <div style={{ fontSize:10, color:"#888", marginTop:1 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
+                            {sub.message && <div style={{ fontSize:10, color:"#888", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
                             {sub.adminNote && <div style={{ fontSize:10, color:"#999", marginTop:2, fontStyle:"italic" }}>{sub.adminNote}</div>}
+                            {subIsPending && (
+                              <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                                <button onClick={() => handleAdminAction(selectedDate,"confirm",si)}
+                                  style={{ flex:1, padding:"6px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
+                                <button onClick={() => handleAdminAction(selectedDate,"delete",si)}
+                                  style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
