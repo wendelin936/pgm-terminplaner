@@ -754,7 +754,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated) => {
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
@@ -2569,74 +2569,157 @@ export default function App() {
                   );
                 })()}
 
-                {/* Customer data fields - for booked + pending events (not Gruppenführung which has own section) */}
-                {(adminForm.type === "booked" || adminForm.type === "pending") && adminForm.eventType !== "gruppenfuehrung" && (
-                  <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
-                    <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
-                      {adminForm.type === "pending" ? "Anfrage – Kundendaten" : "Kundendaten"}
+                {/* Customer data fields - for booked + pending events (not Gruppenbesuch which has own section) */}
+                {(adminForm.type === "booked" || adminForm.type === "pending") && adminForm.eventType !== "gruppenfuehrung" && (() => {
+                  const et = eventTypes.find(t => t.id === adminForm.eventType);
+                  const accent = et?.color || BRAND.lila;
+                  return (
+                  <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
+                      {adminForm.type === "pending" ? "Anfrage – Kontakt" : "Kontakt"}
                     </div>
                     <input placeholder="Name * (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                      style={{ width:"100%", padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                      style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
                     <div style={{ display:"flex", gap:6, marginBottom:6 }}>
                       <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
+                        style={{ flex:1, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                       <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
+                        style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                     </div>
                     <input placeholder="Anzahl Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom: adminForm.type === "pending" ? 6 : 0 }} />
+                      style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom: adminForm.type === "pending" ? 6 : 0, color:BRAND.aubergine, textAlign:"center" }} />
                     {adminForm.type === "pending" && (
                       <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", height:70, resize:"none" }} />
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:56, resize:"none", color:BRAND.aubergine, lineHeight:1.5 }} />
                     )}
                   </div>
-                )}
+                  );
+                })()}
 
-                {/* Group tour fields - for Gruppenführung (booked + pending) */}
+                {/* Group tour fields - for Gruppenbesuch (booked + pending) */}
                 {adminForm.eventType === "gruppenfuehrung" && (adminForm.type === "booked" || adminForm.type === "pending") && (() => {
                   const gt = eventTypes.find(t => t.id === "gruppenfuehrung");
+                  const nP = Number(adminForm.guests) || 0;
+                  const nKaffee = Number(adminForm.coffeeCount) || 0;
+                  const nKuchen = Number(adminForm.cakeCount) || 0;
+                  const cEintritt = nP * (gt?.pricePerPerson || 9);
+                  const cKaffee = nKaffee * (gt?.coffeePrice || 3.10);
+                  const cKuchen = nKuchen * (gt?.cakePrice || 4.50);
+                  const nF = adminForm.tourGuide && nP > 0 ? Math.ceil(nP / (gt?.maxPerTour || 20)) : 0;
+                  const cFuehrung = nF * (gt?.guideCost || 80);
+                  const cGesamt = cEintritt + cKaffee + cKuchen + cFuehrung;
                   return (
-                  <div style={{ background:`${BRAND.moosgruen}08`, border:`1px solid ${BRAND.moosgruen}20`, borderRadius:10, padding:"14px", marginBottom:10 }}>
-                    <div style={{ fontSize:10, fontWeight:600, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
-                      {adminForm.type === "pending" ? "Anfrage – Gruppenbesuch" : "Gruppenbesuch Details"}
-                    </div>
-                    <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
-                    <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                      <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
-                      <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
-                    </div>
-                    <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                      <div style={{ flex:1 }}>
-                        <label style={{ fontSize:11, color:"#888", marginBottom:3, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Teilnehmer</label>
-                        <input type="number" min="1" placeholder="Anzahl" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                          style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <label style={{ fontSize:11, color:"#888", marginBottom:3, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kaffee</label>
-                        <input type="number" min="0" placeholder="0" value={adminForm.coffeeCount||""} onChange={e => setAdminForm(f=>({...f, coffeeCount:e.target.value}))}
-                          style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
-                      </div>
-                      <div style={{ flex:1 }}>
-                        <label style={{ fontSize:11, color:"#888", marginBottom:3, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kuchen</label>
-                        <input type="number" min="0" placeholder="0" value={adminForm.cakeCount||""} onChange={e => setAdminForm(f=>({...f, cakeCount:e.target.value}))}
-                          style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
+                  <>
+                    {/* Teilnehmer-Leiste */}
+                    <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:6 }}>
+                      <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Teilnehmer *</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                        <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
+                          style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                        <input type="number" min="0" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
+                          style={{ width:52, textAlign:"center", padding:"6px 0", border:`1px solid ${BRAND.moosgruen}`, borderRadius:7, fontSize:15, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                        <button onClick={() => setAdminForm(f => ({ ...f, guests: String((Number(f.guests)||0) + 1) }))}
+                          style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                       </div>
                     </div>
+
+                    {/* Führung-Leiste */}
                     <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                      style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", padding:"6px 0" }}>
-                      <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.tourGuide ? BRAND.moosgruen : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", transition:"all .15s" }}>
-                        {adminForm.tourGuide && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:10, cursor:"pointer" }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                        <div style={{ fontSize:10, color:BRAND.moosgruen, opacity:0.65, marginTop:2 }}>max. {gt?.maxPerTour || 20} Teilnehmer pro Führung</div>
                       </div>
-                      <span style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Mit Führung ({gt ? `€ ${gt.guideCost}` : "€ 80"})</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
+                        <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                          {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                      </div>
                     </label>
-                    {adminForm.type === "pending" && (
-                      <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", height:60, resize:"none", marginTop:6 }} />
-                    )}
-                  </div>
+
+                    {/* Gruppe & Kontakt-Karte */}
+                    <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
+                        {adminForm.type === "pending" ? "Anfrage – Gruppe & Kontakt" : "Gruppe & Kontakt"}
+                      </div>
+                      <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
+                      <div style={{ display:"flex", gap:6, marginBottom:6 }}>
+                        <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
+                          style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                        <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                          style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                      </div>
+                      <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                      {adminForm.type === "pending" && (
+                        <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:50, resize:"none", marginTop:6, color:BRAND.aubergine, lineHeight:1.5 }} />
+                      )}
+                    </div>
+
+                    {/* Café im Paradiesglashaus */}
+                    <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
+
+                      {/* Kaffee */}
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kaffee</div>
+                          <div style={{ fontSize:11, color:"#999" }}>à € {(gt?.coffeePrice || 3.10).toFixed(2).replace(".",",")}</div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <button onClick={() => setAdminForm(f => ({ ...f, coffeeCount: Math.max(0, (Number(f.coffeeCount)||0) - 1) }))}
+                            style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                          <input type="number" min="0" value={adminForm.coffeeCount||""} onChange={e => setAdminForm(f=>({...f, coffeeCount:e.target.value}))}
+                            placeholder="0" style={{ width:44, textAlign:"center", padding:"5px 0", border:"1px solid #e0d5df", borderRadius:6, fontSize:14, color:BRAND.aubergine, fontFamily:"inherit", background:"#fff" }} />
+                          <button onClick={() => setAdminForm(f => ({ ...f, coffeeCount: (Number(f.coffeeCount)||0) + 1 }))}
+                            style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                        </div>
+                      </div>
+
+                      {/* Kuchen */}
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom: nP > 0 ? 10 : 0 }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div>
+                          <div style={{ fontSize:11, color:"#999" }}>à € {(gt?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <button onClick={() => setAdminForm(f => ({ ...f, cakeCount: Math.max(0, (Number(f.cakeCount)||0) - 1) }))}
+                            style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                          <input type="number" min="0" value={adminForm.cakeCount||""} onChange={e => setAdminForm(f=>({...f, cakeCount:e.target.value}))}
+                            placeholder="0" style={{ width:44, textAlign:"center", padding:"5px 0", border:"1px solid #e0d5df", borderRadius:6, fontSize:14, color:BRAND.aubergine, fontFamily:"inherit", background:"#fff" }} />
+                          <button onClick={() => setAdminForm(f => ({ ...f, cakeCount: (Number(f.cakeCount)||0) + 1 }))}
+                            style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                        </div>
+                      </div>
+
+                      {/* Kostenauflistung */}
+                      {nP > 0 && (
+                        <div style={{ background:"#f8f4f8", borderRadius:10, padding:"10px 12px" }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:2 }}>
+                            <span>Eintritt ({nP}× à € {(gt?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
+                            <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cEintritt.toFixed(2).replace(".",",")}</span>
+                          </div>
+                          <div style={{ fontSize:10, color:BRAND.moosgruen, marginBottom:6, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                          {nKaffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
+                            <span>Kaffee ({nKaffee}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cKaffee.toFixed(2).replace(".",",")}</span>
+                          </div>}
+                          {nKuchen > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
+                            <span>Kuchen ({nKuchen}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cKuchen.toFixed(2).replace(".",",")}</span>
+                          </div>}
+                          {adminForm.tourGuide && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:6 }}>
+                            <span>Führung{nF > 1 ? ` (${nF}×)` : ""}</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cFuehrung.toFixed(2).replace(".",",")}</span>
+                          </div>}
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:BRAND.aubergine, fontWeight:600, paddingTop:6, borderTop:"1px solid #ebe4ea" }}>
+                            <span>Geschätzt gesamt</span>
+                            <span style={{ fontVariantNumeric:"tabular-nums", color:BRAND.lila }}>ca. € {cGesamt.toFixed(2).replace(".",",")}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
                   );
                 })()}
 
@@ -2875,9 +2958,9 @@ export default function App() {
                   <div className="form-modal">
                   <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
                     <button onClick={() => { setPickerMonth(month); setPickerYear(year); setModalView("pickDate"); }}
-                      style={{ background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center", color:"#aaa", flexShrink:0, transition:"color .15s" }}
-                      onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+                      style={{ width:32, height:32, borderRadius:"50%", background: `${et?.color || BRAND.lila}15`, border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center", justifyContent:"center", color: et?.color || BRAND.lila, flexShrink:0, transition:"background .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background=`${et?.color || BRAND.lila}25`} onMouseLeave={e => e.currentTarget.style.background=`${et?.color || BRAND.lila}15`}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
                     </button>
                     <div style={{ width:4, height:36, borderRadius:2, background: et?.color || BRAND.lila }} />
                     <div>
@@ -2921,18 +3004,11 @@ export default function App() {
                       </label>
 
                       {/* 3. Zeit-Leiste (lila) */}
-                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:12, flexWrap:"wrap" }}>
-                        {[["Von","tourHour","tourMin"],["Bis","tourEndHour","tourEndMin"]].map(([lbl,hField,mField]) => {
-                          const h = Number(formData[hField])||0;
-                          const m = Number(formData[mField])||0;
-                          const timeVal = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
-                          return (
-                            <div key={lbl} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>{lbl}</span>
-                              <TimeInput value={timeVal} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f,[hField]:nh,[mField]:nm})); }} />
-                            </div>
-                          );
-                        })}
+                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, flexWrap:"wrap" }}>
+                        <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Von</span>
+                        <TimeInput value={String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourHour:nh, tourMin:nm})); }} />
+                        <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Bis</span>
+                        <TimeInput value={String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourEndHour:nh, tourEndMin:nm})); }} />
                       </div>
 
                       {/* 4. Gruppe & Kontakt-Karte */}
@@ -3038,102 +3114,103 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      <div style={{ display:"flex", gap:6, marginBottom:8, marginTop:8 }}>
-                        {[["halfDayAM","Halbtags","bis 13 Uhr"],["halfDayPM","Halbtags","ab 13 Uhr"],["fullDay","Ganztags","08:00 – 22:00"]].map(([v,l,sub]) => {
-                          const isHalf = v.startsWith("halfDay");
-                          const priceVal = isHalf ? et?.halfDay : et?.fullDay;
-                          const defaults = { halfDayAM:[8,0,13,0], halfDayPM:[13,0,18,0], fullDay:[8,0,22,0] };
-                          const isActive = formData.slot===v;
-                          return (
-                            <button key={v} onClick={() => { const d = defaults[v]; setFormData(f=>({...f, slot:v, tourHour:d[0], tourMin:d[1], tourEndHour:d[2], tourEndMin:d[3]})); }}
-                              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background=(et?.color || BRAND.lila)+"10"; e.currentTarget.style.borderColor=(et?.color || BRAND.lila)+"40"; } }}
-                              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#e0d8de"; } }}
-                              style={{ flex:1, padding:"12px 6px", border:`2px solid ${isActive ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:12,
-                                background: isActive ? (et?.color || BRAND.lila)+"15" : "#fff", cursor:"pointer", textAlign:"center", transition:"all .15s" }}>
-                              <div style={{ fontWeight:500, fontSize:15, color: isActive ? (et?.color || BRAND.lila) : BRAND.aubergine, marginBottom:3 }}>{l}</div>
-                              <div style={{ fontSize:10, color: isActive ? (et?.color || BRAND.lila) : "#999", opacity: isActive ? 0.75 : 1, marginBottom:4 }}>{sub}</div>
-                              <div style={{ fontSize:11, color: isActive ? (et?.color || BRAND.lila) : "#999", opacity: isActive ? 0.75 : 1, fontVariantNumeric:"tabular-nums" }}>
-                                {priceVal === 0 ? "auf Anfrage" : fmt(priceVal)}
-                              </div>
-                            </button>
-                          );
-                        })}
+                      {/* Slot-Kacheln */}
+                      <div style={{ marginBottom:12 }}>
+                        <div style={{ fontSize:10, color:"#999", letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8, paddingLeft:2 }}>Zeitfenster wählen</div>
+                        <div style={{ display:"flex", gap:8 }}>
+                          {[["halfDayAM","Halbtags","bis 13 Uhr"],["halfDayPM","Halbtags","ab 13 Uhr"],["fullDay","Ganztags","08 – 22 Uhr"]].map(([v,l,sub]) => {
+                            const isHalf = v.startsWith("halfDay");
+                            const priceVal = isHalf ? et?.halfDay : et?.fullDay;
+                            const defaults = { halfDayAM:[8,0,13,0], halfDayPM:[13,0,18,0], fullDay:[8,0,22,0] };
+                            const isActive = formData.slot===v;
+                            return (
+                              <button key={v} onClick={() => { const d = defaults[v]; setFormData(f=>({...f, slot:v, tourHour:d[0], tourMin:d[1], tourEndHour:d[2], tourEndMin:d[3]})); }}
+                                onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background=(et?.color || BRAND.lila)+"10"; e.currentTarget.style.borderColor=(et?.color || BRAND.lila)+"40"; } }}
+                                onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#e8d8e4"; } }}
+                                style={{ flex:1, padding:"12px 6px", border:`${isActive ? 2 : 1}px solid ${isActive ? et?.color || BRAND.lila : "#e8d8e4"}`, borderRadius:12,
+                                  background: isActive ? (et?.color || BRAND.lila)+"15" : "#fff", cursor:"pointer", textAlign:"center", transition:"all .15s" }}>
+                                <div style={{ fontWeight:500, fontSize:15, color: isActive ? (et?.color || BRAND.lila) : BRAND.aubergine, marginBottom:3 }}>{l}</div>
+                                <div style={{ fontSize:10, color: isActive ? (et?.color || BRAND.lila) : "#999", opacity: isActive ? 0.75 : 1, marginBottom:4 }}>{sub}</div>
+                                <div style={{ fontSize:11, color: isActive ? (et?.color || BRAND.lila) : "#999", opacity: isActive ? 0.75 : 1, fontVariantNumeric:"tabular-nums" }}>
+                                  {priceVal === 0 ? "auf Anfrage" : fmt(priceVal)}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       {formData.type === "sonstiges" && (
-                        <div style={{ marginBottom:8 }}>
+                        <div style={{ marginBottom:12 }}>
                           <button onClick={() => { setFormData(f=>({...f, slot:"custom", tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0})); }}
-                            style={{ width:"100%", padding:"8px", border:`2px solid ${formData.slot==="custom" ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:10,
-                              background: formData.slot==="custom" ? (et?.color || BRAND.lila)+"20" : "#fff", cursor:"pointer", textAlign:"center" }}>
-                            <div style={{ fontWeight:700, fontSize:12, color: BRAND.aubergine }}>Eigenes Zeitfenster</div>
+                            style={{ width:"100%", padding:"10px", border:`${formData.slot==="custom" ? 2 : 1}px solid ${formData.slot==="custom" ? et?.color || BRAND.lila : "#e8d8e4"}`, borderRadius:12,
+                              background: formData.slot==="custom" ? (et?.color || BRAND.lila)+"15" : "#fff", cursor:"pointer", textAlign:"center" }}>
+                            <div style={{ fontWeight:500, fontSize:14, color: formData.slot==="custom" ? (et?.color || BRAND.lila) : BRAND.aubergine }}>Eigenes Zeitfenster</div>
                           </button>
                         </div>
                       )}
 
-                      {/* Time fine-tuning */}
-                      <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:8 }}>
-                        {[["Von","tourHour","tourMin"],["Bis","tourEndHour","tourEndMin"]].map(([lbl,hField,mField]) => {
-                          const h = Number(formData[hField])||0;
-                          const m = Number(formData[mField])||0;
-                          const timeVal = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+                      {/* Zeit-Leiste (lila) */}
+                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, flexWrap:"wrap" }}>
+                        {(() => {
+                          const updateTime = (hField, mField) => (v) => {
+                            const [nh,nm]=v.split(":").map(Number);
+                            setFormData(f => {
+                              const upd = {...f, [hField]:nh, [mField]:nm};
+                              const sH = hField==="tourHour" ? nh : upd.tourHour;
+                              const sM = hField==="tourMin" ? nm : upd.tourMin;
+                              const eH = hField==="tourEndHour" ? nh : upd.tourEndHour;
+                              const eM = hField==="tourEndMin" ? nm : upd.tourEndMin;
+                              const startMins = sH*60+sM, endMins = eH*60+eM;
+                              let slot = "custom";
+                              if (endMins <= 13*60 && startMins < 13*60) slot = "halfDayAM";
+                              else if (startMins >= 13*60) slot = "halfDayPM";
+                              else if (startMins < 13*60 && endMins > 13*60) slot = "fullDay";
+                              return {...upd, slot};
+                            });
+                          };
                           return (
-                            <div key={lbl} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                              <span style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</span>
-                              <TimeInput value={timeVal} onChange={v => {
-                                const [nh,nm]=v.split(":").map(Number);
-                                setFormData(f => {
-                                  const upd = {...f, [hField]:nh, [mField]:nm};
-                                  const sH = hField==="tourHour" ? nh : upd.tourHour;
-                                  const sM = hField==="tourMin" ? nm : upd.tourMin;
-                                  const eH = hField==="tourEndHour" ? nh : upd.tourEndHour;
-                                  const eM = hField==="tourEndMin" ? nm : upd.tourEndMin;
-                                  const startMins = sH*60+sM, endMins = eH*60+eM;
-                                  let slot = "custom";
-                                  if (endMins <= 13*60 && startMins < 13*60) slot = "halfDayAM";
-                                  else if (startMins >= 13*60) slot = "halfDayPM";
-                                  else if (startMins < 13*60 && endMins > 13*60) slot = "fullDay";
-                                  return {...upd, slot};
-                                });
-                              }} accentColor={et?.color} />
-                            </div>
+                            <>
+                              <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Von</span>
+                              <TimeInput value={String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0")} accentColor={et?.color} onChange={updateTime("tourHour","tourMin")} />
+                              <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Bis</span>
+                              <TimeInput value={String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0")} accentColor={et?.color} onChange={updateTime("tourEndHour","tourEndMin")} />
+                            </>
                           );
-                        })}
+                        })()}
                       </div>
 
-
-                      <div style={{ marginBottom:10 }}>
-                        <div onClick={() => setShowTypeSelect(s=>!s)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", padding:"6px 0" }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                            <div style={{ width:3, height:16, borderRadius:2, background: et?.color }} />
-                            <span style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine }}>{et?.label}</span>
-                          </div>
-                          <span style={{ fontSize:11, color: BRAND.lila, fontWeight:600 }}>{showTypeSelect ? "▲ schließen" : "▼ Art ändern"}</span>
+                      {/* Kontakt-Karte */}
+                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                        <div style={{ fontSize:11, color:et?.color || BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Kontakt</div>
+                        <input placeholder="Name *" value={formData.name} onChange={e => setFormData(f=>({...f, name:e.target.value}))} style={reqStyle(missingName, false)} />
+                        <input placeholder="E-Mail *" type="email" value={formData.email} onChange={e => setFormData(f=>({...f, email:e.target.value}))} style={reqStyle(missingEmail, invalidEmail)} />
+                        {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
+                        <div style={{ display:"flex", gap:6 }}>
+                          <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={{ ...reqStyle(missingPhone, false), flex:1, marginBottom:0 }} />
+                          <input placeholder="Gäste *" type="number" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))} style={{ ...reqStyle(!formData.guests, false), width:110, marginBottom:0, textAlign:"center" }} />
                         </div>
-                        {showTypeSelect && (
-                          <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:6 }}>
-                            {eventTypes.filter(t => !t.isGroupTour).map(t => (
-                              <button key={t.id} onClick={() => { setFormData(f=>({...f, type:t.id})); setShowTypeSelect(false); }}
-                                style={{ flex:"1 1 calc(33% - 6px)", minWidth:0, padding:"8px 4px", border:`2px solid ${formData.type===t.id ? t.color : "#e0d8de"}`, borderRadius:10,
-                                  background: formData.type===t.id ? t.color+"12" : "#fff", cursor:"pointer", textAlign:"center", borderLeft:`4px solid ${t.color}`, transition:"all .15s" }}>
-                                <div style={{ fontWeight:700, fontSize:11, color: BRAND.aubergine, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t.label}</div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
-                      <input placeholder="Ihr Name *" value={formData.name} onChange={e => setFormData(f=>({...f, name:e.target.value}))} style={reqStyle(missingName, false)} />
-                      <input placeholder="E-Mail *" type="email" value={formData.email} onChange={e => setFormData(f=>({...f, email:e.target.value}))} style={reqStyle(missingEmail, invalidEmail)} />
-                      {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
-                      <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={reqStyle(missingPhone, false)} />
-                      <input placeholder="Gäste *" type="number" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))} style={reqStyle(!formData.guests, false)} />
-                      <textarea placeholder="Ihre Nachricht / Wünsche" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))} style={{ ...inputStyle, height:70, resize:"none" }} />
+
+                      {/* Nachricht-Karte */}
+                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
+                        <div style={{ fontSize:11, color:et?.color || BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                          Nachricht <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(optional)</span>
+                        </div>
+                        <textarea placeholder="Wünsche, Fragen, Details …" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))}
+                          style={{ width:"100%", minHeight:56, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, color:BRAND.aubergine, fontFamily:"inherit", resize:"none", boxSizing:"border-box", lineHeight:1.5 }} />
+                      </div>
+
+                      {/* Dokumente */}
                       {formData.type !== "sonstiges" && (
-                        <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                          <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" className="doc-green" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.moosgruen}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.moosgruen, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
-                            <span style={{ fontSize:15 }}>📋</span> Getränke- & Kuchenkarte ansehen
+                        <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+                          <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" style={{ flex:1, padding:"11px 12px", background:"transparent", border:`1px solid ${(et?.color || BRAND.lila)}40`, color:et?.color || BRAND.lila, fontSize:12, fontWeight:600, borderRadius:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit", textDecoration:"none", transition:"all .15s" }}>
+                            <svg width="12" height="13" viewBox="0 0 12 13" fill="none"><path d="M2 2.5a1 1 0 011-1h5l3 3v7a1 1 0 01-1 1H3a1 1 0 01-1-1v-9zM8 1.5v3h3" stroke={et?.color || BRAND.lila} strokeWidth="1"/></svg>
+                            Getränke- &amp; Kuchenkarte
                           </a>
-                          <a href={DOCS.weinkarte} target="_blank" rel="noopener noreferrer" className="doc-violet" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.aubergine}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.aubergine, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
-                            <span style={{ fontSize:15 }}>📋</span> Weinkarte ansehen
+                          <a href={DOCS.weinkarte} target="_blank" rel="noopener noreferrer" style={{ flex:1, padding:"11px 12px", background:"transparent", border:`1px solid ${(et?.color || BRAND.lila)}40`, color:et?.color || BRAND.lila, fontSize:12, fontWeight:600, borderRadius:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit", textDecoration:"none", transition:"all .15s" }}>
+                            <svg width="12" height="13" viewBox="0 0 12 13" fill="none"><path d="M2 2.5a1 1 0 011-1h5l3 3v7a1 1 0 01-1 1H3a1 1 0 01-1-1v-9zM8 1.5v3h3" stroke={et?.color || BRAND.lila} strokeWidth="1"/></svg>
+                            Weinkarte
                           </a>
                         </div>
                       )}
