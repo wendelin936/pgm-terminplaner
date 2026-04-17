@@ -759,7 +759,17 @@ export default function App() {
     // Google Calendar Sync (non-blocking, fire-and-forget)
     const oldSnapshot = lastSyncedEvents.current || {};
     lastSyncedEvents.current = withIds;
-    syncEventsDiff(oldSnapshot, withIds).then(patched => {
+    syncEventsDiff(oldSnapshot, withIds, (stats) => {
+      // Toast-Feedback wenn irgendwas passiert ist
+      if (stats.deleted || stats.created || stats.updated || stats.failed) {
+        const parts = [];
+        if (stats.created) parts.push(`${stats.created} neu`);
+        if (stats.updated) parts.push(`${stats.updated} aktualisiert`);
+        if (stats.deleted) parts.push(`${stats.deleted} gelöscht`);
+        if (stats.failed) parts.push(`${stats.failed} Fehler`);
+        showToast("Google Kalender", parts.join(" · "), true, stats.failed ? "#c44" : BRAND.moosgruen);
+      }
+    }).then(patched => {
       if (patched) {
         setEvents(patched);
         lastSyncedEvents.current = patched;
@@ -1404,7 +1414,7 @@ export default function App() {
                 {/* Series indicator for admin - S badge */}
                 {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>S</div>}
                 {/* Pending indicator for admin */}
-                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
+                {isPending && !isPast && ev.allDay && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
                   <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>
                   : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0" }} />
@@ -1414,36 +1424,40 @@ export default function App() {
                 {customerPublic && <div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
                 {customerSeries && ev.isPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
                 {ev && isAdmin && !ev.isSeries && (() => {
-                  // Bänder-Darstellung: nur bei teilverbuchten booked-Main-Events (nicht ganztägig)
-                  // Jeder Termin (Haupt + non-blocked SubEvents) bekommt einen eigenen Balken unten
-                  if (ev.status === "booked" && !ev.allDay) {
-                    const nonBlockedSubs = (ev.subEvents || []).filter(s => s && s.status !== "blocked").length;
-                    const count = Math.min(5, 1 + nonBlockedSubs);
+                  // Bänder-Darstellung: bei teilverbuchten booked- UND pending-Events (nicht ganztägig)
+                  // Jeder Termin (Haupt + non-blocked SubEvents) bekommt einen eigenen Balken unten, Farbe je Einzelstatus
+                  const isPartial = (ev.status === "booked" || ev.status === "pending") && !ev.allDay;
+                  if (isPartial) {
+                    const bands = [{ color: ev.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor }];
+                    (ev.subEvents || []).forEach(s => {
+                      if (s && s.status !== "blocked") bands.push({ color: s.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor });
+                    });
+                    const visible = bands.slice(0, 5);
                     const thickness = winW > 900 ? 4 : 3;
                     const gap = winW > 900 ? 2 : 1.5;
                     const bottomPad = winW > 900 ? 5 : 3;
                     const sidePad = winW > 900 ? 6 : 4;
                     return (
                       <div style={{ position:"absolute", bottom: bottomPad, left: sidePad, right: sidePad, display:"flex", flexDirection:"column", gap: gap+"px", pointerEvents:"none" }}>
-                        {Array.from({length: count}).map((_, i) => (
-                          <div key={i} style={{ height: thickness, background: statusColor, opacity: 0.85, borderRadius: 2 }} />
+                        {visible.map((b, i) => (
+                          <div key={i} style={{ height: thickness, background: b.color, opacity: 0.85, borderRadius: 2 }} />
                         ))}
                       </div>
                     );
                   }
-                  // Sonst: normale Dots (bei allDay + bei blocked-Main mit sub-Events)
-                  const dots = [];
-                  // Haupt-Event: nur Dot wenn NICHT blocked (blocked zeigt Hatching, braucht keinen extra Dot)
-                  if (ev.status !== "blocked") dots.push({ color: statusColor });
-                  // Sub-Events: Dots für alle nicht-blocked (auch wenn das Haupt-Event blocked ist)
-                  if (ev.subEvents) ev.subEvents.forEach(s => { if (s.status !== "blocked") dots.push({ color: s.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor }); });
-                  if (dots.length === 0) return null;
-                  const sz = winW > 900 ? 6 : 4;
-                  return (
-                    <div style={{ display:"flex", gap:2, marginTop:3, justifyContent:"center" }}>
-                      {dots.map((d,i) => <div key={i} style={{ width:sz, height:sz, borderRadius:"50%", background: d.color }} />)}
-                    </div>
-                  );
+                  // Bei blocked-Haupt: Dots für non-blocked Sub-Events (damit Zusatz-Buchungen sichtbar bleiben)
+                  if (ev.status === "blocked") {
+                    const subDots = (ev.subEvents || []).filter(s => s && s.status !== "blocked").map(s => ({ color: s.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor }));
+                    if (subDots.length === 0) return null;
+                    const sz = winW > 900 ? 6 : 4;
+                    return (
+                      <div style={{ display:"flex", gap:2, marginTop:3, justifyContent:"center" }}>
+                        {subDots.map((d,i) => <div key={i} style={{ width:sz, height:sz, borderRadius:"50%", background: d.color }} />)}
+                      </div>
+                    );
+                  }
+                  // allDay booked/pending: nichts (Punkt weg, User-Wunsch)
+                  return null;
                 })()}
               </button>
             );
@@ -1535,9 +1549,14 @@ export default function App() {
                   <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                     <span style={{ fontWeight:600, color, fontSize: winW > 900 ? 14 : 13 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
                     <span style={{ fontSize: winW > 900 ? 14 : 13, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ""}</span>
-                    {ev.slotLabel && <span style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:3 }}><ClockIcon color="#bbb" size={11} />{ev.slotLabel}</span>}
                   </div>
-                  {(ev.name || ev.adminNote) && <div style={{ fontSize:12, color:"#999", marginTop:3, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}{ev.adminNote ? (ev.name ? " · " : "") + ev.adminNote : ""}</div>}
+                  {(ev.slotLabel || ev.name) && (
+                    <div style={{ fontSize:12, color:"#999", marginTop:3, display:"flex", alignItems:"center", gap:10, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                      {ev.slotLabel && <span style={{ display:"inline-flex", alignItems:"center", gap:3, flexShrink:0 }}><ClockIcon color="#bbb" size={11} />{ev.slotLabel}</span>}
+                      {ev.slotLabel && ev.name && <span style={{ width:1, height:12, background:"#ddd", flexShrink:0 }} />}
+                      {ev.name && <span style={{ overflow:"hidden", textOverflow:"ellipsis" }}>{ev.name}</span>}
+                    </div>
+                  )}
                 </div>
                 {badge}
               </div>
