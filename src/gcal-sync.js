@@ -160,7 +160,11 @@ export async function syncEventsDiff(oldEvents, newEvents) {
     }
   }
 
-  if (ops.length === 0) return null;
+  if (ops.length === 0) {
+    console.log("[gcal sync] no ops — oldMap size:", oldMap.size, "newMap size:", newMap.size);
+    return null;
+  }
+  console.log("[gcal sync] sending ops:", ops);
 
   // Batch-Request
   let results;
@@ -171,6 +175,7 @@ export async function syncEventsDiff(oldEvents, newEvents) {
       body: JSON.stringify({ ops }),
     });
     const data = await res.json();
+    console.log("[gcal sync] response:", data);
     if (!data.ok) { console.warn("[gcal sync] batch failed:", data); return null; }
     results = data.results || [];
   } catch (e) {
