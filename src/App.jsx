@@ -459,6 +459,7 @@ export default function App() {
 
   const [showTypeSelect, setShowTypeSelect] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [adminSubmitAttempted, setAdminSubmitAttempted] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [winW, setWinW] = useState(typeof window !== "undefined" ? window.innerWidth : 800);
   const [winH, setWinH] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
@@ -593,6 +594,8 @@ export default function App() {
   const handleLogin = async () => { setLoginError(""); try { await adminLogin(loginEmail, loginPw); setLoginModal(false); setLoginEmail(""); setLoginPw(""); } catch (e) { setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen"); } };
   const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
 
+  useEffect(() => { setAdminSubmitAttempted(false); }, [modalView, selectedDate]);
+
 
 
   const today = new Date();
@@ -643,6 +646,24 @@ export default function App() {
   };
 
   const handleAdminSave = () => {
+    // Pflichtfeld-Check bei Kundenbuchungen (type="booked")
+    if (adminForm.type === "booked") {
+      const isGroup = adminForm.eventType === "gruppenfuehrung";
+      if (isGroup) {
+        // Gruppenführung: Ansprechpartner + Telefon
+        if (!(adminForm.contactName || "").trim() || !(adminForm.contactPhone || "").trim()) {
+          setAdminSubmitAttempted(true);
+          return;
+        }
+      } else {
+        // Normale Kundenbuchung: Name (groupName-Feld) + Telefon
+        if (!(adminForm.groupName || "").trim() || !(adminForm.customerPhone || "").trim()) {
+          setAdminSubmitAttempted(true);
+          return;
+        }
+      }
+    }
+    setAdminSubmitAttempted(false);
     prevEvents.current = { ...events };
     const updated = { ...events };
     const st = adminForm.startTime || "08:00";
@@ -675,7 +696,7 @@ export default function App() {
     const et = eventTypes.find(e => e.id === formData.type);
     const isGroup = et?.isGroupTour;
     const valid = formData.name.trim() && formData.email.trim() && /\S+@\S+\.\S+/.test(formData.email)
-      && (!isGroup || (formData.guests && Number(formData.guests) >= (et?.minPersons || 10)));
+      && (!isGroup || (formData.phone.trim() && formData.guests && Number(formData.guests) >= (et?.minPersons || 10)));
     if (!valid) { setSubmitAttempted(true); return; }
     let slotLabel, startTime, endTime;
     if (isGroup) {
@@ -1119,9 +1140,13 @@ export default function App() {
                 {customerBooked && <div style={{ display:"flex", gap:2, marginTop:2 }}><div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.lila }} /></div>}
                 {customerPublic && <div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
                 {customerSeries && ev.isPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
-                {ev && isAdmin && !ev.isSeries && ev.status !== "blocked" && (() => {
-                  const dots = [{ color: statusColor }];
+                {ev && isAdmin && !ev.isSeries && (() => {
+                  const dots = [];
+                  // Haupt-Event: nur Dot wenn NICHT blocked (blocked zeigt Hatching, braucht keinen extra Dot)
+                  if (ev.status !== "blocked") dots.push({ color: statusColor });
+                  // Sub-Events: Dots für alle nicht-blocked (auch wenn das Haupt-Event blocked ist)
                   if (ev.subEvents) ev.subEvents.forEach(s => { if (s.status !== "blocked") dots.push({ color: s.status === "booked" ? BRAND.lila : BRAND.aprikot }); });
+                  if (dots.length === 0) return null;
                   const sz = winW > 900 ? 6 : 4;
                   return (
                     <div style={{ display:"flex", gap:2, marginTop:3, justifyContent:"center" }}>
@@ -1649,7 +1674,13 @@ export default function App() {
             })()}
 
             {/* Admin Form */}
-            {modalView === "admin" && (
+            {modalView === "admin" && (() => {
+              // Helper für Pflichtfeld-Styling im Admin-Form
+              const reqAdmin = (empty) => ({
+                borderColor: empty && adminSubmitAttempted ? "#c44" : "#e0d8de",
+                background: empty && adminSubmitAttempted ? "#fdf6f6" : "#fff",
+              });
+              return (
               <>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
                   <button onClick={() => { if (events[selectedDate] && events[selectedDate].status !== "deleted") { setModalView("info"); } else { setModalView(null); } }}
@@ -1718,13 +1749,13 @@ export default function App() {
                 {adminForm.type === "booked" && adminForm.eventType !== "gruppenfuehrung" && (
                   <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
                     <div style={{ fontSize:9, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Kundendaten</div>
-                    <input placeholder="Name (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                    <input placeholder="Name * (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
+                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
                     <div style={{ display:"flex", gap:6, marginBottom:6 }}>
                       <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
                         style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
-                      <input placeholder="Telefon" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
-                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
+                        style={{ flex:1, padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
                     <input placeholder="Anzahl Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
                       style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
@@ -1740,10 +1771,10 @@ export default function App() {
                     <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
                     <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-                      <input placeholder="Ansprechpartner" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
-                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
-                      <input placeholder="Telefon" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
-                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
+                        style={{ flex:1, padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                        style={{ flex:1, padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
                     <div style={{ display:"flex", gap:6, marginBottom:8 }}>
                       <div style={{ flex:1 }}>
@@ -1902,7 +1933,8 @@ export default function App() {
 
                 <button onClick={handleAdminSave} style={primaryBtn}>Speichern</button>
               </>
-            )}
+              );
+            })()}
 
             {/* Customer Form */}
             {modalView === "form" && (() => {
@@ -1923,7 +1955,8 @@ export default function App() {
               const invalidEmail = !missingEmail && !/\S+@\S+\.\S+/.test(formData.email);
               const guestsTooLow = isGroup && nGuests < (et?.minPersons || 10);
               const missingGuests = isGroup && !formData.guests;
-              const canSubmit = !missingName && !missingEmail && !invalidEmail && (!isGroup || (!missingGuests && !guestsTooLow));
+              const missingPhone = isGroup && !formData.phone.trim();
+              const canSubmit = !missingName && !missingEmail && !invalidEmail && !missingPhone && (!isGroup || (!missingGuests && !guestsTooLow));
               const sa = submitAttempted;
               const reqStyle = (empty, invalid) => !sa ? inputStyle : invalid ? { ...inputStyle, borderColor:"#c44", background:"#fdf6f6" } : empty ? { ...inputStyle, borderColor: et?.color || BRAND.aprikot, background: (et?.color || BRAND.aprikot)+"08" } : inputStyle;
               const ec = et?.color || BRAND.lila;
@@ -2042,7 +2075,7 @@ export default function App() {
                       <input placeholder="Ihr Name *" value={formData.name} onChange={e => setFormData(f=>({...f, name:e.target.value}))} style={reqStyle(missingName, false)} />
                       <input placeholder="E-Mail *" type="email" value={formData.email} onChange={e => setFormData(f=>({...f, email:e.target.value}))} style={reqStyle(missingEmail, invalidEmail)} />
                       {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
-                      <input placeholder="Telefon" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={inputStyle} />
+                      <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={reqStyle(missingPhone, false)} />
                       <textarea placeholder="Ihre Nachricht / Wünsche" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))} style={{ ...inputStyle, height:50, resize:"none" }} />
                       <button onClick={handleCustomerSubmit} style={primaryBtn}>Anfrage senden</button>
                     </>
