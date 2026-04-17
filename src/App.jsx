@@ -628,17 +628,7 @@ export default function App() {
     else { meta = document.createElement("meta"); meta.name = "viewport"; meta.content = "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"; document.head.appendChild(meta); }
   }, []);
 
-  const SEED_EVENTS = {
-    "2026-04-12": { status:"booked", label:"Geburtstagsfeier", type:"geburtstag", slot:"custom", startTime:"14:00", endTime:"18:00", slotLabel:"14:00 – 18:00", name:"Frieda", adminNote:"Frieda wird 50!", checklist:[{text:"Deko mitbringen",done:false},{text:"Torte bestellen",done:false},{text:"Einladungen verschickt",done:true}] },
-    "2026-04-25": { status:"booked", label:"Seminar / Workshop", type:"seminar", slot:"fullDay", startTime:"08:00", endTime:"22:00", slotLabel:"Ganztags (08:00–22:00)", name:"", adminNote:"Workshop ganztägig" },
-    "2026-05-02": { status:"booked", label:"Hochzeit", type:"hochzeit", slot:"fullDay", startTime:"10:00", endTime:"22:00", slotLabel:"10:00 – 22:00", name:"Klara & Stefan Winkler", adminNote:"Trauung 14:00, 120 Gäste, Catering extern", guests:"120" },
-    "2026-05-16": { status:"booked", label:"Firmenfeier", type:"firmenfeier", slot:"halfDayPM", startTime:"14:00", endTime:"20:00", slotLabel:"14:00 – 20:00", name:"Infineon Klagenfurt", adminNote:"Sommerfeier Team Automotive, DJ ab 18 Uhr", guests:"60" },
-    "2026-06-06": { status:"booked", label:"Gruppenführung", type:"gruppenfuehrung", slot:"custom", startTime:"10:00", endTime:"12:30", slotLabel:"10:00 – 12:30", name:"Volksschule St. Ruprecht", adminNote:"2 Klassen, ca. 45 Kinder + Begleitung", guests:"50", tourGuide:true },
-    "2026-04-18": { status:"pending", label:"Hochzeit", type:"hochzeit", slot:"fullDay", startTime:"08:00", endTime:"22:00", slotLabel:"Ganztags (08:00–22:00)", name:"Maria Huber", email:"maria@example.at", phone:"+43 660 1234567", guests:"80", message:"Wir würden gerne die Terrasse nutzen. Gibt es einen DJ-Anschluss?" },
-    "2026-05-09": { status:"pending", label:"Firmenfeier", type:"firmenfeier", slot:"halfDayPM", startTime:"13:00", endTime:"18:00", slotLabel:"Halbtags Nachmittag (13:00–18:00)", name:"Thomas Berger", email:"t.berger@firma.at", phone:"+43 664 9876543", guests:"35", message:"Sommerfest für unser Team, vegetarisches Catering gewünscht." },
-    "2026-05-23": { status:"pending", label:"Geburtstagsfeier", type:"geburtstag", slot:"custom", startTime:"16:00", endTime:"22:00", slotLabel:"16:00 – 22:00", name:"Lisa Moser", email:"lisa.moser@gmx.at", phone:"+43 650 3344556", guests:"25", message:"Gartenparty zum 30er, eigene Musik, brauchen wir eine Genehmigung?" },
-    "2026-06-13": { status:"pending", label:"Seminar / Workshop", type:"seminar", slot:"halfDayAM", startTime:"08:00", endTime:"13:00", slotLabel:"Halbtags Vormittag (08:00–13:00)", name:"Dr. Eva Kern", email:"eva.kern@uni-klu.at", phone:"+43 463 2700100", guests:"18", message:"Botanik-Workshop für Studierende, Beamer benötigt." },
-  };
+  const SEED_EVENTS = {};
   const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   const [editingType, setEditingType] = useState(null);
@@ -1052,7 +1042,7 @@ export default function App() {
               const actions = [
                 {
                   label:"Preise", full:"Preise verwalten", color:BRAND.sonnengelb, onClick:() => setShowPrices(true),
-                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6.5A7 7 0 0 0 8 9"/><path d="M18 17.5A7 7 0 0 1 8 15"/><line x1="4" y1="10" x2="14" y2="10"/><line x1="4" y1="14" x2="13" y2="14"/></svg>
                 },
                 {
                   label:"Design Kunde", full:"Design Kundenansicht", color:BRAND.aprikot, onClick:() => setShowDesign(true),
