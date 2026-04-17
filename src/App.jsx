@@ -885,7 +885,7 @@ export default function App() {
         <div onClick={!isAdmin ? () => { if (loggedIn) { setIsAdmin(true); setModalView(null); } else setLoginModal(true); } : undefined}
           style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1, cursor: !isAdmin ? "pointer" : "default" }}>
           <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? 24 : 26, flexShrink:0 }} />
-          <div style={{ marginLeft: winW < 520 ? 8 : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", gap: winW < 520 ? 0 : 0, minWidth:0 }}>
+          <h1 style={{ margin:0, marginLeft: winW < 520 ? 8 : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", minWidth:0 }}>
             {winW < 520 ? (
               <>
                 <span style={{ fontSize:11, letterSpacing:2, color:"#fff", fontWeight:600, lineHeight:1.2 }}>PARADIESGÄRTEN</span>
@@ -894,7 +894,7 @@ export default function App() {
             ) : (
               <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"#fff" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}> MATTUSCHKA</span></span>
             )}
-          </div>
+          </h1>
         </div>
         {isAdmin && (
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -1029,7 +1029,7 @@ export default function App() {
                 <div key={et.id} onClick={() => handleCardClick(et.id)} className="evt-card"
                   style={{ "--card-color": et.color, background:"#fff", borderRadius: big ? 12 : 10, padding: cardPad, borderLeft:`${big ? 4 : 3}px solid ${et.color}`, boxShadow:"0 2px 10px rgba(0,0,0,0.04)", cursor:"pointer", transition:"all .25s ease", display:"flex", flexDirection:"column", minWidth:0 }}>
                   {/* Top section: label, desc, detail, tags — closely stacked */}
-                  <div style={{ fontWeight:700, color: et.color, fontSize: cardLabelFs, marginBottom:3, wordBreak:"break-word", hyphens:"auto", lineHeight:1.2 }}>{et.label}</div>
+                  <h3 style={{ margin:0, fontWeight:700, color: et.color, fontSize: cardLabelFs, marginBottom:3, wordBreak:"break-word", hyphens:"auto", lineHeight:1.2 }}>{et.label}</h3>
                   <div style={{ fontSize: cardDescFs, color:"#666", lineHeight:1.35, marginBottom:8, fontWeight:500, display:"-webkit-box", WebkitBoxOrient:"vertical", WebkitLineClamp: descLines, overflow:"hidden", textOverflow:"ellipsis" }}>{et.desc}</div>
                   {showDetail && et.detail && (
                     <div style={{ fontSize: cardDetailFs, color:"#888", lineHeight:1.45, marginBottom:8, display:"-webkit-box", WebkitBoxOrient:"vertical", WebkitLineClamp: detailLines, overflow:"hidden", textOverflow:"ellipsis" }}>{et.detail}</div>
