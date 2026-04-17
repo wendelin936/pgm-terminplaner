@@ -352,8 +352,8 @@ function SwipeRow({ children, onSwipeRight, onSwipeLeft, rightLabel="✓", leftL
         </div>
       )}
       {onSwipeLeft && (
-        <div style={{ position:"absolute", inset:0, background:"#f0ecf0", display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 16px" }}>
-          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="#c44" strokeWidth="2" strokeLinecap="round"/></svg>
+        <div style={{ position:"absolute", inset:0, background:leftColor, display:"flex", alignItems:"center", justifyContent:"flex-end", padding:"0 22px" }}>
+          <span style={{ color:"#888", fontWeight:500, fontSize:14, letterSpacing:0.5 }}>{leftLabel}</span>
         </div>
       )}
       <div ref={rowRef} style={{ position:"relative", zIndex:1, willChange:"transform" }}>
@@ -759,20 +759,11 @@ export default function App() {
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
     try { await saveData("events", JSON.stringify(withIds)); } catch {}
-    // Google Calendar Sync (non-blocking, fire-and-forget)
+    // Google Calendar Sync läuft im Hintergrund silent — kein Toast mehr bei jeder Änderung.
+    // Toasts gibt es nur noch bei Bestätigen, Herabstufen oder Löschen (siehe handleAdminAction / handleAdminSave).
     const oldSnapshot = lastSyncedEvents.current || {};
     lastSyncedEvents.current = withIds;
-    syncEventsDiff(oldSnapshot, withIds, (stats) => {
-      // Toast-Feedback wenn irgendwas passiert ist
-      if (stats.deleted || stats.created || stats.updated || stats.failed) {
-        const parts = [];
-        if (stats.created) parts.push(`${stats.created} neu`);
-        if (stats.updated) parts.push(`${stats.updated} aktualisiert`);
-        if (stats.deleted) parts.push(`${stats.deleted} gelöscht`);
-        if (stats.failed) parts.push(`${stats.failed} Fehler`);
-        showToast("Google Kalender", parts.join(" · "), true, stats.failed ? "#c44" : BRAND.moosgruen);
-      }
-    }).then(patched => {
+    syncEventsDiff(oldSnapshot, withIds).then(patched => {
       if (patched) {
         setEvents(patched);
         lastSyncedEvents.current = patched;
@@ -904,6 +895,11 @@ export default function App() {
     }
     setAdminSubmitAttempted(false);
     prevEvents.current = { ...events };
+    // Alten Status ermitteln für Herabstufungs-Erkennung (booked → pending)
+    const prevMain = events[selectedDate];
+    const prevSub = editingSubIndex >= 0 ? prevMain?.subEvents?.[editingSubIndex] : null;
+    const prevStatus = prevSub?.status ?? prevMain?.status;
+    const isDowngrade = prevStatus === "booked" && adminForm.type === "pending";
     const updated = { ...events };
     const st = adminForm.startTime || "08:00";
     const et = adminForm.endTime || "22:00";
@@ -962,6 +958,9 @@ export default function App() {
       if (!wasAlreadyBooked) notifyGroupTour(selectedDate, entry);
     }
     saveEvents(updated);
+    if (isDowngrade) {
+      showToast("Auf Anfrage gesetzt", `${fmtDateAT(selectedDate)}${entry.label ? " · " + entry.label : ""}${entry.name ? " · " + entry.name : ""}`, true, BRAND.aprikot);
+    }
     if (!silent) {
       setModalView(null);
       setEditingSubIndex(-1);
@@ -1432,15 +1431,16 @@ export default function App() {
             const statusColor = ev ? (ev.status === "booked" ? adminTheme.bookedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.blockedColor) : null;
             const isPending = ev?.status === "pending" && isAdmin;
             const isBlockedAdmin = ev && isAdmin && ev.status === "blocked" && !ev.isSeries;
+            const isBlockedAdminAllDay = isBlockedAdmin && ev.allDay; // strichlierter Hatch nur bei ganztägig
             const isSeriesAdmin = ev && isAdmin && ev.isSeries;
             return (
               <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : (isAdmin && ev && (ev.status === "booked" || ev.status === "blocked" || ev.status === "pending")) ? "day-hasevent" : "day-free"} onClick={() => handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : customerPublic ? (ev.label || "Veranstaltung") : isAdmin && ev?.label ? ev.label : ""}
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2.5px solid ${adminTheme.todayColor}` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}60` : isBlockedAdmin ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid ${adminTheme.todayColor}` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}60` : isBlockedAdminAllDay ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}30` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : "#fff") : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}30` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : "#fff") : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
@@ -1458,13 +1458,14 @@ export default function App() {
                 {customerPublic && <div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
                 {customerSeries && ev.isPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
                 {ev && isAdmin && !ev.isSeries && (() => {
-                  // Bänder-Darstellung: bei teilverbuchten booked- UND pending-Events (nicht ganztägig)
-                  // Jeder Termin (Haupt + non-blocked SubEvents) bekommt einen eigenen Balken unten, Farbe je Einzelstatus
-                  const isPartial = (ev.status === "booked" || ev.status === "pending") && !ev.allDay;
+                  // Bänder-Darstellung: bei teilverbuchten Events (nicht ganztägig) — egal ob gebucht, Anfrage oder intern
+                  // Jeder Termin (Haupt + SubEvents) bekommt einen eigenen Balken unten, Farbe je Einzelstatus
+                  const isPartial = !ev.allDay && (ev.status === "booked" || ev.status === "pending" || ev.status === "blocked");
+                  const bandColor = (s) => s.status === "blocked" ? adminTheme.blockedColor : s.status === "pending" ? adminTheme.pendingColor : adminTheme.bookedColor;
                   if (isPartial) {
-                    const bands = [{ color: ev.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor }];
+                    const bands = [{ color: bandColor(ev) }];
                     (ev.subEvents || []).forEach(s => {
-                      if (s && s.status !== "blocked") bands.push({ color: s.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor });
+                      if (s && !s.allDay) bands.push({ color: bandColor(s) });
                     });
                     const visible = bands.slice(0, 5);
                     const thickness = winW > 900 ? 4 : 3;
@@ -1479,8 +1480,8 @@ export default function App() {
                       </div>
                     );
                   }
-                  // Bei blocked-Haupt: Dots für non-blocked Sub-Events (damit Zusatz-Buchungen sichtbar bleiben)
-                  if (ev.status === "blocked") {
+                  // Bei blocked-Haupt ganztägig: Dots für non-blocked Sub-Events (damit Zusatz-Buchungen im strichlierten Tag sichtbar bleiben)
+                  if (ev.status === "blocked" && ev.allDay) {
                     const subDots = (ev.subEvents || []).filter(s => s && s.status !== "blocked").map(s => ({ color: s.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor }));
                     if (subDots.length === 0) return null;
                     const sz = winW > 900 ? 6 : 4;
@@ -1590,8 +1591,8 @@ export default function App() {
             const d = new Date(yy,mm-1,dd);
             const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
             const monthShort = MONTHS_SHORT[mm-1];
-            // Akzentbalken links nach Status: gebucht = lila, intern/Serie = türkis, Anfrage = aprikot
-            const accentColor = ev.status === "blocked" ? "#009a93" : ev.status === "pending" ? BRAND.aprikot : BRAND.lila;
+            // Akzentbalken links nach Status — Farben aus dem Admin-Design-Theme, damit Kalender und Liste synchron bleiben
+            const accentColor = ev.status === "blocked" ? adminTheme.blockedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.bookedColor;
             return (
               <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
                 style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${accentColor}`, cursor:"pointer" }}>
@@ -3326,7 +3327,7 @@ export default function App() {
           .evt-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.10) !important; border-left-width: 4px !important; background: color-mix(in srgb, var(--card-color) 6%, #fff) !important; }
           .day-free:hover { background: rgba(0,154,147,0.08) !important; border-color: rgba(0,154,147,0.3) !important; }
           .day-hasevent:hover { filter: none !important; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.08) !important; }
-          .admin-card:hover { background: rgba(144,52,134,0.05) !important; border-left-color: ${BRAND.lila} !important; box-shadow: 0 2px 8px rgba(88,8,74,0.08) !important; }
+          .admin-card:hover { background: #faf6fa !important; border-left-color: ${BRAND.lila} !important; box-shadow: 0 2px 8px rgba(88,8,74,0.08) !important; }
           .doc-green:hover { background: ${BRAND.moosgruen}12 !important; border-color: ${BRAND.moosgruen}80 !important; }
           .doc-violet:hover { background: ${BRAND.lila}12 !important; border-color: ${BRAND.lila}80 !important; }
         }
