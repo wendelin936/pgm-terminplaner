@@ -18,7 +18,7 @@ const BRAND = {
 // Design-Theme für Kundenansicht (anpassbar über Admin → "Design anpassen - Kundenansicht")
 // Event-Typ-Akzente kommen separat aus eventTypes[i].color
 const DEFAULT_THEME = {
-  bgColor: "#f0ecf0",       // Hintergrund der Kundenansicht
+  bgColor: "#e8e1eb",       // Hintergrund der Kundenansicht
   headerBg: "#58084a",       // Titelleiste Hintergrund (aubergine)
   headerText: "#ffffff",     // Titelleiste Textfarbe
   footerBg: "#903486",       // Footer Akzent (aus Lila-Tint)
@@ -29,6 +29,7 @@ const DEFAULT_THEME = {
 
 // Design-Theme für Adminansicht (Kalender-Akzentfarben etc.)
 const DEFAULT_ADMIN_THEME = {
+  bgColor: "#e8e1eb",       // Hintergrund der Adminansicht
   bookedColor: "#903486",   // Gebuchte Termine (lila)
   pendingColor: "#f28c5a",  // Offene Anfragen (aprikot)
   blockedColor: "#009a93",  // Interne/blockierte Termine (türkis)
@@ -1002,7 +1003,7 @@ export default function App() {
   if (loading) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui", color: BRAND.aubergine }}>Laden...</div>;
 
   return (
-    <div style={{ minHeight:"100svh", ...(isAdmin ? {} : { display:"flex", flexDirection:"column" }), background: isAdmin ? `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)` : siteTheme.bgColor, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
+    <div style={{ minHeight:"100svh", ...(isAdmin ? {} : { display:"flex", flexDirection:"column" }), background: isAdmin ? adminTheme.bgColor : siteTheme.bgColor, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
       {toast && (
         <div key={toastKey} style={{ position:"fixed", top:56, left:"50%", transform:"translateX(-50%)", background: BRAND.aubergine, color:"#fff", borderRadius:10, zIndex:1100, boxShadow:"0 4px 20px rgba(88,8,74,0.3)", animation:"fadeIn .25s", overflow:"hidden", minWidth:220, maxWidth:"92vw" }}>
           <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
@@ -1823,6 +1824,16 @@ export default function App() {
                       ))}
                     </Section>
                   </>
+                )}
+
+                {isAdminMode && (
+                  <Section title="Layout – Adminansicht">
+                    <FieldRow label="Seiten-Hintergrund" value={draftAdmin.bgColor} defaultValue={DEFAULT_ADMIN_THEME.bgColor}
+                      dirty={isDirtyAdmin("bgColor")} pickerKey="admin:bgColor"
+                      onChange={v => updateDraftAdmin("bgColor", v)}
+                      onSave={() => saveFieldAdmin("bgColor")}
+                      onReset={() => resetFieldAdmin("bgColor")} />
+                  </Section>
                 )}
 
                 {isAdminMode && (
