@@ -1045,9 +1045,38 @@ export default function App() {
         </div>
         {isAdmin && (
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            {/* 3 Admin-Action-Buttons: Desktop mit Label, Mobile nur Icon */}
+            {(() => {
+              const isSmall = winW < 900;
+              const H = 32;
+              const actions = [
+                {
+                  label:"Preise", full:"Preise verwalten", color:BRAND.sonnengelb, onClick:() => setShowPrices(true),
+                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                },
+                {
+                  label:"Design Kunde", full:"Design Kundenansicht", color:BRAND.aprikot, onClick:() => setShowDesign(true),
+                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.4 0 2.3-.7 2.3-1.8 0-1-.9-1.5-.9-2.5 0-1 .9-1.7 1.9-1.7H17c2.8 0 5-2.2 5-5 0-4.4-4.5-9-10-9z"/></svg>
+                },
+                {
+                  label:"Design Admin", full:"Design Adminansicht", color:BRAND.tuerkis, onClick:() => setShowDesignAdmin(true),
+                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                },
+              ];
+              return actions.map((a, i) => (
+                <button key={i} onClick={a.onClick} title={a.full}
+                  onMouseEnter={e => { e.currentTarget.style.background=`${a.color}35`; e.currentTarget.style.borderColor=`${a.color}90`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background=`${a.color}20`; e.currentTarget.style.borderColor=`${a.color}55`; }}
+                  style={{ background:`${a.color}20`, border:`1px solid ${a.color}55`, color:"#fff", height:H, width: isSmall ? H : "auto", padding: isSmall ? 0 : "0 12px", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:600, letterSpacing:0.3, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s" }}>
+                  <span style={{ color:a.color, display:"flex", alignItems:"center" }}>{a.icon}</span>
+                  {!isSmall && <span>{a.label}</span>}
+                </button>
+              ));
+            })()}
             <button onClick={() => { setIsAdmin(false); setModalView(null); }}
-              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding:"0 12px", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center" }}>
-              ← Kundenansicht
+              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding: winW < 900 ? 0 : "0 12px", width: winW < 900 ? 32 : "auto", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}
+              title="Kundenansicht">
+              {winW < 900 ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg> : "← Kundenansicht"}
             </button>
             <button onClick={() => { setIsAdmin(false); setModalView(null); }}
               title="Abmelden"
@@ -1524,27 +1553,6 @@ export default function App() {
             </div>
           );
         })()}
-
-        {/* Admin: Preise verwalten + Design anpassen */}
-        {isAdmin && (
-          <div style={{ display:"flex", gap:8, marginTop:16, marginBottom:20, flexWrap:"wrap" }}>
-            <button onClick={() => setShowPrices(true)}
-              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
-              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:BRAND.aubergine, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
-              Preise verwalten
-            </button>
-            <button onClick={() => setShowDesign(true)}
-              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
-              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:BRAND.lila, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
-              Design anpassen – Kundenansicht
-            </button>
-            <button onClick={() => setShowDesignAdmin(true)}
-              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
-              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:"#009a93", border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
-              Design anpassen – Adminansicht
-            </button>
-          </div>
-        )}
 
         {/* Prices Modal */}
         {showPrices && (
