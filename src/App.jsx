@@ -613,6 +613,9 @@ export default function App() {
   const [typeSelectExpanded, setTypeSelectExpanded] = useState(false); // Event-Typ-Auswahl im Admin-Modal auf-/zuklappbar
   const [statusCollapsed, setStatusCollapsed] = useState(true); // Status-Buttons (Gebucht/Anfrage/Intern) eingeklappt?
   const [timeCollapsed, setTimeCollapsed] = useState(true); // Zeit + Ganztägig eingeklappt?
+  const [chipPopup, setChipPopup] = useState(null); // null | "status" | "date" | "time" | "type"
+  const [datePopupMonth, setDatePopupMonth] = useState(null);
+  const [datePopupYear, setDatePopupYear] = useState(null);
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -1025,6 +1028,36 @@ export default function App() {
         })
       }).catch(() => {});
     } catch {}
+  };
+
+  // Öffnet einen Termin direkt im Admin-Bearbeiten-Modal (statt über Info-View-Zwischenschritt)
+  const openEventInAdmin = (key, subIndex = -1) => {
+    const ev = events[key];
+    if (!ev) return;
+    const src = subIndex >= 0 ? ev.subEvents?.[subIndex] : ev;
+    if (!src) return;
+    setSelectedDate(key);
+    setFromCalendar(false);
+    setEditingSubIndex(subIndex);
+    setAdminForm({
+      type: src.status || "booked", label: src.label || "", note: src.note || "",
+      startTime: src.startTime || "08:00", endTime: src.endTime || "22:00",
+      adminNote: src.adminNote || "", eventType: src.type || "",
+      allDay: src.allDay || false, checklist: src.checklist || [],
+      contactName: src.contactName || "", contactPhone: src.contactPhone || "",
+      contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "",
+      publicText: src.publicText || "", isPublic: src.isPublic || false,
+      isSeries: false, seriesDates: [],
+      guests: src.guests || "", tourGuide: src.tourGuide || false,
+      cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0,
+      groupName: src.groupName || src.name || "",
+      customerEmail: src.email || "", customerPhone: src.phone || "",
+      customerMessage: src.message || "", price: src.price || "",
+      paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "",
+      cleaningFee: !!src.cleaningFee,
+    });
+    setEditingTime(null); setSeriesMonth(null); setSeriesYear(null);
+    setModalView("admin");
   };
 
   const handleAdminAction = (key, action, subIndex = -1) => {
@@ -1534,7 +1567,7 @@ export default function App() {
                   const rowKey = `${key}${subIndex>=0?"-s"+subIndex:""}`;
                   return (
                     <SwipeRow key={rowKey} onSwipeRight={() => handleAdminAction(key,"confirm",subIndex)} onSwipeLeft={() => handleAdminAction(key,"delete",subIndex)} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
-                      <div onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
+                      <div onClick={() => openEventInAdmin(key, subIndex)} className="admin-card"
                         style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${BRAND.aprikot}`, cursor:"pointer" }}>
                         <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
                           <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{dayName}</div>
@@ -1599,7 +1632,7 @@ export default function App() {
             // Akzentbalken links nach Status — Farben aus dem Admin-Design-Theme, damit Kalender und Liste synchron bleiben
             const accentColor = ev.status === "blocked" ? adminTheme.blockedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.bookedColor;
             return (
-              <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
+              <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => openEventInAdmin(key, ev._subIndex ?? -1)} className="admin-card"
                 style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${accentColor}`, cursor:"pointer" }}>
                 <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
                   <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{dayName}</div>
@@ -2484,19 +2517,15 @@ export default function App() {
                   const monatKurz = ["Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][mm-1];
                   const dateShort = `${wochentag} · ${dd}. ${monatKurz}`;
                   const zeitText = adminForm.allDay ? "Ganztägig" : `${adminForm.startTime || "08:00"} – ${adminForm.endTime || "22:00"}`;
+                  const toggleChip = (name) => setChipPopup(p => p === name ? null : name);
                   const canEditStatus = !adminForm.editAllSeries;
-                  // Exclusive expand: only one editor open at a time
-                  const expandStatus = () => { setStatusCollapsed(false); setTimeCollapsed(true); setTypeSelectExpanded(false); };
-                  const expandTime = () => { setTimeCollapsed(false); setStatusCollapsed(true); setTypeSelectExpanded(false); };
-                  const expandType = () => { setTypeSelectExpanded(true); setStatusCollapsed(true); setTimeCollapsed(true); };
+                  const canEditType = adminForm.type === "booked" || adminForm.type === "pending";
                   return (
                   <>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                     {/* STATUS */}
-                    <div onClick={canEditStatus ? expandStatus : undefined}
-                      style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px", cursor: canEditStatus ? "pointer" : "default", border:"1px solid transparent", transition:"border .15s" }}
-                      onMouseEnter={e => { if (canEditStatus) e.currentTarget.style.border=`1px solid ${statusMeta.color}40`; }}
-                      onMouseLeave={e => { e.currentTarget.style.border="1px solid transparent"; }}>
+                    <div onClick={canEditStatus ? () => toggleChip("status") : undefined}
+                      style={{ background: chipPopup === "status" ? "#ece3ea" : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor: canEditStatus ? "pointer" : "default", border: chipPopup === "status" ? `1px solid ${statusMeta.color}60` : "1px solid transparent", transition:"all .15s" }}>
                       <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Status</div>
                       <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
                         <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
@@ -2504,22 +2533,21 @@ export default function App() {
                       </div>
                     </div>
                     {/* DATUM */}
-                    <div style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px" }}>
+                    <div onClick={() => { if (chipPopup !== "date") { setDatePopupMonth(mm-1); setDatePopupYear(yy); } toggleChip("date"); }}
+                      style={{ background: chipPopup === "date" ? "#ece3ea" : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: chipPopup === "date" ? `1px solid ${BRAND.lila}60` : "1px solid transparent", transition:"all .15s" }}>
                       <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Datum</div>
                       <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginTop:4 }}>{dateShort}</div>
                     </div>
                     {/* ZEIT */}
-                    <div onClick={expandTime}
-                      style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border:"1px solid transparent", transition:"border .15s" }}
-                      onMouseEnter={e => e.currentTarget.style.border=`1px solid ${BRAND.lila}40`}
-                      onMouseLeave={e => e.currentTarget.style.border="1px solid transparent"}>
+                    <div onClick={() => toggleChip("time")}
+                      style={{ background: chipPopup === "time" ? "#ece3ea" : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: chipPopup === "time" ? `1px solid ${BRAND.lila}60` : "1px solid transparent", transition:"all .15s" }}>
                       <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Zeit</div>
                       <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginTop:4, fontVariantNumeric:"tabular-nums" }}>{zeitText}</div>
                     </div>
                     {/* TYP */}
-                    {(adminForm.type === "booked" || adminForm.type === "pending") ? (
-                      <div onClick={expandType}
-                        style={{ background: et ? `${typColor}15` : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: et ? `1px solid ${typColor}30` : "1px solid transparent", transition:"border .15s" }}>
+                    {canEditType ? (
+                      <div onClick={() => toggleChip("type")}
+                        style={{ background: et ? `${typColor}15` : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: chipPopup === "type" ? `1px solid ${typColor}80` : (et ? `1px solid ${typColor}30` : "1px solid transparent"), transition:"all .15s" }}>
                         <div style={{ fontSize:10, color: et ? typColor : "#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Typ</div>
                         <div style={{ fontSize:14, fontWeight:600, color: et ? typColor : "#888", marginTop:4 }}>{et?.label || "— wählen"}</div>
                       </div>
@@ -2530,57 +2558,6 @@ export default function App() {
                       </div>
                     )}
                   </div>
-
-                  {/* Expandable: Status-Auswahl */}
-                  {!statusCollapsed && !adminForm.editAllSeries && (
-                    <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-                      {(adminForm.addToExisting
-                        ? [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]]
-                        : [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]]
-                      ).map(([v,l,c]) => (
-                        <button key={v} onClick={() => { setAdminForm(f=>({...f, type:v})); setStatusCollapsed(true); }}
-                          style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 12 : 14, cursor:"pointer", letterSpacing:0.1 }}>
-                          {l}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Expandable: Zeit + Ganztägig */}
-                  {!timeCollapsed && (
-                    <div style={{ background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, padding:"10px 14px", marginBottom:10, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:12, flex:"1 1 auto", flexWrap:"wrap" }}>
-                        <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Von</span>
-                        <TimeInput value={adminForm.startTime || "08:00"} onChange={v => setAdminForm(f=>({...f, startTime:v}))} />
-                        <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Bis</span>
-                        <TimeInput value={adminForm.endTime || "22:00"} onChange={v => setAdminForm(f=>({...f, endTime:v}))} />
-                      </div>
-                      <div style={{ width:1, height:24, background:"#d8cdd5", flexShrink:0 }} />
-                      <label onClick={() => { setAdminForm(f=>({...f, allDay:!f.allDay})); setTimeCollapsed(true); }}
-                        style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", flexShrink:0 }}>
-                        <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff", transition:"all .15s" }}>
-                          {adminForm.allDay && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        <span style={{ fontWeight:500, fontSize:14, color:BRAND.aubergine }}>Ganztägig</span>
-                      </label>
-                    </div>
-                  )}
-
-                  {/* Expandable: Typ-Auswahl */}
-                  {typeSelectExpanded && (adminForm.type === "booked" || adminForm.type === "pending") && (
-                    <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
-                      {eventTypes.map(t => {
-                        const isSelected = adminForm.eventType === t.id;
-                        const typeLabels = eventTypes.map(x => x.label);
-                        return (
-                          <button key={t.id} onClick={() => { setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label})); setTypeSelectExpanded(false); }}
-                            style={{ padding:"7px 12px", border:`1.5px solid ${isSelected ? t.color : "#e0d8de"}`, borderRadius:6, background: isSelected ? t.color+"15" : "#fff", color: isSelected ? t.color : "#999", fontSize:12, fontWeight:600, cursor:"pointer", borderLeft:`3px solid ${t.color}` }}>
-                            {t.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
 
                   <input placeholder={adminForm.type==="blocked" ? "Bezeichnung (z.B. Urlaub)" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
                   </>
@@ -2940,6 +2917,161 @@ export default function App() {
                 )}
 
                 <button onClick={() => handleAdminSave()} style={primaryBtn}>Speichern</button>
+
+                {/* Lösch-Option unten bei existierenden Terminen */}
+                {(() => {
+                  const existing = events[selectedDate];
+                  const isExisting = existing && existing.status !== "deleted" && !adminForm.addToExisting;
+                  if (!isExisting) return null;
+                  return (
+                    <button onClick={() => handleAdminAction(selectedDate, "delete", editingSubIndex)}
+                      onMouseEnter={e => { e.currentTarget.style.color="#c44"; e.currentTarget.style.background="#fdf6f6"; }}
+                      onMouseLeave={e => { e.currentTarget.style.color="#bbb"; e.currentTarget.style.background="transparent"; }}
+                      style={{ width:"100%", padding:"11px", marginTop:10, background:"transparent", border:"none", color:"#bbb", cursor:"pointer", fontSize:13, borderRadius:8, transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit" }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                      Termin löschen
+                    </button>
+                  );
+                })()}
+
+                {/* ===== Meta-Chip-Popups ===== */}
+                {chipPopup && (() => {
+                  const et = eventTypes.find(t => t.id === adminForm.eventType);
+                  const typeLabels = eventTypes.map(x => x.label);
+                  const [yy,mm,dd] = selectedDate.split("-").map(Number);
+                  const pyr = datePopupYear ?? yy;
+                  const pmo = datePopupMonth ?? (mm-1);
+                  const close = () => setChipPopup(null);
+                  return (
+                    <div onClick={close} style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                      <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 22px", minWidth:280, maxWidth:400, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.25)", maxHeight:"80vh", overflowY:"auto" }}>
+
+                        {chipPopup === "status" && (
+                          <>
+                            <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:12 }}>Status wählen</div>
+                            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                              {(adminForm.addToExisting
+                                ? [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]]
+                                : [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]]
+                              ).map(([v,l,c]) => (
+                                <button key={v} onClick={() => { setAdminForm(f=>({...f, type:v})); close(); }}
+                                  style={{ padding:"12px 14px", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:10, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize:14, cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10, fontFamily:"inherit" }}>
+                                  <div style={{ width:10, height:10, borderRadius:"50%", background:c, flexShrink:0 }} />
+                                  {l}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                        {chipPopup === "date" && (
+                          <>
+                            <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:12 }}>Datum ändern</div>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                              <button onClick={() => { const nm = pmo === 0 ? 11 : pmo - 1; const ny = pmo === 0 ? pyr - 1 : pyr; setDatePopupMonth(nm); setDatePopupYear(ny); }}
+                                style={{ background:"none", border:"none", cursor:"pointer", padding:6, color:"#999" }}>
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 3L5 7L9 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                              </button>
+                              <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{MONTHS[pmo]} {pyr}</span>
+                              <button onClick={() => { const nm = pmo === 11 ? 0 : pmo + 1; const ny = pmo === 11 ? pyr + 1 : pyr; setDatePopupMonth(nm); setDatePopupYear(ny); }}
+                                style={{ background:"none", border:"none", cursor:"pointer", padding:6, color:"#999" }}>
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3L9 7L5 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                              </button>
+                            </div>
+                            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+                              {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => <div key={d} style={{ fontSize:10, color:"#bbb", textAlign:"center", fontWeight:600, padding:4 }}>{d}</div>)}
+                              {(() => {
+                                const firstDay = (new Date(pyr,pmo,1).getDay()+6)%7;
+                                const daysInMonth = new Date(pyr,pmo+1,0).getDate();
+                                const cells = [];
+                                for (let i=0;i<firstDay;i++) cells.push(<div key={`e${i}`} />);
+                                for (let d=1;d<=daysInMonth;d++) {
+                                  const kDate = `${pyr}-${String(pmo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+                                  const isCurrent = kDate === selectedDate;
+                                  cells.push(
+                                    <button key={d} onClick={() => {
+                                      // Datum verschieben: aktuellen Event zum neuen Datum verlagern
+                                      if (kDate !== selectedDate) {
+                                        const src = events[selectedDate];
+                                        if (src) {
+                                          const updated = { ...events };
+                                          // Falls es ein Sub-Event ist, nur den Sub verschieben
+                                          if (editingSubIndex >= 0 && src.subEvents) {
+                                            const movedSub = src.subEvents[editingSubIndex];
+                                            updated[selectedDate] = { ...src, subEvents: src.subEvents.filter((_,i) => i !== editingSubIndex) };
+                                            const existingAtNew = updated[kDate];
+                                            if (existingAtNew && existingAtNew.status !== "deleted") {
+                                              updated[kDate] = { ...existingAtNew, subEvents: [...(existingAtNew.subEvents||[]), movedSub] };
+                                            } else {
+                                              updated[kDate] = { ...movedSub, subEvents: [] };
+                                            }
+                                          } else {
+                                            // Haupt-Event verschieben (inkl. subEvents)
+                                            updated[kDate] = src;
+                                            delete updated[selectedDate];
+                                          }
+                                          saveEvents(updated);
+                                          setSelectedDate(kDate);
+                                        }
+                                      }
+                                      close();
+                                    }}
+                                      style={{ padding:"8px 0", background: isCurrent ? BRAND.lila : "#fff", color: isCurrent ? "#fff" : BRAND.aubergine, border: isCurrent ? "none" : "1px solid #efe8ed", borderRadius:6, fontSize:13, fontWeight: isCurrent ? 700 : 500, cursor:"pointer", fontFamily:"inherit" }}>
+                                      {d}
+                                    </button>
+                                  );
+                                }
+                                return cells;
+                              })()}
+                            </div>
+                            <div style={{ fontSize:10, color:"#bbb", marginTop:12, textAlign:"center", fontStyle:"italic" }}>Termin wird zum gewählten Datum verschoben</div>
+                          </>
+                        )}
+
+                        {chipPopup === "time" && (
+                          <>
+                            <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:14 }}>Zeit ändern</div>
+                            {!adminForm.allDay && (
+                              <div style={{ display:"flex", alignItems:"center", gap:12, justifyContent:"center", marginBottom:14, flexWrap:"wrap" }}>
+                                <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Von</span>
+                                <TimeInput value={adminForm.startTime || "08:00"} onChange={v => setAdminForm(f=>({...f, startTime:v}))} />
+                                <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Bis</span>
+                                <TimeInput value={adminForm.endTime || "22:00"} onChange={v => setAdminForm(f=>({...f, endTime:v}))} />
+                              </div>
+                            )}
+                            <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
+                              style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", padding:"10px 12px", background:"#f8f4f8", borderRadius:8, marginBottom:14 }}>
+                              <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.allDay ? BRAND.lila : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? BRAND.lila : "#fff" }}>
+                                {adminForm.allDay && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                              </div>
+                              <span style={{ fontWeight:500, fontSize:14, color:BRAND.aubergine }}>Ganztägig</span>
+                            </label>
+                            <button onClick={close}
+                              style={{ width:"100%", padding:"10px", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Übernehmen</button>
+                          </>
+                        )}
+
+                        {chipPopup === "type" && (
+                          <>
+                            <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:12 }}>Veranstaltungs-Typ wählen</div>
+                            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                              {eventTypes.map(t => {
+                                const isSelected = adminForm.eventType === t.id;
+                                return (
+                                  <button key={t.id} onClick={() => { setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label})); close(); }}
+                                    style={{ padding:"11px 14px", border:`2px solid ${isSelected ? t.color : "#e0d8de"}`, borderRadius:10, background: isSelected ? t.color+"15" : "#fff", color: isSelected ? t.color : BRAND.aubergine, fontSize:14, fontWeight:600, cursor:"pointer", borderLeft:`4px solid ${t.color}`, textAlign:"left", fontFamily:"inherit" }}>
+                                    {t.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
               );
             })()}
