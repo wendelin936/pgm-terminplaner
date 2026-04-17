@@ -908,7 +908,12 @@ export default function App() {
     const st = adminForm.startTime || "08:00";
     const et = adminForm.endTime || "22:00";
     const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
+    // Anzeige-Name für die Liste: bei internen Terminen hat Ansprechperson (contactName) Vorrang,
+    // bei Kundenbuchungen/Anfragen der Kundenname (groupName)
+    const displayName = adminForm.type === "blocked"
+      ? (adminForm.contactName || adminForm.groupName || "")
+      : (adminForm.groupName || adminForm.contactName || "");
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -1519,22 +1524,34 @@ export default function App() {
                   const [yy,mm,dd] = key.split("-").map(Number);
                   const d = new Date(yy,mm-1,dd);
                   const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
+                  const monthShort = ["Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][mm-1];
                   const rowKey = `${key}${subIndex>=0?"-s"+subIndex:""}`;
                   return (
                     <SwipeRow key={rowKey} onSwipeRight={() => handleAdminAction(key,"confirm",subIndex)} onSwipeLeft={() => handleAdminAction(key,"delete",subIndex)} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
                       <div onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
-                        style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "11px 14px" : "10px 12px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                        style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${BRAND.aprikot}`, cursor:"pointer" }}>
+                        <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
+                          <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{dayName}</div>
+                          <div style={{ fontSize:22, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"2px 0 1px" }}>{dd}</div>
+                          <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{monthShort}</div>
+                        </div>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                            <span style={{ fontWeight:600, color:BRAND.aprikot, fontSize: winW > 900 ? 14 : 13 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
-                            <span style={{ fontSize: winW > 900 ? 14 : 13, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
-                            {ev.slotLabel && <span style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:3 }}><ClockIcon color="#bbb" size={11} />{ev.slotLabel}</span>}
-                          </div>
-                          {ev.name && <div style={{ fontSize:12, color:"#999", marginTop:3, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>}
+                          <div style={{ fontSize: winW > 900 ? 14 : 13, fontWeight:500, color:BRAND.aubergine, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label || ev.type}</div>
+                          {(ev.slotLabel || ev.name) && (
+                            <div style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:8, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                              {ev.slotLabel && <span style={{ flexShrink:0 }}>{ev.slotLabel}</span>}
+                              {ev.slotLabel && ev.name && <span style={{ width:1, height:11, background:"#ddd", flexShrink:0 }} />}
+                              {ev.name && <span style={{ overflow:"hidden", textOverflow:"ellipsis", minWidth:0 }}>{ev.name}</span>}
+                            </div>
+                          )}
                         </div>
                         <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm",subIndex); }}
-                          onMouseEnter={e => e.currentTarget.style.filter="brightness(0.85)"} onMouseLeave={e => e.currentTarget.style.filter="none"}
-                          style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:5, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0, textTransform:"uppercase", letterSpacing:0.5, transition:"all .15s" }}>Annehmen</button>
+                          onMouseEnter={e => { e.currentTarget.style.background = BRAND.moosgruen; e.currentTarget.style.color = "#fff"; e.currentTarget.querySelector("path").setAttribute("stroke", "#fff"); }}
+                          onMouseLeave={e => { e.currentTarget.style.background = `${BRAND.mintgruen}25`; e.currentTarget.style.color = BRAND.moosgruen; e.currentTarget.querySelector("path").setAttribute("stroke", BRAND.moosgruen); }}
+                          style={{ background:`${BRAND.mintgruen}25`, color:BRAND.moosgruen, border:`1px solid ${BRAND.mintgruen}80`, borderRadius:8, padding:"7px 12px", fontSize:12, fontWeight:500, cursor:"pointer", flexShrink:0, display:"inline-flex", alignItems:"center", gap:6, letterSpacing:0.2, transition:"all .15s" }}>
+                          <svg width="11" height="11" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke={BRAND.moosgruen} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          Annehmen
+                        </button>
                       </div>
                     </SwipeRow>
                   );
@@ -1573,11 +1590,11 @@ export default function App() {
             const d = new Date(yy,mm-1,dd);
             const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
             const monthShort = MONTHS_SHORT[mm-1];
-            // Typ-Farbe für Akzentbalken links: bei blocked türkis, bei booked aus eventTypes, fallback grau
-            const typeColor = ev.status === "blocked" ? "#009a93" : (eventTypes.find(t => t.id === ev.type)?.color || "#b5a8b2");
+            // Akzentbalken links nach Status: gebucht = lila, intern/Serie = türkis, Anfrage = aprikot
+            const accentColor = ev.status === "blocked" ? "#009a93" : ev.status === "pending" ? BRAND.aprikot : BRAND.lila;
             return (
               <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
-                style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${typeColor}`, cursor:"pointer" }}>
+                style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${accentColor}`, cursor:"pointer" }}>
                 <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
                   <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{dayName}</div>
                   <div style={{ fontSize:22, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"2px 0 1px" }}>{dd}</div>
@@ -2812,7 +2829,7 @@ export default function App() {
                 </>
                 )}
 
-                <button onClick={handleAdminSave} style={primaryBtn}>Speichern</button>
+                <button onClick={() => handleAdminSave()} style={primaryBtn}>Speichern</button>
               </>
               );
             })()}
