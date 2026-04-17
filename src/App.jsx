@@ -54,7 +54,7 @@ function notifyGroupTour(dateKey, ev) {
       notifyTo: GROUP_TOUR_NOTIFY_EMAIL,
       kind: "confirmed_group_tour",
       date: `${dayName}, ${dd}.${mm}.${yy}`,
-      type: "Gruppenführung",
+      type: "Gruppenbesuch",
       name: ev.groupName || ev.name || "",
       contactName: ev.contactName || "",
       contactPhone: ev.contactPhone || "",
@@ -89,7 +89,7 @@ const DEFAULT_TYPES = [
   { id:"firmenfeier", label:"Firmenfeier", halfDay:700, fullDay:1200, color:BRAND.tuerkis, desc:"Professionelles Ambiente für Ihr Firmenevent", detail:"Inspirieren Sie Ihr Team in außergewöhnlicher Atmosphäre – ideal für Kundenabende, Sommerfeste oder Jubiläen.", tags:["Teamevents","Empfänge","Jubiläen"] },
   { id:"geburtstag", label:"Geburtstagsfeier", halfDay:500, fullDay:800, color:BRAND.aprikot, desc:"Feiern Sie Ihren besonderen Tag bei uns", detail:"Ob runder Geburtstag oder entspannte Gartenparty – Ihr Fest mit Freunden und Familie wird unvergesslich.", tags:["Jubiläen","Gartenparty","familiär"] },
   { id:"seminar", label:"Seminar / Workshop", halfDay:350, fullDay:600, color:BRAND.mintgruen, desc:"Inspirierende Räume für Ihr Event", detail:"Klare Gedanken in grüner Umgebung – der perfekte Rahmen für Workshops, Schulungen oder Klausurtage im Grünen.", tags:["Workshops","Klausurtage","Seminare"] },
-  { id:"gruppenfuehrung", label:"Gruppenführung", halfDay:0, fullDay:0, color:BRAND.moosgruen, desc:"Garten erleben mit allen Sinnen", detail:"Entdecken Sie mit unseren Experten seltene Pflanzen, historische Beete und das Paradiesglashaus – inkl. Café.", tags:["Führung","Café & Kuchen","ab 10 Pers."], isGroupTour:true, pricePerPerson:9, minPersons:10, guideCost:80, maxPerTour:20 },
+  { id:"gruppenfuehrung", label:"Gruppenbesuch", halfDay:0, fullDay:0, color:BRAND.moosgruen, desc:"Garten erleben mit allen Sinnen", detail:"Entdecken Sie mit unseren Experten seltene Pflanzen, historische Beete und das Paradiesglashaus – inkl. Café.", tags:["Führung","Café & Kuchen","ab 10 Pers."], isGroupTour:true, pricePerPerson:9, minPersons:10, guideCost:80, maxPerTour:20, coffeePrice:3.10, cakePrice:4.50 },
   { id:"sonstiges", label:"Sonstiges", halfDay:0, fullDay:0, color:"#420045", desc:"Individuelle Events nach Ihren Wünschen", detail:"Fotoshootings, Präsentationen, Filmaufnahmen – sprechen Sie mit uns, wir finden gemeinsam die passende Lösung.", tags:["Fotoshoots","Filmdrehs","individuell"] },
 ];
 
@@ -607,7 +607,7 @@ export default function App() {
   const [fromCalendar, setFromCalendar] = useState(false);
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
+  const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0, contactName:"" });
   const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
   const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
   const [typeSelectExpanded, setTypeSelectExpanded] = useState(false); // Event-Typ-Auswahl im Admin-Modal auf-/zuklappbar
@@ -853,7 +853,7 @@ export default function App() {
   };
 
   const handleCardClick = (typeId) => {
-    setFormData({ name:"", email:"", phone:"", type: typeId, slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
+    setFormData({ name:"", email:"", phone:"", type: typeId, slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0, contactName:"" });
     setShowTypeSelect(false);
     setSubmitAttempted(false);
     setPickerMonth(today.getMonth());
@@ -972,7 +972,9 @@ export default function App() {
     const isGroup = et?.isGroupTour;
     const valid = formData.name.trim() && formData.email.trim() && /\S+@\S+\.\S+/.test(formData.email)
       && formData.phone.trim()
-      && (!isGroup || (formData.guests && Number(formData.guests) >= (et?.minPersons || 10)));
+      && (isGroup
+          ? (formData.guests && Number(formData.guests) >= (et?.minPersons || 10) && (formData.contactName||"").trim())
+          : !!formData.guests);
     if (!valid) { setSubmitAttempted(true); return; }
     let slotLabel, startTime, endTime;
     if (isGroup) {
@@ -986,7 +988,10 @@ export default function App() {
       const slotName = slotNames[formData.slot] || "";
       slotLabel = slotName ? `${slotName} (${startTime}–${endTime})` : `${startTime} – ${endTime}`;
     }
-    const pendingEntry = { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData };
+    // Bei Gruppenbesuch: formData.name ist Gruppenname, contactName ist Ansprechpartner
+    const pendingEntry = isGroup
+      ? { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData, groupName: formData.name }
+      : { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData };
     const updated = { ...events };
     const existing = updated[selectedDate];
     if (existing && existing.status !== "deleted") {
@@ -1017,6 +1022,7 @@ export default function App() {
           tourGuide: formData.tourGuide,
           cakeCount: formData.cakeCount || 0,
           coffeeCount: formData.coffeeCount || 0,
+          contactName: formData.contactName || "",
         })
       }).catch(() => {});
     } catch {}
@@ -2335,13 +2341,17 @@ export default function App() {
                 {editingType.isGroupTour ? (
                   <>
                     <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Eintritt pro Person (€)</label>
-                    <input type="number" value={editingType.pricePerPerson||0} onChange={e => setEditingType(t=>({...t, pricePerPerson: Number(e.target.value)}))} style={inputStyle} />
+                    <input type="number" step="0.10" value={editingType.pricePerPerson||0} onChange={e => setEditingType(t=>({...t, pricePerPerson: Number(e.target.value)}))} style={inputStyle} />
                     <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Mindestanzahl Personen</label>
                     <input type="number" value={editingType.minPersons||0} onChange={e => setEditingType(t=>({...t, minPersons: Number(e.target.value)}))} style={inputStyle} />
                     <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Kosten pro Führung (€)</label>
-                    <input type="number" value={editingType.guideCost||0} onChange={e => setEditingType(t=>({...t, guideCost: Number(e.target.value)}))} style={inputStyle} />
+                    <input type="number" step="0.10" value={editingType.guideCost||0} onChange={e => setEditingType(t=>({...t, guideCost: Number(e.target.value)}))} style={inputStyle} />
                     <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Max. Personen pro Führung</label>
                     <input type="number" value={editingType.maxPerTour||0} onChange={e => setEditingType(t=>({...t, maxPerTour: Number(e.target.value)}))} style={inputStyle} />
+                    <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Preis pro Kaffee (€)</label>
+                    <input type="number" step="0.10" value={editingType.coffeePrice||0} onChange={e => setEditingType(t=>({...t, coffeePrice: Number(e.target.value)}))} style={inputStyle} />
+                    <label style={{ fontSize:12, color:"#888", fontWeight:600 }}>Preis pro Kuchen (€)</label>
+                    <input type="number" step="0.10" value={editingType.cakePrice||0} onChange={e => setEditingType(t=>({...t, cakePrice: Number(e.target.value)}))} style={inputStyle} />
                   </>
                 ) : (
                   <>
@@ -2471,7 +2481,7 @@ export default function App() {
                   return (
                     <div style={{ display:"flex", gap:6, marginBottom:10 }}>
                       {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]].map(([v,l,c]) => (
-                        <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
+                        <button key={v} onClick={() => { setAdminForm(f=>({...f, type:v})); setStatusCollapsed(true); }}
                           style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 12 : 14, cursor:"pointer", letterSpacing:0.1 }}>
                           {l}
                         </button>
@@ -2482,7 +2492,7 @@ export default function App() {
                 {adminForm.addToExisting && (
                 <div style={{ display:"flex", gap:6, marginBottom:10 }}>
                   {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]].map(([v,l,c]) => (
-                    <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
+                    <button key={v} onClick={() => { setAdminForm(f=>({...f, type:v})); setStatusCollapsed(true); }}
                       style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:0.1 }}>
                       {l}
                     </button>
@@ -2516,7 +2526,7 @@ export default function App() {
                     })}
                   </div>
                   <div style={{ width:1, height:24, background:"#d8cdd5", flexShrink:0 }} />
-                  <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
+                  <label onClick={() => { setAdminForm(f=>({...f, allDay:!f.allDay})); setTimeCollapsed(true); }}
                     style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", flexShrink:0 }}>
                     <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff", transition:"all .15s" }}>
                       {adminForm.allDay && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -2588,7 +2598,7 @@ export default function App() {
                   return (
                   <div style={{ background:`${BRAND.moosgruen}08`, border:`1px solid ${BRAND.moosgruen}20`, borderRadius:10, padding:"14px", marginBottom:10 }}>
                     <div style={{ fontSize:10, fontWeight:600, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
-                      {adminForm.type === "pending" ? "Anfrage – Gruppenführung" : "Gruppenführung Details"}
+                      {adminForm.type === "pending" ? "Anfrage – Gruppenbesuch" : "Gruppenbesuch Details"}
                     </div>
                     <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
@@ -2843,8 +2853,8 @@ export default function App() {
               const nCake = Number(formData.cakeCount) || 0;
               const nCoffee = Number(formData.coffeeCount) || 0;
               const costEntry = nGuests * (et?.pricePerPerson || 9);
-              const costCake = nCake * 4.5;
-              const costCoffee = nCoffee * 3.1;
+              const costCake = nCake * (et?.cakePrice || 4.5);
+              const costCoffee = nCoffee * (et?.coffeePrice || 3.1);
               const nTours = formData.tourGuide && nGuests > 0 ? Math.ceil(nGuests / (et?.maxPerTour || 20)) : 0;
               const costGuide = nTours * (et?.guideCost || 80);
               const costTotal = costEntry + costCake + costCoffee + costGuide;
@@ -2879,104 +2889,152 @@ export default function App() {
 
                   {isGroup ? (
                     <>
-                      {/* 1. Time window */}
-                      <div style={{ display:"flex", gap:10, marginBottom:12, marginTop:8, alignItems:"center" }}>
+                      {/* 1. Teilnehmer-Leiste (grün transparent) */}
+                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:6, marginTop:8 }}>
+                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                          <button onClick={() => setFormData(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
+                            style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                          <input type="number" min="0" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))}
+                            style={{ width:52, textAlign:"center", padding:"6px 0", border:`1px solid ${formData.guests && guestsTooLow ? "#c44" : BRAND.moosgruen}`, borderRadius:7, fontSize:15, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                          <button onClick={() => setFormData(f => ({ ...f, guests: String((Number(f.guests)||0) + 1) }))}
+                            style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                        </div>
+                      </div>
+                      {formData.guests && guestsTooLow && (
+                        <div style={{ fontSize:11, color:"#c44", marginTop:-2, marginBottom:6 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
+                      )}
+
+                      {/* 2. Führung-Leiste (grün transparent, zweizeilig) */}
+                      <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
+                        style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:12, cursor:"pointer" }}>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                          <div style={{ fontSize:10, color:BRAND.moosgruen, opacity:0.65, marginTop:2 }}>max. {et?.maxPerTour || 20} Teilnehmer pro Führung</div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {et?.guideCost || 80}</span>
+                          <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                            {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </div>
+                        </div>
+                      </label>
+
+                      {/* 3. Zeit-Leiste (lila) */}
+                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:12, flexWrap:"wrap" }}>
                         {[["Von","tourHour","tourMin"],["Bis","tourEndHour","tourEndMin"]].map(([lbl,hField,mField]) => {
                           const h = Number(formData[hField])||0;
                           const m = Number(formData[mField])||0;
                           const timeVal = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
                           return (
-                            <div key={lbl} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                              <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
+                            <div key={lbl} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>{lbl}</span>
                               <TimeInput value={timeVal} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f,[hField]:nh,[mField]:nm})); }} />
                             </div>
                           );
                         })}
                       </div>
 
-                      {/* 2. Participants */}
-                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: formData.guests && guestsTooLow ? 4 : 12 }}>
-                        <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, flexShrink:0 }}>Personenanzahl</label>
-                        <NumInput value={formData.guests} onChange={v => setFormData(f=>({...f, guests:v}))} placeholder="" min={1} color={BRAND.moosgruen} label="Teilnehmeranzahl"
-                          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>}
-                          style={formData.guests && guestsTooLow ? { borderColor:"#c44" } : {}} />
+                      {/* 4. Gruppe & Kontakt-Karte */}
+                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                        <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Gruppe & Kontakt</div>
+                        <input placeholder="Gruppenname *" value={formData.name} onChange={e => setFormData(f=>({...f, name:e.target.value}))}
+                          style={reqStyle(missingName, false)} />
+                        <input placeholder="Ansprechpartner *" value={formData.contactName||""} onChange={e => setFormData(f=>({...f, contactName:e.target.value}))}
+                          style={reqStyle(!(formData.contactName||"").trim(), false)} />
+                        <input placeholder="E-Mail *" type="email" value={formData.email} onChange={e => setFormData(f=>({...f, email:e.target.value}))}
+                          style={reqStyle(missingEmail, invalidEmail)} />
+                        {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
+                        <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))}
+                          style={reqStyle(missingPhone, false)} />
                       </div>
-                      {formData.guests && guestsTooLow && (
-                        <div style={{ fontSize:11, color:"#c44", marginTop:-2, marginBottom:10 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
-                      )}
 
-                      {/* 3. Café */}
-                      <div style={{ background:`${BRAND.moosgruen}08`, border:`1px solid ${BRAND.moosgruen}20`, borderRadius:10, padding:"10px 14px", marginBottom:10 }}>
-                        <div style={{ fontSize:11, fontWeight:700, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Café im Paradiesglashaus</div>
-                        <div style={{ fontSize:12, color:"#666", lineHeight:1.4, marginBottom:8 }}>Kuchen wird frisch zubereitet – bitte vorab die gewünschte Menge angeben.</div>
-                        <div style={{ display:"flex", gap:10, alignItems:"flex-end" }}>
+                      {/* 5. Café im Paradiesglashaus */}
+                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                        <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
+
+                        {/* Kaffee */}
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
                           <div style={{ flex:1 }}>
-                            <label style={{ fontSize:10, color:"#999", fontWeight:600, marginBottom:4, display:"block" }}>Kuchen (à € 4,50)</label>
-                            <NumInput value={formData.cakeCount||""} onChange={v => setFormData(f=>({...f, cakeCount:v}))} placeholder="0" min={0} color={BRAND.moosgruen} label="Kuchen" style={{ width:"100%" }} />
+                            <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kaffee</div>
+                            <div style={{ fontSize:11, color:"#999" }}>à € {(et?.coffeePrice || 3.10).toFixed(2).replace(".",",")}</div>
                           </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <button onClick={() => setFormData(f => ({ ...f, coffeeCount: Math.max(0, (Number(f.coffeeCount)||0) - 1) }))}
+                              style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                            <input type="number" min="0" value={formData.coffeeCount||""} onChange={e => setFormData(f=>({...f, coffeeCount:e.target.value}))}
+                              placeholder="0" style={{ width:44, textAlign:"center", padding:"5px 0", border:"1px solid #e0d5df", borderRadius:6, fontSize:14, color:BRAND.aubergine, fontFamily:"inherit", background:"#fff" }} />
+                            <button onClick={() => setFormData(f => ({ ...f, coffeeCount: (Number(f.coffeeCount)||0) + 1 }))}
+                              style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                          </div>
+                        </div>
+
+                        {/* Kuchen */}
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom: nGuests > 0 ? 10 : 0 }}>
                           <div style={{ flex:1 }}>
-                            <label style={{ fontSize:10, color:"#999", fontWeight:600, marginBottom:4, display:"block" }}>Kaffee (à € 3,10)</label>
-                            <NumInput value={formData.coffeeCount||""} onChange={v => setFormData(f=>({...f, coffeeCount:v}))} placeholder="0" min={0} color={BRAND.moosgruen} label="Kaffee" style={{ width:"100%" }} />
+                            <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div>
+                            <div style={{ fontSize:11, color:"#999" }}>à € {(et?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
+                          </div>
+                          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <button onClick={() => setFormData(f => ({ ...f, cakeCount: Math.max(0, (Number(f.cakeCount)||0) - 1) }))}
+                              style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                            <input type="number" min="0" value={formData.cakeCount||""} onChange={e => setFormData(f=>({...f, cakeCount:e.target.value}))}
+                              placeholder="0" style={{ width:44, textAlign:"center", padding:"5px 0", border:"1px solid #e0d5df", borderRadius:6, fontSize:14, color:BRAND.aubergine, fontFamily:"inherit", background:"#fff" }} />
+                            <button onClick={() => setFormData(f => ({ ...f, cakeCount: (Number(f.cakeCount)||0) + 1 }))}
+                              style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                           </div>
                         </div>
-                      </div>
 
-                      {/* 4. Guide checkbox */}
-                      <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"12px 14px", background: formData.tourGuide ? `${BRAND.moosgruen}12` : "#fff", border:`1.5px solid ${formData.tourGuide ? BRAND.moosgruen : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
-                        <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${formData.tourGuide ? BRAND.moosgruen : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1, background: formData.tourGuide ? BRAND.moosgruen : "#fff" }}>
-                          {formData.tourGuide && <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight:700, fontSize:13, color: BRAND.aubergine }}>Führung mit Gartenexpertin</div>
-                          <div style={{ fontSize:11, color:"#888", lineHeight:1.3, marginTop:2 }}>€ {et?.guideCost || 80} pro Führung · max. {et?.maxPerTour || 20} Personen · Dauer ca. 1,5 h</div>
-                        </div>
-                      </label>
-
-                      {/* Cost overview */}
-                      {nGuests > 0 && (
-                        <div style={{ background:`${BRAND.aubergine}08`, borderRadius:10, padding:"12px 14px", marginBottom:12, border:`1px solid ${BRAND.aubergine}15` }}>
-                          <div style={{ fontSize:11, fontWeight:700, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Voraussichtliche Kosten</div>
-                          <div style={{ fontSize:12, color:"#666" }}>
-                            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                              <span>{nGuests} × Eintritt à € {(et?.pricePerPerson || 9).toFixed(2).replace(".",",")}</span><span style={{ fontWeight:600 }}>€ {costEntry.toFixed(2).replace(".",",")}</span>
+                        {/* Kostenauflistung */}
+                        {nGuests > 0 && (
+                          <div style={{ background:"#f8f4f8", borderRadius:10, padding:"10px 12px" }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:2 }}>
+                              <span>Eintritt ({nGuests}× à € {(et?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
+                              <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costEntry.toFixed(2).replace(".",",")}</span>
                             </div>
-                            <div style={{ fontSize:10, color:"#999", marginBottom:4, marginTop:-2 }}>mit Kärnten Card kostenlos</div>
-                            {nCake > 0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                              <span>{nCake} × Kuchen à € 4,50</span><span style={{ fontWeight:600 }}>€ {costCake.toFixed(2).replace(".",",")}</span>
+                            <div style={{ fontSize:10, color:BRAND.moosgruen, marginBottom:6, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                            {nCoffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
+                              <span>Kaffee ({nCoffee}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costCoffee.toFixed(2).replace(".",",")}</span>
                             </div>}
-                            {nCoffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                              <span>{nCoffee} × Kaffee à € 3,10</span><span style={{ fontWeight:600 }}>€ {costCoffee.toFixed(2).replace(".",",")}</span>
+                            {nCake > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
+                              <span>Kuchen ({nCake}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costCake.toFixed(2).replace(".",",")}</span>
                             </div>}
-                            {formData.tourGuide && <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                              <span>{nTours > 1 ? `${nTours} × Führung` : "Führung mit Gartenexpertin"} à € {et?.guideCost || 80}</span><span style={{ fontWeight:600 }}>€ {costGuide.toFixed(2).replace(".",",")}</span>
+                            {formData.tourGuide && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:6 }}>
+                              <span>Führung{nTours > 1 ? ` (${nTours}×)` : ""}</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costGuide.toFixed(2).replace(".",",")}</span>
                             </div>}
-                            {nTours > 1 && <div style={{ fontSize:10, color: BRAND.moosgruen, marginBottom:4, marginTop:-2 }}>
-                              {nTours} Führungen nötig (max. {et?.maxPerTour || 20} Personen pro Führung, nacheinander)
+                            {nTours > 1 && <div style={{ fontSize:10, color:BRAND.moosgruen, marginBottom:6, marginTop:-3, fontStyle:"italic" }}>
+                              {nTours} Führungen nötig (max. {et?.maxPerTour || 20} pro Führung)
                             </div>}
-                            <div style={{ borderTop:`1px solid ${BRAND.aubergine}20`, marginTop:6, paddingTop:6, display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:14, color:BRAND.aubergine }}>
-                              <span>Gesamt</span><span>€ {costTotal.toFixed(2).replace(".",",")}</span>
+                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:BRAND.aubergine, fontWeight:600, paddingTop:6, borderTop:"1px solid #ebe4ea" }}>
+                              <span>Geschätzt gesamt</span>
+                              <span style={{ fontVariantNumeric:"tabular-nums", color:BRAND.lila }}>ca. € {costTotal.toFixed(2).replace(".",",")}</span>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
-                      {/* Document buttons */}
-                      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-                        <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" className="doc-green" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.moosgruen}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.moosgruen, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
-                          <span style={{ fontSize:15 }}>📋</span> Getränke- & Kuchenkarte
+                      {/* 6. Nachricht */}
+                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:14 }}>
+                        <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                          Nachricht <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(optional)</span>
+                        </div>
+                        <textarea placeholder="Wünsche, Fragen, Details …" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))}
+                          style={{ width:"100%", minHeight:52, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, color:BRAND.aubergine, fontFamily:"inherit", resize:"none", boxSizing:"border-box", lineHeight:1.5 }} />
+                      </div>
+
+                      {/* 7. Dokumente */}
+                      <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+                        <a href={DOCS.flyer} target="_blank" rel="noopener noreferrer" className="doc-green" style={{ flex:1, padding:"11px 12px", background:"transparent", border:`1px solid ${BRAND.moosgruen}40`, color:"#003b1b", fontSize:12, fontWeight:600, borderRadius:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit", textDecoration:"none", transition:"all .15s" }}>
+                          <svg width="12" height="13" viewBox="0 0 12 13" fill="none"><path d="M2 2.5a1 1 0 011-1h5l3 3v7a1 1 0 01-1 1H3a1 1 0 01-1-1v-9zM8 1.5v3h3" stroke={BRAND.moosgruen} strokeWidth="1"/></svg>
+                          Garten Flyer
                         </a>
-                        <a href={DOCS.flyer} target="_blank" rel="noopener noreferrer" className="doc-violet" style={{ flex:1, padding:"9px 8px", border:`1.5px solid ${BRAND.lila}40`, borderRadius:8, background:"#fff", cursor:"pointer", fontSize:11, fontWeight:600, color:BRAND.lila, display:"flex", alignItems:"center", justifyContent:"center", gap:5, textDecoration:"none", transition:"all .15s" }}>
-                          <span style={{ fontSize:15 }}>📋</span> Garten-Flyer
+                        <a href={DOCS.getraenke} target="_blank" rel="noopener noreferrer" className="doc-green" style={{ flex:1, padding:"11px 12px", background:"transparent", border:`1px solid ${BRAND.moosgruen}40`, color:"#003b1b", fontSize:12, fontWeight:600, borderRadius:10, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit", textDecoration:"none", transition:"all .15s" }}>
+                          <svg width="12" height="13" viewBox="0 0 12 13" fill="none"><path d="M2 2.5a1 1 0 011-1h5l3 3v7a1 1 0 01-1 1H3a1 1 0 01-1-1v-9zM8 1.5v3h3" stroke={BRAND.moosgruen} strokeWidth="1"/></svg>
+                          Getränkekarte
                         </a>
                       </div>
 
-                      <input placeholder="Ihr Name *" value={formData.name} onChange={e => setFormData(f=>({...f, name:e.target.value}))} style={reqStyle(missingName, false)} />
-                      <input placeholder="E-Mail *" type="email" value={formData.email} onChange={e => setFormData(f=>({...f, email:e.target.value}))} style={reqStyle(missingEmail, invalidEmail)} />
-                      {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
-                      <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={reqStyle(missingPhone, false)} />
-                      <textarea placeholder="Ihre Nachricht / Wünsche" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))} style={{ ...inputStyle, height:50, resize:"none" }} />
-                      <button onClick={handleCustomerSubmit} style={primaryBtn}>Anfrage senden</button>
+                      <button onClick={handleCustomerSubmit} style={{ ...primaryBtn, background:BRAND.moosgruen }}>Anfrage senden</button>
                     </>
                   ) : (
                     <>
@@ -2985,15 +3043,16 @@ export default function App() {
                           const isHalf = v.startsWith("halfDay");
                           const priceVal = isHalf ? et?.halfDay : et?.fullDay;
                           const defaults = { halfDayAM:[8,0,13,0], halfDayPM:[13,0,18,0], fullDay:[8,0,22,0] };
+                          const isActive = formData.slot===v;
                           return (
                             <button key={v} onClick={() => { const d = defaults[v]; setFormData(f=>({...f, slot:v, tourHour:d[0], tourMin:d[1], tourEndHour:d[2], tourEndMin:d[3]})); }}
-                              onMouseEnter={e => { if (formData.slot!==v) { e.currentTarget.style.background=(et?.color || BRAND.lila)+"10"; e.currentTarget.style.borderColor=(et?.color || BRAND.lila)+"40"; } }}
-                              onMouseLeave={e => { if (formData.slot!==v) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#e0d8de"; } }}
-                              style={{ flex:1, padding:"8px 4px", border:`2px solid ${formData.slot===v ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:10,
-                                background: formData.slot===v ? (et?.color || BRAND.lila)+"20" : "#fff", cursor:"pointer", textAlign:"center", transition:"all .15s" }}>
-                              <div style={{ fontWeight:700, fontSize:12, color: BRAND.aubergine }}>{l}</div>
-                              <div style={{ fontSize:9, color:"#999" }}>{sub}</div>
-                              <div style={{ fontSize:13, fontWeight:700, color: et?.color || BRAND.lila, marginTop:3 }}>
+                              onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background=(et?.color || BRAND.lila)+"10"; e.currentTarget.style.borderColor=(et?.color || BRAND.lila)+"40"; } }}
+                              onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#e0d8de"; } }}
+                              style={{ flex:1, padding:"12px 6px", border:`2px solid ${isActive ? et?.color || BRAND.lila : "#e0d8de"}`, borderRadius:12,
+                                background: isActive ? (et?.color || BRAND.lila)+"15" : "#fff", cursor:"pointer", textAlign:"center", transition:"all .15s" }}>
+                              <div style={{ fontWeight:500, fontSize:15, color: isActive ? (et?.color || BRAND.lila) : BRAND.aubergine, marginBottom:3 }}>{l}</div>
+                              <div style={{ fontSize:10, color: isActive ? (et?.color || BRAND.lila) : "#999", opacity: isActive ? 0.75 : 1, marginBottom:4 }}>{sub}</div>
+                              <div style={{ fontSize:11, color: isActive ? (et?.color || BRAND.lila) : "#999", opacity: isActive ? 0.75 : 1, fontVariantNumeric:"tabular-nums" }}>
                                 {priceVal === 0 ? "auf Anfrage" : fmt(priceVal)}
                               </div>
                             </button>
@@ -3066,7 +3125,7 @@ export default function App() {
                       <input placeholder="E-Mail *" type="email" value={formData.email} onChange={e => setFormData(f=>({...f, email:e.target.value}))} style={reqStyle(missingEmail, invalidEmail)} />
                       {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
                       <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={reqStyle(missingPhone, false)} />
-                      <input placeholder="Anzahl Gäste" type="number" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))} style={inputStyle} />
+                      <input placeholder="Gäste *" type="number" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))} style={reqStyle(!formData.guests, false)} />
                       <textarea placeholder="Ihre Nachricht / Wünsche" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))} style={{ ...inputStyle, height:70, resize:"none" }} />
                       {formData.type !== "sonstiges" && (
                         <div style={{ display:"flex", gap:6, marginBottom:8 }}>
