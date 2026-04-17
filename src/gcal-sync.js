@@ -86,6 +86,7 @@ function extractGcalIds(events) {
 function eventChanged(a, b) {
   const fields = ["status", "type", "label", "name", "email", "phone", "guests",
     "startTime", "endTime", "allDay", "adminNote", "note",
+    "contactName", "contactPhone", "groupName",
     "tourGuide", "cakeCount", "coffeeCount"];
   for (const f of fields) {
     if ((a?.[f] ?? "") !== (b?.[f] ?? "")) return true;
