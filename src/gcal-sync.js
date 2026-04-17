@@ -184,29 +184,44 @@ export async function syncEventsDiff(oldEvents, newEvents) {
     return null;
   }
 
-  // Patchen: googleEventIds in events-Objekt einsetzen (nur bei CREATE)
+  // Patchen: googleEventIds in events-Objekt einsetzen/entfernen
+  // - CREATE: neue googleEventId setzen
+  // - DELETE: googleEventId entfernen (damit späteres Re-Create sauber läuft)
   const patched = structuredClone(newEvents);
   let anyPatched = false;
-  for (const r of results) {
-    if (!r.ok || !r.googleEventId) continue;
-    // localId finden in newEvents
+  // Map: localId → op-Typ (aus lokaler ops-Liste, da der Worker den op-Typ nicht zurückgibt)
+  const opByLocalId = new Map(ops.map(o => [o.localId, o.op]));
+  // Helper: Event mit bestimmter localId im patched-Objekt finden und modifizieren
+  const modifyByLocalId = (localId, updater) => {
     for (const [dk, ev] of Object.entries(patched)) {
       if (!ev) continue;
-      if (ev.localId === r.localId) {
-        patched[dk] = { ...ev, googleEventId: r.googleEventId };
+      if (ev.localId === localId) {
+        patched[dk] = updater(ev);
         anyPatched = true;
-        break;
+        return true;
       }
       if (Array.isArray(ev.subEvents)) {
-        const idx = ev.subEvents.findIndex(s => s?.localId === r.localId);
+        const idx = ev.subEvents.findIndex(s => s?.localId === localId);
         if (idx >= 0) {
           const subs = ev.subEvents.slice();
-          subs[idx] = { ...subs[idx], googleEventId: r.googleEventId };
+          subs[idx] = updater(subs[idx]);
           patched[dk] = { ...ev, subEvents: subs };
           anyPatched = true;
-          break;
+          return true;
         }
       }
+    }
+    return false;
+  };
+  for (const r of results) {
+    if (!r.ok) continue;
+    const op = opByLocalId.get(r.localId);
+    if (op === "delete") {
+      // gelöschte Events: googleEventId lokal entfernen, damit Re-Enable später einen neuen Event anlegt
+      modifyByLocalId(r.localId, ev => { const { googleEventId, ...rest } = ev; return rest; });
+    } else if (r.googleEventId) {
+      // create: neue googleEventId einsetzen
+      modifyByLocalId(r.localId, ev => ({ ...ev, googleEventId: r.googleEventId }));
     }
   }
 
