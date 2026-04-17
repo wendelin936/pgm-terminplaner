@@ -608,7 +608,7 @@ export default function App() {
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
-  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
+  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
   const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
   const [typeSelectExpanded, setTypeSelectExpanded] = useState(false); // Event-Typ-Auswahl im Admin-Modal auf-/zuklappbar
   const [toast, setToast] = useState(null);
@@ -822,7 +822,7 @@ export default function App() {
         setFromCalendar(true);
         setModalView("info");
       } else {
-        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
+        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
         setEditingSubIndex(-1);
         setModalView("admin");
       }
@@ -881,7 +881,7 @@ export default function App() {
     const st = adminForm.startTime || "08:00";
     const et = adminForm.endTime || "22:00";
     const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "" };
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -1608,7 +1608,7 @@ export default function App() {
                           <div style={{ display:"flex", gap:4, flexShrink:0 }}>
                             <button onClick={(e) => { e.stopPropagation();
                               setSelectedDate(group.items[0][0]);
-                              setAdminForm({ type: group.first.status || "blocked", label: group.first.label || "", note: group.first.note || "", startTime: group.first.startTime || "08:00", endTime: group.first.endTime || "22:00", adminNote: group.first.adminNote || "", eventType: group.first.type || "", allDay: group.first.allDay || false, checklist: group.first.checklist || [], contactName: group.first.contactName || "", contactPhone: group.first.contactPhone || "", contactAddress: group.first.contactAddress || "", publicText: group.first.publicText || "", isPublic: group.first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true });
+                              setAdminForm({ type: group.first.status || "blocked", label: group.first.label || "", note: group.first.note || "", startTime: group.first.startTime || "08:00", endTime: group.first.endTime || "22:00", adminNote: group.first.adminNote || "", eventType: group.first.type || "", allDay: group.first.allDay || false, checklist: group.first.checklist || [], contactName: group.first.contactName || "", contactPhone: group.first.contactPhone || "", contactAddress: group.first.contactAddress || "", publicText: group.first.publicText || "", isPublic: group.first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true, price: group.first.price || "", paymentStatus: group.first.paymentStatus || "open", partialAmount: group.first.partialAmount || "", cleaningFee: !!group.first.cleaningFee });
                               setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                             }}
                               onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
@@ -2560,6 +2560,62 @@ export default function App() {
                   <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))} style={{ ...inputStyle, height:60, resize:"vertical", background:"#fff", borderColor:"#e0d5df", marginBottom:0 }} />
                 </div>
 
+                {/* Vereinbarter Preis - bei Veranstaltungen & Serien, nicht bei Gruppenführungen & internen Terminen */}
+                {((adminForm.type === "booked" || adminForm.type === "pending" || adminForm.isSeries || adminForm.editAllSeries) && adminForm.eventType !== "gruppenfuehrung") && (() => {
+                  const CLEANING_FEE = 150;
+                  const priceNum = parseFloat(String(adminForm.price || "").replace(/\./g, "").replace(",", ".")) || 0;
+                  const partialNum = parseFloat(String(adminForm.partialAmount || "").replace(/\./g, "").replace(",", ".")) || 0;
+                  const feeAmount = adminForm.cleaningFee ? CLEANING_FEE : 0;
+                  const restOffen = Math.max(0, priceNum - partialNum + feeAmount);
+                  const fmtMoney = (n) => n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                  const statuses = [
+                    { v: "open", l: "Offen", c: "#999", bg: "#fff", bd: "#e0d5df" },
+                    { v: "partial", l: "Anzahlung", c: "#8a6a00", bg: "#ffda6f22", bd: "#ffda6f" },
+                    { v: "paid", l: "Bezahlt", c: "#006930", bg: "#e6f3ea", bd: "#006930" },
+                  ];
+                  return (
+                    <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
+                      <label style={{ fontSize:9, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Vereinbarter Preis</label>
+                      <div style={{ position:"relative", marginBottom:10 }}>
+                        <input placeholder="0,00" value={adminForm.price} onChange={e => setAdminForm(f=>({...f, price:e.target.value}))}
+                          style={{ ...inputStyle, paddingRight:30, background:"#fff", borderColor:"#e0d5df", marginBottom:0 }} />
+                        <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color: BRAND.lila, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
+                      </div>
+                      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+                        {statuses.map(s => {
+                          const active = adminForm.paymentStatus === s.v;
+                          return (
+                            <button key={s.v} onClick={() => setAdminForm(f=>({...f, paymentStatus: s.v}))}
+                              style={{ padding:"8px 14px", border:`1.5px solid ${active ? s.bd : "#e0d5df"}`, borderRadius:8, background: active ? s.bg : "#fff", color: active ? s.c : "#999", fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.2 }}>
+                              {s.l}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <label onClick={() => setAdminForm(f=>({...f, cleaningFee: !f.cleaningFee}))}
+                        style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer", marginBottom: adminForm.paymentStatus === "partial" ? 4 : 0 }}>
+                        <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${adminForm.cleaningFee ? BRAND.lila : "#ccc"}`, background: adminForm.cleaningFee ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                          {adminForm.cleaningFee && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize:12, color: BRAND.aubergine }}>Reinigungspauschale <span style={{ color:"#999" }}>(+ 150 €)</span></span>
+                      </label>
+                      {adminForm.paymentStatus === "partial" && (
+                        <>
+                          <div style={{ position:"relative", marginTop:8 }}>
+                            <input placeholder="Angezahlter Betrag" value={adminForm.partialAmount} onChange={e => setAdminForm(f=>({...f, partialAmount:e.target.value}))}
+                              style={{ ...inputStyle, paddingRight:30, background:"#fff", borderColor:"#e0d5df", marginBottom:0, fontSize:13 }} />
+                            <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#8a6a00", fontWeight:600, fontSize:13, pointerEvents:"none" }}>€</span>
+                          </div>
+                          <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:6, paddingRight:2 }}>
+                            Noch offen: <span style={{ color: BRAND.lila, fontWeight:700, fontSize:13 }}>€ {fmtMoney(restOffen)}</span>
+                            {adminForm.cleaningFee && <span style={{ color:"#999", fontSize:10, marginLeft:4 }}>inkl. Pauschale</span>}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Public toggle - only for internal events, directly above Serientermin */}
                 {adminForm.type === "blocked" && (
                 <label onClick={() => setAdminForm(f=>({...f, isPublic:!f.isPublic, contactAddress: !f.isPublic && !f.contactAddress ? "Emmersdorfer Straße 86, 9061 Klagenfurt" : f.contactAddress}))}
@@ -2964,7 +3020,7 @@ export default function App() {
                         const editSub = () => {
                           const src = sub._isMain ? ev : sub;
                           setEditingSubIndex(sub._isMain ? -1 : subIndex);
-                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "" });
+                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "", price: src.price || "", paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "", cleaningFee: !!src.cleaningFee });
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
                         return (
@@ -2982,6 +3038,26 @@ export default function App() {
                             {sub.guests && <div style={{ fontSize:12, color:"#888", marginTop:2 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
                             {sub.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginTop:2, fontWeight:600 }}>🌿 Mit Führung</div>}
                             {sub.adminNote && <div style={{ fontSize:12, color:"#999", marginTop:5, fontStyle:"italic", lineHeight:1.4 }}>📝 {sub.adminNote}</div>}
+                            {sub.price && sub.type !== "gruppenfuehrung" && (() => {
+                              const priceNum = parseFloat(String(sub.price || "").replace(/\./g, "").replace(",", ".")) || 0;
+                              const partialNum = parseFloat(String(sub.partialAmount || "").replace(/\./g, "").replace(",", ".")) || 0;
+                              const feeAmount = sub.cleaningFee ? 150 : 0;
+                              const fmtMoney = (n) => n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                              const ps = sub.paymentStatus || "open";
+                              const statusLabel = { open: "offen", partial: "angezahlt", paid: "bezahlt" }[ps];
+                              const statusColor = { open: "#999", partial: "#8a6a00", paid: BRAND.moosgruen }[ps];
+                              const restOffen = Math.max(0, priceNum - partialNum + feeAmount);
+                              return (
+                                <div style={{ fontSize:12, color:"#888", marginTop:5, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                                  <span style={{ color:BRAND.lila, fontWeight:700 }}>€ {fmtMoney(priceNum + feeAmount)}</span>
+                                  {sub.cleaningFee && <span style={{ fontSize:10, color:"#999" }}>inkl. Pauschale</span>}
+                                  <span style={{ fontSize:10, color:statusColor, fontWeight:700, background:statusColor+"18", padding:"2px 7px", borderRadius:4, textTransform:"uppercase", letterSpacing:0.4 }}>{statusLabel}</span>
+                                  {ps === "partial" && partialNum > 0 && (
+                                    <span style={{ color:"#999" }}>· offen: <span style={{ color:BRAND.lila, fontWeight:600 }}>€ {fmtMoney(restOffen)}</span></span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                             {sub.message && <div style={{ fontSize:12, color:"#888", marginTop:5, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
                             {sub.checklist && sub.checklist.length > 0 && (
                               <div style={{ marginTop:6, fontSize:12, color:"#888" }}>
@@ -3060,7 +3136,7 @@ export default function App() {
 
                   {isAdmin && fromCalendar && !ev.allDay && (
                     <button onClick={() => {
-                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, groupName:"", customerEmail:"", customerPhone:"" });
+                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, groupName:"", customerEmail:"", customerPhone:"", price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                     }}
                       style={{ width:"100%", padding:"13px 0", background:`${BRAND.moosgruen}10`, color: BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all .15s" }}
