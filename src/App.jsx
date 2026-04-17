@@ -611,11 +611,14 @@ export default function App() {
   const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
   const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
   const [typeSelectExpanded, setTypeSelectExpanded] = useState(false); // Event-Typ-Auswahl im Admin-Modal auf-/zuklappbar
+  const [statusCollapsed, setStatusCollapsed] = useState(false); // Status-Buttons (Gebucht/Anfrage/Intern) eingeklappt?
+  const [timeCollapsed, setTimeCollapsed] = useState(false); // Zeit + Ganztägig eingeklappt?
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
   const prevEvents = useRef(null);
   const lastSyncedEvents = useRef({});
+  const backdropMouseDown = useRef(false);
 
   const showToast = (msg, detail, undoable=false, actionColor=null) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -806,6 +809,14 @@ export default function App() {
   // Bei jedem Wechsel des Admin-Modals oder Datums: Collapse-State und SubEvent-Edit-Kontext zurücksetzen
   // So ist beim Öffnen eines Termins die Type-Auswahl immer eingeklappt (wenn ein Typ gewählt ist)
   useEffect(() => { setEditingSubIndex(-1); setTypeSelectExpanded(false); }, [modalView, selectedDate]);
+  // Beim Öffnen des Admin-Modals: Status + Zeit einklappen wenn ein existierender Termin bearbeitet wird, ausklappen bei Neu-Anlage
+  useEffect(() => {
+    if (modalView !== "admin") return;
+    const existing = selectedDate ? events[selectedDate] : null;
+    const isEditingExisting = (existing && existing.status !== "deleted") || editingSubIndex >= 0 || adminForm.editAllSeries;
+    setStatusCollapsed(isEditingExisting && !adminForm.addToExisting);
+    setTimeCollapsed(isEditingExisting && !adminForm.addToExisting);
+  }, [modalView, selectedDate]);
 
   // Autosave im Admin-Modal: speichert 1s nach der letzten Eingabe automatisch,
   // aber nur beim Bearbeiten existierender Termine (nicht beim Neu-Anlegen oder addToExisting).
@@ -2196,7 +2207,15 @@ export default function App() {
 
       {/* Modal */}
       {(modalView || editingType) && (
-        <div onClick={() => { if (modalView !== "form") { setModalView(null); setEditingType(null); } }}
+        <div
+          onMouseDown={(e) => { backdropMouseDown.current = e.target === e.currentTarget; }}
+          onClick={(e) => {
+            const wasBackdrop = backdropMouseDown.current;
+            backdropMouseDown.current = false;
+            if (!wasBackdrop || e.target !== e.currentTarget) return;
+            if (modalView === "form") return;
+            setModalView(null); setEditingType(null);
+          }}
           onTouchMove={e => e.preventDefault()}
           style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:100, display:"flex", alignItems: winW < 520 ? "flex-end" : "center", justifyContent:"center", padding: winW < 520 ? 0 : 16, touchAction:"none", overscrollBehavior:"none", transition:"background .3s" }}
           id="modal-backdrop">
@@ -2414,18 +2433,31 @@ export default function App() {
                   </div>
                 </div>
                 {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:14, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
-                {!adminForm.editAllSeries && !adminForm.addToExisting && (
-                <div style={{ display:"flex", gap:6, marginBottom:14 }}>
-                  {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]].map(([v,l,c]) => (
-                    <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
-                      style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 12 : 14, cursor:"pointer", letterSpacing:0.1 }}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-                )}
+                {!adminForm.editAllSeries && !adminForm.addToExisting && (() => {
+                  const statusMeta = { booked:{label:"Gebucht", color:BRAND.lila}, pending:{label:"Anfrage", color:BRAND.aprikot}, blocked:{label:"Intern & Serientermin", color:"#009a93"} }[adminForm.type] || {label:"—", color:"#999"};
+                  if (statusCollapsed) return (
+                    <div onClick={() => setStatusCollapsed(false)}
+                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, marginBottom:10, cursor:"pointer" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color }} />
+                        <span style={{ fontSize:14, fontWeight:600, color: BRAND.aubergine }}>{statusMeta.label}</span>
+                      </div>
+                      <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="#999" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </div>
+                  );
+                  return (
+                    <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+                      {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]].map(([v,l,c]) => (
+                        <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
+                          style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 12 : 14, cursor:"pointer", letterSpacing:0.1 }}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
                 {adminForm.addToExisting && (
-                <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+                <div style={{ display:"flex", gap:6, marginBottom:10 }}>
                   {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
                       style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:0.1 }}>
@@ -2435,7 +2467,19 @@ export default function App() {
                 </div>
                 )}
 
-                {/* Zeit + Ganztägig — gemeinsamer Rahmen mit vertikalem Trennstrich */}
+                {/* Zeit + Ganztägig — gemeinsamer Rahmen mit vertikalem Trennstrich (einklappbar) */}
+                {timeCollapsed ? (
+                  <div onClick={() => setTimeCollapsed(false)}
+                    style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, marginBottom:10, cursor:"pointer" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.3" stroke="#888" strokeWidth="1.3"/><path d="M8 4.5V8l2.2 1.5" stroke="#888" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                      <span style={{ fontSize:14, fontWeight:600, color: BRAND.aubergine }}>
+                        {adminForm.allDay ? "Ganztägig" : `${adminForm.startTime || "08:00"} – ${adminForm.endTime || "22:00"}`}
+                      </span>
+                    </div>
+                    <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="#999" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                ) : (
                 <div style={{ background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, padding:"10px 14px", marginBottom:10, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, flex:"1 1 auto" }}>
                     {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
@@ -2457,6 +2501,7 @@ export default function App() {
                     <span style={{ fontWeight:500, fontSize:14, color:BRAND.aubergine }}>Ganztägig</span>
                   </label>
                 </div>
+                )}
 
                 <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
 
@@ -2469,7 +2514,7 @@ export default function App() {
                     <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
                       {eventTypes.map(t => {
                         const isSelected = adminForm.eventType === t.id;
-                        if (hasSelection && !showAll && !isSelected) return null;
+                        if (hasSelection && !showAll) return null;
                         return (
                           <button key={t.id} onClick={() => { setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label})); setTypeSelectExpanded(false); }}
                             style={{ padding:"7px 12px", border:`1.5px solid ${isSelected ? t.color : "#e0d8de"}`, borderRadius:6, background: isSelected ? t.color+"15" : "#fff", color: isSelected ? t.color : "#999", fontSize:12, fontWeight:600, cursor:"pointer", borderLeft:`3px solid ${t.color}` }}>
