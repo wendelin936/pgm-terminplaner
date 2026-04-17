@@ -611,8 +611,8 @@ export default function App() {
   const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
   const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
   const [typeSelectExpanded, setTypeSelectExpanded] = useState(false); // Event-Typ-Auswahl im Admin-Modal auf-/zuklappbar
-  const [statusCollapsed, setStatusCollapsed] = useState(false); // Status-Buttons (Gebucht/Anfrage/Intern) eingeklappt?
-  const [timeCollapsed, setTimeCollapsed] = useState(false); // Zeit + Ganztägig eingeklappt?
+  const [statusCollapsed, setStatusCollapsed] = useState(true); // Status-Buttons (Gebucht/Anfrage/Intern) eingeklappt?
+  const [timeCollapsed, setTimeCollapsed] = useState(true); // Zeit + Ganztägig eingeklappt?
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -800,13 +800,12 @@ export default function App() {
   // Bei jedem Wechsel des Admin-Modals oder Datums: Collapse-State und SubEvent-Edit-Kontext zurücksetzen
   // So ist beim Öffnen eines Termins die Type-Auswahl immer eingeklappt (wenn ein Typ gewählt ist)
   useEffect(() => { setEditingSubIndex(-1); setTypeSelectExpanded(false); }, [modalView, selectedDate]);
-  // Beim Öffnen des Admin-Modals: Status + Zeit einklappen wenn ein existierender Termin bearbeitet wird, ausklappen bei Neu-Anlage
+  // Beim Öffnen des Admin-Modals: Dashboard-Chips als Übersicht zeigen, Editoren sind initial geschlossen
   useEffect(() => {
     if (modalView !== "admin") return;
-    const existing = selectedDate ? events[selectedDate] : null;
-    const isEditingExisting = (existing && existing.status !== "deleted") || editingSubIndex >= 0 || adminForm.editAllSeries;
-    setStatusCollapsed(isEditingExisting && !adminForm.addToExisting);
-    setTimeCollapsed(isEditingExisting && !adminForm.addToExisting);
+    setStatusCollapsed(true);
+    setTimeCollapsed(true);
+    setTypeSelectExpanded(false);
   }, [modalView, selectedDate]);
 
   // Autosave im Admin-Modal: speichert 1s nach der letzten Eingabe automatisch,
@@ -2451,103 +2450,128 @@ export default function App() {
               });
               return (
               <>
-                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:4 }}>
-                  <button onClick={() => { if (events[selectedDate] && events[selectedDate].status !== "deleted") { setModalView("info"); } else { setModalView(null); } }}
-                    style={{ background:"none", border:"none", cursor:"pointer", padding:4, display:"flex", alignItems:"center", color:"#aaa", flexShrink:0, transition:"color .15s" }}
-                    onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
-                  </button>
-                  <div>
-                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:22, fontWeight:700 }}>
-                      {adminForm.editAllSeries ? "Serie bearbeiten" : (adminForm.addToExisting || !events[selectedDate] || events[selectedDate]?.status === "deleted") ? "Termin hinzufügen" : "Termin bearbeiten"}
-                      {adminForm.editAllSeries && <span style={{ background:"#009a93", color:"#fff", fontSize:10, fontWeight:700, padding:"3px 7px", borderRadius:4, marginLeft:10, verticalAlign:"middle" }}>S</span>}
-                    </h3>
-                    <div style={{ fontSize:15, color:"#999", marginTop:2 }}>{fmtDateAT(selectedDate)}</div>
-                  </div>
-                </div>
-                {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:14, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
-                {!adminForm.editAllSeries && !adminForm.addToExisting && (() => {
-                  const statusMeta = { booked:{label:"Gebucht", color:BRAND.lila}, pending:{label:"Anfrage", color:BRAND.aprikot}, blocked:{label:"Intern & Serientermin", color:"#009a93"} }[adminForm.type] || {label:"—", color:"#999"};
-                  if (statusCollapsed) return (
-                    <div onClick={() => setStatusCollapsed(false)}
-                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, marginBottom:10, cursor:"pointer" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color }} />
-                        <span style={{ fontSize:14, fontWeight:600, color: BRAND.aubergine }}>{statusMeta.label}</span>
-                      </div>
-                      <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="#999" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </div>
-                  );
+                {(() => {
+                  const et = eventTypes.find(t => t.id === adminForm.eventType);
+                  const accent = et?.color || BRAND.aubergine;
                   return (
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:14 }}>
+                  <div>
+                    <div style={{ fontSize:13, color:"#888", fontWeight:500 }}>
+                      {adminForm.editAllSeries ? "Serie bearbeiten" : (adminForm.addToExisting || !events[selectedDate] || events[selectedDate]?.status === "deleted") ? "Termin hinzufügen" : "Termin bearbeiten"}
+                      {adminForm.editAllSeries && <span style={{ background:"#009a93", color:"#fff", fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:3, marginLeft:8, verticalAlign:"middle" }}>S</span>}
+                    </div>
+                    <h3 style={{ margin:0, color: accent, fontSize:22, fontWeight:700, marginTop:2, lineHeight:1.2 }}>
+                      {et?.label || (adminForm.type === "blocked" ? "Interner Termin" : adminForm.label || "Ohne Typ")}
+                    </h3>
+                  </div>
+                  <button onClick={() => { if (events[selectedDate] && events[selectedDate].status !== "deleted") { setModalView("info"); } else { setModalView(null); } }}
+                    style={{ background:"none", border:"none", cursor:"pointer", color:"#aaa", padding:4, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"color .15s" }}
+                    onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                  </button>
+                </div>
+                  );
+                })()}
+                {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:14, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
+                {/* 2x2 Meta-Chip Dashboard */}
+                {(() => {
+                  const et = eventTypes.find(t => t.id === adminForm.eventType);
+                  const typColor = et?.color || "#999";
+                  const statusMeta = { booked:{label:"Gebucht", color:BRAND.lila}, pending:{label:"Anfrage", color:BRAND.aprikot}, blocked:{label:"Intern", color:"#009a93"} }[adminForm.type] || {label:"—", color:"#999"};
+                  const [yy,mm,dd] = selectedDate.split("-").map(Number);
+                  const dateObj = new Date(yy, mm-1, dd);
+                  const wochentag = ["So","Mo","Di","Mi","Do","Fr","Sa"][dateObj.getDay()];
+                  const monatKurz = ["Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"][mm-1];
+                  const dateShort = `${wochentag} · ${dd}. ${monatKurz}`;
+                  const zeitText = adminForm.allDay ? "Ganztägig" : `${adminForm.startTime || "08:00"} – ${adminForm.endTime || "22:00"}`;
+                  const canEditStatus = !adminForm.editAllSeries;
+                  // Exclusive expand: only one editor open at a time
+                  const expandStatus = () => { setStatusCollapsed(false); setTimeCollapsed(true); setTypeSelectExpanded(false); };
+                  const expandTime = () => { setTimeCollapsed(false); setStatusCollapsed(true); setTypeSelectExpanded(false); };
+                  const expandType = () => { setTypeSelectExpanded(true); setStatusCollapsed(true); setTimeCollapsed(true); };
+                  return (
+                  <>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
+                    {/* STATUS */}
+                    <div onClick={canEditStatus ? expandStatus : undefined}
+                      style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px", cursor: canEditStatus ? "pointer" : "default", border:"1px solid transparent", transition:"border .15s" }}
+                      onMouseEnter={e => { if (canEditStatus) e.currentTarget.style.border=`1px solid ${statusMeta.color}40`; }}
+                      onMouseLeave={e => { e.currentTarget.style.border="1px solid transparent"; }}>
+                      <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Status</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
+                        <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
+                        <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{statusMeta.label}</span>
+                      </div>
+                    </div>
+                    {/* DATUM */}
+                    <div style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px" }}>
+                      <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Datum</div>
+                      <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginTop:4 }}>{dateShort}</div>
+                    </div>
+                    {/* ZEIT */}
+                    <div onClick={expandTime}
+                      style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border:"1px solid transparent", transition:"border .15s" }}
+                      onMouseEnter={e => e.currentTarget.style.border=`1px solid ${BRAND.lila}40`}
+                      onMouseLeave={e => e.currentTarget.style.border="1px solid transparent"}>
+                      <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Zeit</div>
+                      <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginTop:4, fontVariantNumeric:"tabular-nums" }}>{zeitText}</div>
+                    </div>
+                    {/* TYP */}
+                    {(adminForm.type === "booked" || adminForm.type === "pending") ? (
+                      <div onClick={expandType}
+                        style={{ background: et ? `${typColor}15` : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: et ? `1px solid ${typColor}30` : "1px solid transparent", transition:"border .15s" }}>
+                        <div style={{ fontSize:10, color: et ? typColor : "#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Typ</div>
+                        <div style={{ fontSize:14, fontWeight:600, color: et ? typColor : "#888", marginTop:4 }}>{et?.label || "— wählen"}</div>
+                      </div>
+                    ) : (
+                      <div style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px", opacity:0.5 }}>
+                        <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Typ</div>
+                        <div style={{ fontSize:14, color:"#888", marginTop:4, fontStyle:"italic" }}>—</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expandable: Status-Auswahl */}
+                  {!statusCollapsed && !adminForm.editAllSeries && (
                     <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-                      {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]].map(([v,l,c]) => (
+                      {(adminForm.addToExisting
+                        ? [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]]
+                        : [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]]
+                      ).map(([v,l,c]) => (
                         <button key={v} onClick={() => { setAdminForm(f=>({...f, type:v})); setStatusCollapsed(true); }}
                           style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 12 : 14, cursor:"pointer", letterSpacing:0.1 }}>
                           {l}
                         </button>
                       ))}
                     </div>
-                  );
-                })()}
-                {adminForm.addToExisting && (
-                <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-                  {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]].map(([v,l,c]) => (
-                    <button key={v} onClick={() => { setAdminForm(f=>({...f, type:v})); setStatusCollapsed(true); }}
-                      style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:0.1 }}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-                )}
+                  )}
 
-                {/* Zeit + Ganztägig — gemeinsamer Rahmen mit vertikalem Trennstrich (einklappbar) */}
-                {timeCollapsed ? (
-                  <div onClick={() => setTimeCollapsed(false)}
-                    style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 14px", background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, marginBottom:10, cursor:"pointer" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.3" stroke="#888" strokeWidth="1.3"/><path d="M8 4.5V8l2.2 1.5" stroke="#888" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                      <span style={{ fontSize:14, fontWeight:600, color: BRAND.aubergine }}>
-                        {adminForm.allDay ? "Ganztägig" : `${adminForm.startTime || "08:00"} – ${adminForm.endTime || "22:00"}`}
-                      </span>
-                    </div>
-                    <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="#999" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </div>
-                ) : (
-                <div style={{ background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, padding:"10px 14px", marginBottom:10, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10, flex:"1 1 auto" }}>
-                    {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
-                      const timeVal = adminForm[field] || "08:00";
-                      return (
-                        <div key={field} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                          <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
-                          <TimeInput value={timeVal} onChange={v => setAdminForm(f=>({...f,[field]:v}))} />
+                  {/* Expandable: Zeit + Ganztägig */}
+                  {!timeCollapsed && (
+                    <div style={{ background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, padding:"10px 14px", marginBottom:10, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:12, flex:"1 1 auto", flexWrap:"wrap" }}>
+                        <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Von</span>
+                        <TimeInput value={adminForm.startTime || "08:00"} onChange={v => setAdminForm(f=>({...f, startTime:v}))} />
+                        <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Bis</span>
+                        <TimeInput value={adminForm.endTime || "22:00"} onChange={v => setAdminForm(f=>({...f, endTime:v}))} />
+                      </div>
+                      <div style={{ width:1, height:24, background:"#d8cdd5", flexShrink:0 }} />
+                      <label onClick={() => { setAdminForm(f=>({...f, allDay:!f.allDay})); setTimeCollapsed(true); }}
+                        style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", flexShrink:0 }}>
+                        <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff", transition:"all .15s" }}>
+                          {adminForm.allDay && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{ width:1, height:24, background:"#d8cdd5", flexShrink:0 }} />
-                  <label onClick={() => { setAdminForm(f=>({...f, allDay:!f.allDay})); setTimeCollapsed(true); }}
-                    style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", flexShrink:0 }}>
-                    <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff", transition:"all .15s" }}>
-                      {adminForm.allDay && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        <span style={{ fontWeight:500, fontSize:14, color:BRAND.aubergine }}>Ganztägig</span>
+                      </label>
                     </div>
-                    <span style={{ fontWeight:500, fontSize:14, color:BRAND.aubergine }}>Ganztägig</span>
-                  </label>
-                </div>
-                )}
+                  )}
 
-                <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
-
-                {/* Event type suggestions - only for booked + pending */}
-                {(adminForm.type === "booked" || adminForm.type === "pending") && (() => {
-                  const hasSelection = !!adminForm.eventType;
-                  const showAll = !hasSelection || typeSelectExpanded;
-                  const typeLabels = eventTypes.map(x => x.label);
-                  return (
-                    <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
+                  {/* Expandable: Typ-Auswahl */}
+                  {typeSelectExpanded && (adminForm.type === "booked" || adminForm.type === "pending") && (
+                    <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
                       {eventTypes.map(t => {
                         const isSelected = adminForm.eventType === t.id;
-                        if (hasSelection && !showAll) return null;
+                        const typeLabels = eventTypes.map(x => x.label);
                         return (
                           <button key={t.id} onClick={() => { setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label})); setTypeSelectExpanded(false); }}
                             style={{ padding:"7px 12px", border:`1.5px solid ${isSelected ? t.color : "#e0d8de"}`, borderRadius:6, background: isSelected ? t.color+"15" : "#fff", color: isSelected ? t.color : "#999", fontSize:12, fontWeight:600, cursor:"pointer", borderLeft:`3px solid ${t.color}` }}>
@@ -2555,17 +2579,11 @@ export default function App() {
                           </button>
                         );
                       })}
-                      {hasSelection && (
-                        <button onClick={() => setTypeSelectExpanded(e => !e)}
-                          title={showAll ? "Auswahl ausblenden" : "Andere Typen anzeigen"}
-                          style={{ padding:"5px 8px", border:"1px solid #e0d8de", borderRadius:6, background:"#fff", color:"#999", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", gap:4, transition:"all .15s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor=BRAND.aubergine+"60"; e.currentTarget.style.color=BRAND.aubergine; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor="#e0d8de"; e.currentTarget.style.color="#999"; }}>
-                          <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showAll ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          {showAll ? "weniger" : "ändern"}
-                        </button>
-                      )}
                     </div>
+                  )}
+
+                  <input placeholder={adminForm.type==="blocked" ? "Bezeichnung (z.B. Urlaub)" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
+                  </>
                   );
                 })()}
 
@@ -2611,7 +2629,7 @@ export default function App() {
                   return (
                   <>
                     {/* Teilnehmer-Leiste */}
-                    <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:6 }}>
+                    <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:10 }}>
                       <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Teilnehmer *</span>
                       <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                         <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
@@ -2622,21 +2640,6 @@ export default function App() {
                           style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                       </div>
                     </div>
-
-                    {/* Führung-Leiste */}
-                    <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                      style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:10, cursor:"pointer" }}>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Führung mit Gartenexpertin</div>
-                        <div style={{ fontSize:10, color:BRAND.moosgruen, opacity:0.65, marginTop:2 }}>max. {gt?.maxPerTour || 20} Teilnehmer pro Führung</div>
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
-                        <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
-                          {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                      </div>
-                    </label>
 
                     {/* Gruppe & Kontakt-Karte */}
                     <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
@@ -2680,7 +2683,7 @@ export default function App() {
                       </div>
 
                       {/* Kuchen */}
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom: nP > 0 ? 10 : 0 }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
                         <div style={{ flex:1 }}>
                           <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div>
                           <div style={{ fontSize:11, color:"#999" }}>à € {(gt?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
@@ -2694,6 +2697,19 @@ export default function App() {
                             style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                         </div>
                       </div>
+
+                      {/* Führung-Toggle */}
+                      <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginBottom: nP > 0 ? 10 : 0 }}>
+                        <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                          {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                          <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {gt?.guideCost || 80} pro {gt?.maxPerTour || 20} Teilnehmer</div>
+                        </div>
+                        <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
+                      </label>
 
                       {/* Kostenauflistung */}
                       {nP > 0 && (
@@ -2956,16 +2972,15 @@ export default function App() {
                 <>
                   <style>{`.form-modal input:focus, .form-modal textarea:focus { border-color: ${ec}80 !important; box-shadow: 0 0 0 2px ${ec}15 !important; }`}</style>
                   <div className="form-modal">
-                  <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
                     <button onClick={() => { setPickerMonth(month); setPickerYear(year); setModalView("pickDate"); }}
-                      style={{ width:32, height:32, borderRadius:"50%", background: `${et?.color || BRAND.lila}15`, border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center", justifyContent:"center", color: et?.color || BRAND.lila, flexShrink:0, transition:"background .15s" }}
+                      style={{ width:34, height:34, borderRadius:"50%", background: `${et?.color || BRAND.lila}15`, border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center", justifyContent:"center", color: et?.color || BRAND.lila, flexShrink:0, transition:"background .15s" }}
                       onMouseEnter={e => e.currentTarget.style.background=`${et?.color || BRAND.lila}25`} onMouseLeave={e => e.currentTarget.style.background=`${et?.color || BRAND.lila}15`}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
                     </button>
-                    <div style={{ width:4, height:36, borderRadius:2, background: et?.color || BRAND.lila }} />
                     <div>
-                      <h3 style={{ margin:0, color: et?.color || BRAND.aubergine, fontSize:18, fontWeight:700 }}>{et?.label}</h3>
-                      <div style={{ fontSize:13, color: BRAND.lila, fontWeight:500 }}>{fmtDateAT(selectedDate)}</div>
+                      <h3 style={{ margin:0, color: et?.color || BRAND.aubergine, fontSize:20, fontWeight:700, lineHeight:1.2 }}>{et?.label}</h3>
+                      <div style={{ fontSize:12, color:"#999", marginTop:2 }}>{fmtDateAT(selectedDate)}</div>
                       {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:9, borderRadius:3, padding:"2px 6px", marginTop:2 }}>{holidays[selectedDate]}</div>}
                     </div>
                   </div>
@@ -2988,22 +3003,7 @@ export default function App() {
                         <div style={{ fontSize:11, color:"#c44", marginTop:-2, marginBottom:6 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
                       )}
 
-                      {/* 2. Führung-Leiste (grün transparent, zweizeilig) */}
-                      <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:12, cursor:"pointer" }}>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Führung mit Gartenexpertin</div>
-                          <div style={{ fontSize:10, color:BRAND.moosgruen, opacity:0.65, marginTop:2 }}>max. {et?.maxPerTour || 20} Teilnehmer pro Führung</div>
-                        </div>
-                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                          <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {et?.guideCost || 80}</span>
-                          <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
-                            {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                          </div>
-                        </div>
-                      </label>
-
-                      {/* 3. Zeit-Leiste (lila) */}
+                      {/* 2. Zeit-Leiste (lila) */}
                       <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, flexWrap:"wrap" }}>
                         <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Von</span>
                         <TimeInput value={String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourHour:nh, tourMin:nm})); }} />
@@ -3046,7 +3046,7 @@ export default function App() {
                         </div>
 
                         {/* Kuchen */}
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom: nGuests > 0 ? 10 : 0 }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div>
                             <div style={{ fontSize:11, color:"#999" }}>à € {(et?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
@@ -3060,6 +3060,19 @@ export default function App() {
                               style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                           </div>
                         </div>
+
+                        {/* Führung-Toggle */}
+                        <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginBottom: nGuests > 0 ? 10 : 0 }}>
+                          <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                            {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                            <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {et?.guideCost || 80} pro {et?.maxPerTour || 20} Teilnehmer</div>
+                          </div>
+                          <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {et?.guideCost || 80}</span>
+                        </label>
 
                         {/* Kostenauflistung */}
                         {nGuests > 0 && (
