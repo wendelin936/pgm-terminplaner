@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { loadData, saveData, adminLogin, adminLogout, onAuthChange } from "./firebase.js";
+import { syncEventsDiff, ensureLocalIds } from "./gcal-sync.js";
 
 const BRAND = {
   lila: "#903486",
@@ -438,6 +439,7 @@ export default function App() {
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
   const prevEvents = useRef(null);
+  const lastSyncedEvents = useRef({});
 
   const showToast = (msg, detail, undoable=false, actionColor=null) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -571,8 +573,22 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { setEvents(JSON.parse(evData)); } else { setEvents(SEED_EVENTS); try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} setLoading(false); })(); }, []);
-  const saveEvents = useCallback(async (updated) => { setEvents(updated); try { await saveData("events", JSON.stringify(updated)); } catch {} }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); setEvents(parsed); lastSyncedEvents.current = parsed; } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} setLoading(false); })(); }, []);
+  const saveEvents = useCallback(async (updated) => {
+    const withIds = ensureLocalIds(updated);
+    setEvents(withIds);
+    try { await saveData("events", JSON.stringify(withIds)); } catch {}
+    // Google Calendar Sync (non-blocking, fire-and-forget)
+    const oldSnapshot = lastSyncedEvents.current || {};
+    lastSyncedEvents.current = withIds;
+    syncEventsDiff(oldSnapshot, withIds).then(patched => {
+      if (patched) {
+        setEvents(patched);
+        lastSyncedEvents.current = patched;
+        saveData("events", JSON.stringify(patched)).catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
   const handleLogin = async () => { setLoginError(""); try { await adminLogin(loginEmail, loginPw); setLoginModal(false); setLoginEmail(""); setLoginPw(""); } catch (e) { setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen"); } };
   const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
