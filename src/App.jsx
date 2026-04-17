@@ -40,6 +40,40 @@ const DEFAULT_ADMIN_THEME = {
 };
 
 const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
+const GROUP_TOUR_NOTIFY_EMAIL = "astridmattuschka@gmail.com";
+
+// Schickt eine separate Benachrichtigung an Astrid, wenn eine Gruppenführung bestätigt oder direkt als "booked" angelegt wird.
+// Wird aufgerufen aus:
+//   - handleAdminAction(..., "confirm", ...) wenn der bestätigte Eintrag eine Gruppenführung ist
+//   - handleAdminSave beim Neuanlegen/Bestätigen einer Gruppenführung (type="booked" + eventType="gruppenfuehrung")
+function notifyGroupTour(dateKey, ev) {
+  try {
+    const [yy,mm,dd] = dateKey.split("-").map(Number);
+    const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
+    const payload = {
+      notifyTo: GROUP_TOUR_NOTIFY_EMAIL,
+      kind: "confirmed_group_tour",
+      date: `${dayName}, ${dd}.${mm}.${yy}`,
+      type: "Gruppenführung",
+      name: ev.groupName || ev.name || "",
+      contactName: ev.contactName || "",
+      contactPhone: ev.contactPhone || "",
+      email: ev.email || "",
+      phone: ev.phone || "",
+      guests: ev.guests || "",
+      slot: ev.slotLabel || (ev.startTime && ev.endTime ? `${ev.startTime} – ${ev.endTime}` : ""),
+      message: ev.message || "",
+      adminNote: ev.adminNote || "",
+      tourGuide: !!ev.tourGuide,
+      cakeCount: ev.cakeCount || 0,
+      coffeeCount: ev.coffeeCount || 0,
+    };
+    fetch(EMAIL_WORKER_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  } catch {}
+}
 
 // Dokumente — Pfade anpassen für Deployment (z.B. "/assets/Getraenke.pdf")
 const DOCS = {
@@ -576,6 +610,7 @@ export default function App() {
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
   const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
   const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
+  const [typeSelectExpanded, setTypeSelectExpanded] = useState(false); // Event-Typ-Auswahl im Admin-Modal auf-/zuklappbar
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -759,7 +794,7 @@ export default function App() {
 
   useEffect(() => { setAdminSubmitAttempted(false); }, [modalView, selectedDate]);
   // Wenn das Admin-Modal geschlossen/weggeschaltet wird, den SubEvent-Edit-Kontext zurücksetzen
-  useEffect(() => { if (modalView !== "admin") setEditingSubIndex(-1); }, [modalView]);
+  useEffect(() => { if (modalView !== "admin") { setEditingSubIndex(-1); setTypeSelectExpanded(false); } }, [modalView]);
 
 
 
@@ -835,7 +870,7 @@ export default function App() {
     const st = adminForm.startTime || "08:00";
     const et = adminForm.endTime || "22:00";
     const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "" };
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "" };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -867,6 +902,21 @@ export default function App() {
           updated[dk] = { ...entry, ...(oldD?.localId ? { localId: oldD.localId } : {}), ...(oldD?.googleEventId ? { googleEventId: oldD.googleEventId } : {}), subEvents: oldD?.subEvents || [], checklist: entry.checklist.map(c => ({...c, done:false})) };
         });
       }
+    }
+    // Gruppenführung-Notification: nur wenn eine Gruppenführung NEU als "booked" angelegt oder von pending auf booked gewechselt wird
+    // (nicht bei reinen Edits eines bereits gebuchten Gruppenführungs-Termins, um Doppel-Mails zu vermeiden)
+    if (adminForm.type === "booked" && adminForm.eventType === "gruppenfuehrung" && !adminForm.editAllSeries) {
+      let wasAlreadyBooked = false;
+      if (editingSubIndex >= 0) {
+        const oldSub = events[selectedDate]?.subEvents?.[editingSubIndex];
+        wasAlreadyBooked = oldSub?.status === "booked" && oldSub?.type === "gruppenfuehrung";
+      } else if (adminForm.addToExisting) {
+        wasAlreadyBooked = false; // ist ja ein neues SubEvent
+      } else {
+        const oldMain = events[selectedDate];
+        wasAlreadyBooked = oldMain?.status === "booked" && oldMain?.type === "gruppenfuehrung";
+      }
+      if (!wasAlreadyBooked) notifyGroupTour(selectedDate, entry);
     }
     saveEvents(updated);
     setModalView(null);
@@ -978,6 +1028,8 @@ export default function App() {
         updated[key] = day;
         saveEvents(updated);
         showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, true, BRAND.moosgruen);
+        // Extra-Notification bei Gruppenführung
+        if (sub && sub.type === "gruppenfuehrung") notifyGroupTour(key, { ...sub, status: "booked" });
         return;
       }
       const ev = events[key];
@@ -985,6 +1037,8 @@ export default function App() {
       saveEvents(updated);
       setModalView(null);
       showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, BRAND.moosgruen);
+      // Extra-Notification bei Gruppenführung
+      if (ev && ev.type === "gruppenfuehrung") notifyGroupTour(key, { ...ev, status: "booked" });
     }
   };
 
@@ -1407,18 +1461,18 @@ export default function App() {
                   return (
                     <SwipeRow key={rowKey} onSwipeRight={() => handleAdminAction(key,"confirm",subIndex)} onSwipeLeft={() => handleAdminAction(key,"delete",subIndex)} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
                       <div onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
-                        style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                        style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "11px 14px" : "10px 12px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                            <span style={{ fontWeight:600, color:BRAND.aprikot, fontSize: winW > 900 ? 12 : 11 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
-                            <span style={{ fontSize: winW > 900 ? 12 : 11, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
-                            {ev.slotLabel && <span style={{ fontSize:10, color:"#bbb", display:"flex", alignItems:"center", gap:2 }}><ClockIcon color="#ccc" size={10} />{ev.slotLabel}</span>}
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                            <span style={{ fontWeight:600, color:BRAND.aprikot, fontSize: winW > 900 ? 14 : 13 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
+                            <span style={{ fontSize: winW > 900 ? 14 : 13, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ev.type}</span>
+                            {ev.slotLabel && <span style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:3 }}><ClockIcon color="#bbb" size={11} />{ev.slotLabel}</span>}
                           </div>
-                          {ev.name && <div style={{ fontSize:10, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>}
+                          {ev.name && <div style={{ fontSize:12, color:"#999", marginTop:3, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}</div>}
                         </div>
                         <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm",subIndex); }}
                           onMouseEnter={e => e.currentTarget.style.filter="brightness(0.85)"} onMouseLeave={e => e.currentTarget.style.filter="none"}
-                          style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:5, padding:"4px 10px", fontSize:9, fontWeight:700, cursor:"pointer", flexShrink:0, textTransform:"uppercase", letterSpacing:0.5, transition:"all .15s" }}>Annehmen</button>
+                          style={{ background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:5, padding:"5px 12px", fontSize:11, fontWeight:700, cursor:"pointer", flexShrink:0, textTransform:"uppercase", letterSpacing:0.5, transition:"all .15s" }}>Annehmen</button>
                       </div>
                     </SwipeRow>
                   );
@@ -1457,14 +1511,14 @@ export default function App() {
             const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
             return (
               <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
-                style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "11px 14px" : "10px 12px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                    <span style={{ fontWeight:600, color, fontSize: winW > 900 ? 12 : 11 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
-                    <span style={{ fontSize: winW > 900 ? 12 : 11, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ""}</span>
-                    {ev.slotLabel && <span style={{ fontSize:10, color:"#bbb", display:"flex", alignItems:"center", gap:2 }}><ClockIcon color="#ccc" size={10} />{ev.slotLabel}</span>}
+                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                    <span style={{ fontWeight:600, color, fontSize: winW > 900 ? 14 : 13 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
+                    <span style={{ fontSize: winW > 900 ? 14 : 13, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ""}</span>
+                    {ev.slotLabel && <span style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:3 }}><ClockIcon color="#bbb" size={11} />{ev.slotLabel}</span>}
                   </div>
-                  {(ev.name || ev.adminNote) && <div style={{ fontSize:10, color:"#aaa", marginTop:1, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}{ev.adminNote ? (ev.name ? " · " : "") + ev.adminNote : ""}</div>}
+                  {(ev.name || ev.adminNote) && <div style={{ fontSize:12, color:"#999", marginTop:3, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{ev.name}{ev.adminNote ? (ev.name ? " · " : "") + ev.adminNote : ""}</div>}
                 </div>
                 {badge}
               </div>
@@ -1472,11 +1526,11 @@ export default function App() {
           };
 
           const renderSectionHeader = (label, count, color, show, setShow) => (
-            <div onClick={() => setShow(s=>!s)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", marginBottom: show ? 8 : 0, marginTop:16 }}>
-              <span style={{ fontSize: winW > 900 ? 13 : 11, fontWeight:600, color, textTransform:"uppercase", letterSpacing:2 }}>{label}</span>
+            <div onClick={() => setShow(s=>!s)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", marginBottom: show ? 10 : 0, marginTop:18 }}>
+              <span style={{ fontSize: winW > 900 ? 15 : 13, fontWeight:600, color, textTransform:"uppercase", letterSpacing:2 }}>{label}</span>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <span style={{ background:`${color}12`, color, fontSize:11, fontWeight:500, padding:"2px 10px", borderRadius:10 }}>{count}</span>
-                <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: show ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span style={{ background:`${color}12`, color, fontSize:13, fontWeight:500, padding:"3px 12px", borderRadius:10 }}>{count}</span>
+                <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: show ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
             </div>
           );
@@ -1487,7 +1541,7 @@ export default function App() {
                 {renderSectionHeader("Kommende Termine", bookedOnly.length, BRAND.aubergine, showUpcoming, setShowUpcoming)}
                 {showUpcoming && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   {bookedOnly.map(([key,ev]) => renderRow(key, ev, BRAND.lila,
-                    <div style={{ background:BRAND.lila, color:"#fff", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Gebucht</div>
+                    <div style={{ background:BRAND.lila, color:"#fff", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Gebucht</div>
                   ))}
                 </div>}
               </>}
@@ -1496,22 +1550,22 @@ export default function App() {
                 {renderSectionHeader("Intern & Serie", internAndSeries.length, "#009a93", showInternal, setShowInternal)}
                 {showInternal && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                   {regularBlocked.map(([key,ev]) => renderRow(key, ev, "#009a93",
-                    <div style={{ background:"#009a93", color:"#fff", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Intern</div>
+                    <div style={{ background:"#009a93", color:"#fff", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Intern</div>
                   ))}
                   {Object.entries(seriesGroups).map(([sid, group]) => {
                     const isOpen = expandedSeries === sid;
                     return (
                       <div key={sid}>
                         <div onClick={() => setExpandedSeries(isOpen ? null : sid)} className="admin-card"
-                          style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "9px 12px" : "8px 10px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                          style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "11px 14px" : "10px 12px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                              <span style={{ fontWeight:600, color:"#009a93", fontSize: winW > 900 ? 12 : 11 }}>{group.label}</span>
-                              <span style={{ background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:8, fontWeight:700, padding:"0px 4px", borderRadius:3, boxSizing:"border-box" }}>S</span>
-                              <span style={{ fontSize:10, color:"#009a9360" }}>{group.items.length} Termine</span>
-                              <svg width="8" height="8" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <span style={{ fontWeight:600, color:"#009a93", fontSize: winW > 900 ? 14 : 13 }}>{group.label}</span>
+                              <span style={{ background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:3, boxSizing:"border-box" }}>S</span>
+                              <span style={{ fontSize:12, color:"#009a9388" }}>{group.items.length} Termine</span>
+                              <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </div>
-                            {group.first.slotLabel && <div style={{ fontSize:10, color:"#bbb", marginTop:1, display:"flex", alignItems:"center", gap:2 }}><ClockIcon color="#ccc" size={10} />{group.first.slotLabel}</div>}
+                            {group.first.slotLabel && <div style={{ fontSize:12, color:"#999", marginTop:3, display:"flex", alignItems:"center", gap:3 }}><ClockIcon color="#bbb" size={11} />{group.first.slotLabel}</div>}
                           </div>
                           <div style={{ display:"flex", gap:4, flexShrink:0 }}>
                             <button onClick={(e) => { e.stopPropagation();
@@ -1528,12 +1582,12 @@ export default function App() {
                               style={{ background:"none", border:"1px solid #c4440020", borderRadius:5, padding:"3px 6px", cursor:"pointer", display:"flex", alignItems:"center", transition:"opacity .15s" }}>
                               <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4" stroke="#c44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </button>
-                            <div style={{ background:"#009a9318", color:"#009a93", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>Serie</div>
+                            <div style={{ background:"#009a9318", color:"#009a93", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>Serie</div>
                           </div>
                         </div>
                         {isOpen && <div style={{ paddingLeft:12, borderLeft:"2px solid #009a9320", marginLeft:8, marginTop:2 }}>
                           {group.items.sort(([a],[b]) => a.localeCompare(b)).map(([key,ev]) => renderRow(key, ev, "#009a93",
-                            <div style={{ background:"#009a9318", color:"#009a93", padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Serie</div>
+                            <div style={{ background:"#009a9318", color:"#009a93", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Serie</div>
                           ))}
                         </div>}
                       </div>
@@ -1550,9 +1604,11 @@ export default function App() {
                   {renderSectionHeader("Vergangene Termine", pastAll.length, "#aaa", showPast, setShowPast)}
                   {showPast && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
                     {pastAll.map(([key,ev]) => {
+                      const isSeries = ev.isSeries;
                       const isBlocked = ev.status === "blocked";
+                      const accentC = isSeries ? adminTheme.seriesColor : isBlocked ? "#009a93" : BRAND.lila;
                       return <div key={key} style={{ opacity:0.6 }}>{renderRow(key, ev, "#aaa",
-                        <div style={{ background: isBlocked ? "#009a9330" : `${BRAND.lila}30`, color: isBlocked ? "#009a93" : BRAND.lila, padding:"4px 10px", borderRadius:5, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>{isBlocked ? "Intern" : "Gebucht"}</div>
+                        <div style={{ background: `${accentC}30`, color: accentC, padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>{isSeries ? "Serie" : isBlocked ? "Intern" : "Gebucht"}</div>
                       )}</div>;
                     })}
                   </div>}
@@ -1986,7 +2042,7 @@ export default function App() {
                     const renderItem = (key, ev, subIdx) => {
                       const [yy,mm,dd] = key.split("-").map(Number);
                       const c = ev.status === "booked" ? adminTheme.bookedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.blockedColor;
-                      const label = ev.status === "pending" ? "Anfrage" : ev.status === "blocked" ? "Intern" : "Gebucht";
+                      const label = ev.isSeries ? "Serie" : ev.status === "pending" ? "Anfrage" : ev.status === "blocked" ? "Intern" : "Gebucht";
                       return (
                         <div key={`${key}:${subIdx}`} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#fff", borderLeft:`3px solid ${c}`, borderRadius:8, border:"1px solid #ede8ed" }}>
                           <div style={{ flex:1, minWidth:0 }}>
@@ -2294,19 +2350,19 @@ export default function App() {
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
                   </button>
                   <div>
-                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>
+                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:22, fontWeight:700 }}>
                       {adminForm.editAllSeries ? "Serie bearbeiten" : (adminForm.addToExisting || !events[selectedDate] || events[selectedDate]?.status === "deleted") ? "Termin hinzufügen" : "Termin bearbeiten"}
-                      {adminForm.editAllSeries && <span style={{ background:"#009a93", color:"#fff", fontSize:8, fontWeight:700, padding:"2px 6px", borderRadius:4, marginLeft:8, verticalAlign:"middle" }}>S</span>}
+                      {adminForm.editAllSeries && <span style={{ background:"#009a93", color:"#fff", fontSize:10, fontWeight:700, padding:"3px 7px", borderRadius:4, marginLeft:10, verticalAlign:"middle" }}>S</span>}
                     </h3>
-                    <div style={{ fontSize:13, color:"#999" }}>{fmtDateAT(selectedDate)}</div>
+                    <div style={{ fontSize:15, color:"#999", marginTop:2 }}>{fmtDateAT(selectedDate)}</div>
                   </div>
                 </div>
-                {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
+                {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:14, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
                 {((!events[selectedDate] || events[selectedDate]?.status === "deleted") || adminForm.addToExisting) && !adminForm.editAllSeries && (
                 <div style={{ display:"flex", gap:6, marginBottom:14 }}>
                   {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
-                      style={{ flex:1, padding:"8px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 10 : 12, cursor:"pointer", letterSpacing:0.1 }}>
+                      style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 12 : 14, cursor:"pointer", letterSpacing:0.1 }}>
                       {l}
                     </button>
                   ))}
@@ -2319,7 +2375,7 @@ export default function App() {
                   <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff" }}>
                     {adminForm.allDay && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </div>
-                  <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Ganztägig</span>
+                  <span style={{ fontWeight:600, fontSize:15, color: BRAND.aubergine }}>Ganztägig</span>
                 </label>
                 <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
                   {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
@@ -2335,40 +2391,56 @@ export default function App() {
 
                 <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
 
-                {/* Event type suggestions - only for booked */}
-                {(adminForm.type === "booked" || adminForm.type === "pending") && (
-                  <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
-                    {eventTypes.map(t => {
-                      const typeLabels = eventTypes.map(x => x.label);
-                      return (
-                      <button key={t.id} onClick={() => setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label}))}
-                        style={{ padding:"5px 10px", border:`1.5px solid ${adminForm.eventType===t.id ? t.color : "#e0d8de"}`, borderRadius:6, background: adminForm.eventType===t.id ? t.color+"15" : "#fff", color: adminForm.eventType===t.id ? t.color : "#999", fontSize:10, fontWeight:600, cursor:"pointer", borderLeft:`3px solid ${t.color}` }}>
-                        {t.label}
-                      </button>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* Event type suggestions - only for booked + pending */}
+                {(adminForm.type === "booked" || adminForm.type === "pending") && (() => {
+                  const hasSelection = !!adminForm.eventType;
+                  const showAll = !hasSelection || typeSelectExpanded;
+                  const typeLabels = eventTypes.map(x => x.label);
+                  return (
+                    <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap", alignItems:"center" }}>
+                      {eventTypes.map(t => {
+                        const isSelected = adminForm.eventType === t.id;
+                        if (hasSelection && !showAll && !isSelected) return null;
+                        return (
+                          <button key={t.id} onClick={() => { setAdminForm(f=>({...f, eventType:t.id, label: !f.label || typeLabels.includes(f.label) ? t.label : f.label})); setTypeSelectExpanded(false); }}
+                            style={{ padding:"7px 12px", border:`1.5px solid ${isSelected ? t.color : "#e0d8de"}`, borderRadius:6, background: isSelected ? t.color+"15" : "#fff", color: isSelected ? t.color : "#999", fontSize:12, fontWeight:600, cursor:"pointer", borderLeft:`3px solid ${t.color}` }}>
+                            {t.label}
+                          </button>
+                        );
+                      })}
+                      {hasSelection && (
+                        <button onClick={() => setTypeSelectExpanded(e => !e)}
+                          title={showAll ? "Auswahl ausblenden" : "Andere Typen anzeigen"}
+                          style={{ padding:"5px 8px", border:"1px solid #e0d8de", borderRadius:6, background:"#fff", color:"#999", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", gap:4, transition:"all .15s" }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor=BRAND.aubergine+"60"; e.currentTarget.style.color=BRAND.aubergine; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor="#e0d8de"; e.currentTarget.style.color="#999"; }}>
+                          <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showAll ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          {showAll ? "weniger" : "ändern"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Customer data fields - for booked + pending events (not Gruppenführung which has own section) */}
                 {(adminForm.type === "booked" || adminForm.type === "pending") && adminForm.eventType !== "gruppenfuehrung" && (
                   <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
-                    <div style={{ fontSize:9, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>
+                    <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
                       {adminForm.type === "pending" ? "Anfrage – Kundendaten" : "Kundendaten"}
                     </div>
                     <input placeholder="Name * (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                      style={{ width:"100%", padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
                     <div style={{ display:"flex", gap:6, marginBottom:6 }}>
                       <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                        style={{ flex:1, padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                        style={{ flex:1, padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
                       <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
-                        style={{ flex:1, padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                        style={{ flex:1, padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
                     <input placeholder="Anzahl Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom: adminForm.type === "pending" ? 6 : 0 }} />
+                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom: adminForm.type === "pending" ? 6 : 0 }} />
                     {adminForm.type === "pending" && (
                       <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:70, resize:"none" }} />
+                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", height:70, resize:"none" }} />
                     )}
                   </div>
                 )}
@@ -2382,26 +2454,26 @@ export default function App() {
                       {adminForm.type === "pending" ? "Anfrage – Gruppenführung" : "Gruppenführung Details"}
                     </div>
                     <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
                     <div style={{ display:"flex", gap:6, marginBottom:8 }}>
                       <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
-                        style={{ flex:1, padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                        style={{ flex:1, padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
                       <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
-                        style={{ flex:1, padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                        style={{ flex:1, padding:"10px 12px", border:`1.5px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
                     <div style={{ display:"flex", gap:6, marginBottom:8 }}>
                       <div style={{ flex:1 }}>
-                        <label style={{ fontSize:9, color:"#888", marginBottom:2, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Teilnehmer</label>
+                        <label style={{ fontSize:11, color:"#888", marginBottom:3, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Teilnehmer</label>
                         <input type="number" min="1" placeholder="Anzahl" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
                           style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
                       </div>
                       <div style={{ flex:1 }}>
-                        <label style={{ fontSize:9, color:"#888", marginBottom:2, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kaffee</label>
+                        <label style={{ fontSize:11, color:"#888", marginBottom:3, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kaffee</label>
                         <input type="number" min="0" placeholder="0" value={adminForm.coffeeCount||""} onChange={e => setAdminForm(f=>({...f, coffeeCount:e.target.value}))}
                           style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
                       </div>
                       <div style={{ flex:1 }}>
-                        <label style={{ fontSize:9, color:"#888", marginBottom:2, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kuchen</label>
+                        <label style={{ fontSize:11, color:"#888", marginBottom:3, display:"block", textTransform:"uppercase", letterSpacing:1 }}>Kuchen</label>
                         <input type="number" min="0" placeholder="0" value={adminForm.cakeCount||""} onChange={e => setAdminForm(f=>({...f, cakeCount:e.target.value}))}
                           style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
                       </div>
@@ -2411,11 +2483,11 @@ export default function App() {
                       <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.tourGuide ? BRAND.moosgruen : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", transition:"all .15s" }}>
                         {adminForm.tourGuide && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </div>
-                      <span style={{ fontSize:12, color:BRAND.aubergine, fontWeight:500 }}>Mit Führung ({gt ? `€ ${gt.guideCost}` : "€ 80"})</span>
+                      <span style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Mit Führung ({gt ? `€ ${gt.guideCost}` : "€ 80"})</span>
                     </label>
                     {adminForm.type === "pending" && (
                       <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:60, resize:"none", marginTop:6 }} />
+                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", height:60, resize:"none", marginTop:6 }} />
                     )}
                   </div>
                   );
@@ -2448,26 +2520,38 @@ export default function App() {
                     {adminForm.isPublic && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </div>
                   <div>
-                    <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Öffentlich sichtbar</span>
+                    <span style={{ fontWeight:600, fontSize:15, color: BRAND.aubergine }}>Öffentlich sichtbar</span>
                     <div style={{ fontSize:9, color:"#aaa" }}>Bezeichnung, Beschreibung, Kontakt & Adresse werden für Kunden sichtbar</div>
                   </div>
                 </label>
                 )}
 
-                {/* PUBLIC SECTION - expanded details when isPublic checked */}
+                {/* PUBLIC SECTION - expanded description when isPublic checked (Kontakt kommt separat unten) */}
                 {adminForm.type === "blocked" && adminForm.isPublic && (
                   <div style={{ background:"#009a9306", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #009a9320" }}>
-                    <div style={{ fontSize:9, color:"#009a93", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Für Kunden sichtbar</div>
+                    <div style={{ fontSize:11, color:"#009a93", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Für Kunden sichtbar</div>
                     <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Beschreibung</label>
-                    <textarea placeholder="Text für Kunden…" value={adminForm.publicText} onChange={e => setAdminForm(f=>({...f, publicText:e.target.value}))} style={{ ...inputStyle, height:50, resize:"vertical", fontSize:13 }} />
-                    <div style={{ fontSize:9, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Kontaktperson</div>
-                    <input placeholder="Name" value={adminForm.contactName} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
-                      style={{ ...inputStyle, fontSize:13, padding:"8px 10px" }} />
-                    <input placeholder="Telefon oder E-Mail" value={adminForm.contactPhone} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
-                      style={{ ...inputStyle, fontSize:13, padding:"8px 10px" }} />
-                    <div style={{ fontSize:9, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Veranstaltungsort</div>
+                    <textarea placeholder="Text für Kunden…" value={adminForm.publicText} onChange={e => setAdminForm(f=>({...f, publicText:e.target.value}))} style={{ ...inputStyle, height:50, resize:"vertical", fontSize:13, marginBottom:6 }} />
+                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Veranstaltungsort</label>
                     <input placeholder="Adresse" value={adminForm.contactAddress} onChange={e => setAdminForm(f=>({...f, contactAddress:e.target.value}))}
                       style={{ ...inputStyle, marginBottom:0, fontSize:13, padding:"8px 10px" }} />
+                  </div>
+                )}
+
+                {/* CONTACT PERSON - sichtbar für alle blocked Events (intern oder öffentlich), alle Felder optional */}
+                {adminForm.type === "blocked" && (
+                  <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
+                    <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
+                      Ansprechperson {adminForm.isPublic && <span style={{ color:"#009a93", fontWeight:500 }}>· für Kunden sichtbar</span>}
+                    </div>
+                    <input placeholder="Name" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
+                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                    <div style={{ display:"flex", gap:6 }}>
+                      <input placeholder="Telefon" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                        style={{ flex:1, padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      <input placeholder="E-Mail" value={adminForm.contactEmail||""} onChange={e => setAdminForm(f=>({...f, contactEmail:e.target.value}))}
+                        style={{ flex:1, padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box" }} />
+                    </div>
                   </div>
                 )}
 
@@ -2480,7 +2564,7 @@ export default function App() {
                     {adminForm.isSeries && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                   </div>
                   <div>
-                    <span style={{ fontWeight:600, fontSize:13, color: BRAND.aubergine }}>Serientermin</span>
+                    <span style={{ fontWeight:600, fontSize:15, color: BRAND.aubergine }}>Serientermin</span>
                     <div style={{ fontSize:9, color:"#aaa" }}>An weiteren Tagen wiederholen</div>
                   </div>
                 </label>
@@ -2817,10 +2901,10 @@ export default function App() {
               const allRequests = isAdmin ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...(ev.subEvents || []).map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))] : [];
               return (
                 <>
-                  <div style={{ marginBottom: 14 }}>
-                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
+                  <div style={{ marginBottom: 16 }}>
+                    <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:22, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
                   </div>
-                  {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:6, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
+                  {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:8, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
 
                   {isAdmin ? (
                     <div style={{ marginBottom:10 }}>
@@ -2832,29 +2916,29 @@ export default function App() {
                         const editSub = () => {
                           const src = sub._isMain ? ev : sub;
                           setEditingSubIndex(sub._isMain ? -1 : subIndex);
-                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "" });
+                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "" });
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
                         return (
-                          <div key={idx} style={{ background:"#f9f7fa", borderRadius:8, padding:"10px 12px", marginBottom:6, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:2 }}>
+                          <div key={idx} style={{ background:"#f9f7fa", borderRadius:8, padding:"12px 14px", marginBottom:8, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
                               <div>
-                                <span style={{ fontSize:10, fontWeight:700, color:subColor, textTransform:"uppercase" }}>{sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : sub.isSeries ? "Serie" : "Anfrage"}</span>
-                                {sub.label && <span style={{ fontSize:11, color:BRAND.aubergine, fontWeight:500, marginLeft:6 }}>{sub.label}</span>}
+                                <span style={{ fontSize:12, fontWeight:700, color:subColor, textTransform:"uppercase", letterSpacing:0.5 }}>{sub.isSeries ? "Serie" : sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : sub.status === "pending" ? "Anfrage" : ""}</span>
+                                {sub.label && <span style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500, marginLeft:8 }}>{sub.label}</span>}
                               </div>
                             </div>
-                            <div style={{ fontSize:10, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}{sub.allDay ? " · Ganztägig" : ""}</div>
-                            {sub.name && <div style={{ fontSize:11, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>👤 {sub.name}</div>}
-                            {sub.email && <div style={{ fontSize:10, color:"#888" }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
-                            {sub.phone && <div style={{ fontSize:10, color:"#888" }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
-                            {sub.guests && <div style={{ fontSize:10, color:"#888", marginTop:1 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
-                            {sub.tourGuide && <div style={{ fontSize:10, color:BRAND.moosgruen, marginTop:1, fontWeight:600 }}>🌿 Mit Führung</div>}
-                            {sub.adminNote && <div style={{ fontSize:10, color:"#999", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>📝 {sub.adminNote}</div>}
-                            {sub.message && <div style={{ fontSize:10, color:"#888", marginTop:3, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
+                            <div style={{ fontSize:12, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}{sub.allDay ? " · Ganztägig" : ""}</div>
+                            {sub.name && <div style={{ fontSize:13, color:BRAND.aubergine, marginTop:4, fontWeight:500 }}>👤 {sub.name}</div>}
+                            {sub.email && <div style={{ fontSize:12, color:"#888", marginTop:1 }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
+                            {sub.phone && <div style={{ fontSize:12, color:"#888", marginTop:1 }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
+                            {sub.guests && <div style={{ fontSize:12, color:"#888", marginTop:2 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
+                            {sub.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginTop:2, fontWeight:600 }}>🌿 Mit Führung</div>}
+                            {sub.adminNote && <div style={{ fontSize:12, color:"#999", marginTop:5, fontStyle:"italic", lineHeight:1.4 }}>📝 {sub.adminNote}</div>}
+                            {sub.message && <div style={{ fontSize:12, color:"#888", marginTop:5, fontStyle:"italic", lineHeight:1.4 }}>„{sub.message}"</div>}
                             {sub.checklist && sub.checklist.length > 0 && (
-                              <div style={{ marginTop:4, fontSize:10, color:"#888" }}>
+                              <div style={{ marginTop:6, fontSize:12, color:"#888" }}>
                                 {sub.checklist.map((c,ci) => (
-                                  <div key={ci} style={{ display:"flex", alignItems:"center", gap:4, marginTop:1 }}>
+                                  <div key={ci} style={{ display:"flex", alignItems:"center", gap:5, marginTop:2 }}>
                                     <span style={{ color: c.done ? BRAND.moosgruen : "#ccc" }}>{c.done ? "☑" : "☐"}</span>
                                     <span style={{ textDecoration: c.done ? "line-through" : "none", opacity: c.done ? 0.6 : 1 }}>{c.text}</span>
                                   </div>
@@ -2862,22 +2946,22 @@ export default function App() {
                               </div>
                             )}
                             {/* Actions per card */}
-                            <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                            <div style={{ display:"flex", gap:8, marginTop:10 }}>
                               {subIsPending ? (
                                 <>
                                   <button onClick={() => handleAdminAction(selectedDate,"confirm",subIndex)}
-                                    style={{ flex:1, padding:"6px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
+                                    style={{ flex:1, padding:"9px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:13, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
                                   <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
-                                    style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
+                                    style={{ flex:1, padding:"9px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
                                 </>
                               ) : (
                                 <>
                                   <button onClick={editSub}
-                                    style={{ flex:1, padding:"6px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" }}>Bearbeiten</button>
+                                    style={{ flex:1, padding:"9px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:6, fontSize:13, fontWeight:600, cursor:"pointer" }}>Bearbeiten</button>
                                   <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
                                     onMouseEnter={e => { e.target.style.background="#f8d0d0"; e.target.style.color="#c44"; }}
                                     onMouseLeave={e => { e.target.style.background="#f5f0f4"; e.target.style.color=BRAND.aubergine; }}
-                                    style={{ flex:1, padding:"6px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>Löschen</button>
+                                    style={{ flex:1, padding:"9px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>Löschen</button>
                                 </>
                               )}
                             </div>
@@ -2931,9 +3015,9 @@ export default function App() {
                       setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, groupName:"", customerEmail:"", customerPhone:"" });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                     }}
-                      style={{ width:"100%", padding:"10px 0", background:`${BRAND.moosgruen}10`, color: BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s" }}
+                      style={{ width:"100%", padding:"13px 0", background:`${BRAND.moosgruen}10`, color: BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all .15s" }}
                       onMouseEnter={e => { e.currentTarget.style.background=`${BRAND.moosgruen}20`; }} onMouseLeave={e => { e.currentTarget.style.background=`${BRAND.moosgruen}10`; }}>
-                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"/></svg>
                       Zusätzliche Buchung hinzufügen
                     </button>
                   )}
@@ -2985,7 +3069,7 @@ export default function App() {
             <button onClick={() => { setModalView(null); setEditingType(null); setSubmitAttempted(false); }}
               onMouseEnter={e => { e.target.style.color="#c44"; e.target.style.background="#fdf6f6"; }}
               onMouseLeave={e => { e.target.style.color="#aaa"; e.target.style.background="transparent"; }}
-              style={{ width:"100%", padding:10, border:"none", background:"transparent", color:"#aaa", cursor:"pointer", fontSize:13, marginTop:8, borderRadius:8, transition:"all .15s" }}>
+              style={{ width:"100%", padding:12, border:"none", background:"transparent", color:"#aaa", cursor:"pointer", fontSize:15, marginTop:10, borderRadius:8, transition:"all .15s" }}>
               {modalView === "form" ? "Abbrechen" : "Schließen"}
             </button>
           </div>
@@ -3040,5 +3124,5 @@ export default function App() {
 
 const navBtn = { width:44, height:44, borderRadius:"50%", border:`2px solid ${BRAND.aubergine}20`, background:"#fff", color:BRAND.aubergine, fontSize:22, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, padding:0, textAlign:"center" };
 const inputStyle = { width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:16, marginBottom:10, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color: BRAND.aubergine };
-const primaryBtn = { width:"100%", padding:"12px 0", background: BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 };
+const primaryBtn = { width:"100%", padding:"14px 0", background: BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:16, fontWeight:600, cursor:"pointer", letterSpacing:1 };
 const smallBtn = { width:32, height:32, borderRadius:8, border:"none", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" };
