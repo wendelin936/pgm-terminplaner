@@ -15,6 +15,18 @@ const BRAND = {
   white: "#ffffff",
 };
 
+// Design-Theme für Kundenansicht (anpassbar über Admin → "Design anpassen")
+// Event-Typ-Akzente kommen separat aus eventTypes[i].color
+const DEFAULT_THEME = {
+  bgColor: "#f0ecf0",       // Hintergrund der Kundenansicht
+  headerBg: "#58084a",       // Titelleiste Hintergrund (aubergine)
+  headerText: "#ffffff",     // Titelleiste Textfarbe
+  footerBg: "#903486",       // Footer Akzent (aus Lila-Tint)
+  footerText: "#58084a",     // Footer Textfarbe
+  bookBtnBg: "#58084a",      // "Location buchen" Button Hintergrund
+  bookBtnText: "#ffffff",    // "Location buchen" Button Textfarbe
+};
+
 const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
 
 // Dokumente — Pfade anpassen für Deployment (z.B. "/assets/Getraenke.pdf")
@@ -509,6 +521,8 @@ export default function App() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [hoveredDate, setHoveredDate] = useState(null);
   const [showPrices, setShowPrices] = useState(false);
+  const [showDesign, setShowDesign] = useState(false);
+  const [siteTheme, setSiteTheme] = useState(DEFAULT_THEME);
   const [showPast, setShowPast] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [showPending, setShowPending] = useState(true);
@@ -574,7 +588,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); setEvents(parsed); lastSyncedEvents.current = parsed; } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); setEvents(parsed); lastSyncedEvents.current = parsed; } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated) => {
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
@@ -591,6 +605,7 @@ export default function App() {
     }).catch(() => {});
   }, []);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
+  const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
   const handleLogin = async () => { setLoginError(""); try { await adminLogin(loginEmail, loginPw); setLoginModal(false); setLoginEmail(""); setLoginPw(""); } catch (e) { setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen"); } };
   const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
 
@@ -821,7 +836,7 @@ export default function App() {
   if (loading) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", fontFamily:"system-ui", color: BRAND.aubergine }}>Laden...</div>;
 
   return (
-    <div style={{ minHeight:"100svh", ...(isAdmin ? {} : { display:"flex", flexDirection:"column" }), background: `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)`, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
+    <div style={{ minHeight:"100svh", ...(isAdmin ? {} : { display:"flex", flexDirection:"column" }), background: isAdmin ? `linear-gradient(160deg, #f3eff2 0%, #ede8ec 40%, #f3eff2 100%)` : siteTheme.bgColor, fontFamily:"'Acumin Pro', 'Segoe UI', system-ui, sans-serif", overflowX:"hidden", WebkitTextSizeAdjust:"100%" }}>
       {toast && (
         <div key={toastKey} style={{ position:"fixed", top:56, left:"50%", transform:"translateX(-50%)", background: BRAND.aubergine, color:"#fff", borderRadius:10, zIndex:1100, boxShadow:"0 4px 20px rgba(88,8,74,0.3)", animation:"fadeIn .25s", overflow:"hidden", minWidth:220, maxWidth:"92vw" }}>
           <div style={{ padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
@@ -881,18 +896,18 @@ export default function App() {
         );
       })()}
 
-      <header style={{ background: BRAND.aubergine, color:"#fff", padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 1100 ? "sticky" : "relative", top:0, zIndex:50 }}>
+      <header style={{ background: isAdmin ? BRAND.aubergine : siteTheme.headerBg, color: isAdmin ? "#fff" : siteTheme.headerText, padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 1100 ? "sticky" : "relative", top:0, zIndex:50 }}>
         <div onClick={!isAdmin ? () => { if (loggedIn) { setIsAdmin(true); setModalView(null); } else setLoginModal(true); } : undefined}
           style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1, cursor: !isAdmin ? "pointer" : "default" }}>
           <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? 24 : 26, flexShrink:0 }} />
           <h1 style={{ margin:0, marginLeft: winW < 520 ? 8 : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", minWidth:0 }}>
             {winW < 520 ? (
               <>
-                <span style={{ fontSize:11, letterSpacing:2, color:"#fff", fontWeight:600, lineHeight:1.2 }}>PARADIESGÄRTEN</span>
-                <span style={{ fontSize:11, letterSpacing:2, color:"#fff", fontWeight:300, lineHeight:1.2 }}>MATTUSCHKA</span>
+                <span style={{ fontSize:11, letterSpacing:2, color:"inherit", fontWeight:600, lineHeight:1.2 }}>PARADIESGÄRTEN</span>
+                <span style={{ fontSize:11, letterSpacing:2, color:"inherit", fontWeight:300, lineHeight:1.2 }}>MATTUSCHKA</span>
               </>
             ) : (
-              <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"#fff" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}> MATTUSCHKA</span></span>
+              <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"inherit" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}> MATTUSCHKA</span></span>
             )}
           </h1>
         </div>
@@ -919,6 +934,21 @@ export default function App() {
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, #009a9325 2px, #009a9325 3.5px)`, border:"1px solid #009a9330", display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div style={{ padding: winW < 520 ? "8px 10px" : "10px 24px", display:"flex", gap:8, borderBottom:"1px solid #e8e0e5", flexWrap:"wrap" }}>
+          <button onClick={() => setShowPrices(true)}
+            onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+            style={{ display:"inline-flex", alignItems:"center", gap:6, padding: winW < 520 ? "6px 12px" : "8px 16px", background:BRAND.aubergine, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
+            Preise verwalten
+          </button>
+          <button onClick={() => setShowDesign(true)}
+            onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+            style={{ display:"inline-flex", alignItems:"center", gap:6, padding: winW < 520 ? "6px 12px" : "8px 16px", background:BRAND.lila, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
+            Design anpassen
+          </button>
         </div>
       )}
 
@@ -965,9 +995,9 @@ export default function App() {
             {!isDesk && (
               <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3 }}>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                  style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
+                  style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
                   Location buchen
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </button>
               </div>
             )}
@@ -1004,9 +1034,9 @@ export default function App() {
               <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                 onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
-                style={{ background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding: big ? "16px 32px" : "14px 28px", fontSize: big ? 18 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(88,8,74,0.3)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
+                style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding: big ? "16px 32px" : "14px 28px", fontSize: big ? 18 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
                 Location buchen
-                <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
               </button>
             </div>}
           </div>
@@ -1067,7 +1097,7 @@ export default function App() {
         {/* Footer bar — full width, rectangular, extends edge to edge */}
         <div style={{ width:"100%", display:"flex", flexWrap:"wrap", gap: isDesk ? 8 : 6, justifyContent:"center", padding: isDesk ? `10px ${padH}px 14px` : "8px 12px 12px", flexShrink:0, boxSizing:"border-box" }}>
           {["Mitten im Blütenmeer","120 m² Veranstaltungsglashaus","15.000 m² Paradiesgarten","Blick auf Karawanken & Klagenfurt","Historischer Paradiesgarten","einzigartig · idyllisch"].map(t => (
-            <span key={t} style={{ fontSize: isDesk ? bulletFs : 10, color:BRAND.aubergine, background:`${BRAND.lila}10`, border:`1px solid ${BRAND.lila}20`, borderRadius:20, padding: isDesk ? (big ? "6px 14px" : "5px 12px") : "4px 12px", whiteSpace:"nowrap" }}>{t}</span>
+            <span key={t} style={{ fontSize: isDesk ? bulletFs : 10, color:siteTheme.footerText, background:`${siteTheme.footerBg}10`, border:`1px solid ${siteTheme.footerBg}20`, borderRadius:20, padding: isDesk ? (big ? "6px 14px" : "5px 12px") : "4px 12px", whiteSpace:"nowrap" }}>{t}</span>
           ))}
         </div>
         </>
@@ -1378,17 +1408,6 @@ export default function App() {
           );
         })()}
 
-        {/* Admin: Preise verwalten */}
-        {isAdmin && (
-          <div style={{ marginBottom:24 }}>
-            <button onClick={() => setShowPrices(true)}
-              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
-              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:BRAND.aubergine, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
-              Preise verwalten
-            </button>
-          </div>
-        )}
-
         {/* Prices Modal */}
         {showPrices && (
           <div onClick={() => setShowPrices(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
@@ -1419,6 +1438,74 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* Design Modal */}
+        {showDesign && (() => {
+          const updateType = (id, color) => {
+            const updated = eventTypes.map(t => t.id === id ? { ...t, color } : t);
+            saveTypes(updated);
+          };
+          const updateTheme = (key, value) => saveTheme({ ...siteTheme, [key]: value });
+          const resetAll = () => {
+            if (!confirm("Alle Design-Einstellungen auf Standard zurücksetzen?\n(Event-Farben + Layout-Farben)")) return;
+            saveTheme(DEFAULT_THEME);
+            // Event-Type Farben zurücksetzen aus DEFAULT_TYPES
+            const resetTypes = eventTypes.map(t => {
+              const def = DEFAULT_TYPES.find(d => d.id === t.id);
+              return def ? { ...t, color: def.color } : t;
+            });
+            saveTypes(resetTypes);
+          };
+          const ColorField = ({ label, value, onChange }) => (
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#fff", borderRadius:8, border:"1px solid #ede8ed" }}>
+              <div style={{ flex:1, fontSize:13, color:BRAND.aubergine, fontWeight:500 }}>{label}</div>
+              <input type="color" value={value} onChange={e => onChange(e.target.value)}
+                style={{ width:36, height:28, border:"1px solid #e0d8de", borderRadius:6, padding:0, cursor:"pointer", background:"none" }} />
+              <input type="text" value={value} onChange={e => { const v = e.target.value.trim(); if (/^#[0-9a-fA-F]{0,6}$/.test(v) || v === "") onChange(v); }}
+                onBlur={e => { if (!/^#[0-9a-fA-F]{6}$/.test(e.target.value)) onChange(value); }}
+                style={{ width:80, padding:"4px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:12, fontFamily:"monospace", color:BRAND.aubergine, boxSizing:"border-box" }} />
+            </div>
+          );
+          return (
+          <div onClick={() => setShowDesign(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#f5f3f4", borderRadius:16, padding:"24px 20px", maxWidth:540, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Design anpassen</h3>
+                <button onClick={() => setShowDesign(false)} style={{ background:"none", border:"none", fontSize:20, color:"#aaa", cursor:"pointer", padding:4, lineHeight:1 }}
+                  onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>×</button>
+              </div>
+
+              {/* Section: Event types */}
+              <div style={{ fontSize:10, fontWeight:700, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Veranstaltungstypen</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:18 }}>
+                {eventTypes.map(et => (
+                  <ColorField key={et.id} label={et.label} value={et.color} onChange={v => updateType(et.id, v)} />
+                ))}
+              </div>
+
+              {/* Section: Layout */}
+              <div style={{ fontSize:10, fontWeight:700, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Layout – Kundenansicht</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:18 }}>
+                <ColorField label="Hintergrund" value={siteTheme.bgColor} onChange={v => updateTheme("bgColor", v)} />
+                <ColorField label="Titelleiste – Hintergrund" value={siteTheme.headerBg} onChange={v => updateTheme("headerBg", v)} />
+                <ColorField label="Titelleiste – Textfarbe" value={siteTheme.headerText} onChange={v => updateTheme("headerText", v)} />
+                <ColorField label="Fußleiste – Hintergrund" value={siteTheme.footerBg} onChange={v => updateTheme("footerBg", v)} />
+                <ColorField label="Fußleiste – Textfarbe" value={siteTheme.footerText} onChange={v => updateTheme("footerText", v)} />
+                <ColorField label="Button 'Location buchen' – Hintergrund" value={siteTheme.bookBtnBg} onChange={v => updateTheme("bookBtnBg", v)} />
+                <ColorField label="Button 'Location buchen' – Textfarbe" value={siteTheme.bookBtnText} onChange={v => updateTheme("bookBtnText", v)} />
+              </div>
+
+              {/* Reset */}
+              <button onClick={resetAll}
+                style={{ width:"100%", padding:"10px 0", background:"#fff", color:BRAND.aubergine, border:`1.5px solid ${BRAND.aubergine}40`, borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}
+                onMouseEnter={e => { e.currentTarget.style.background=`${BRAND.aubergine}08`; e.currentTarget.style.borderColor=BRAND.aubergine; }}
+                onMouseLeave={e => { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor=`${BRAND.aubergine}40`; }}>
+                Auf Standard zurücksetzen
+              </button>
+            </div>
+          </div>
+          );
+        })()}
 
         {/* Customer: Contact */}
         {!isAdmin && (
