@@ -105,8 +105,9 @@ function eventChanged(a, b) {
 // ============================================================
 // Haupt-Funktion: Diff berechnen + Batch an Worker schicken
 // Rückgabe: gepatchtes events-Objekt mit neuen googleEventIds, oder null wenn nichts zu tun
+// Optional: onComplete-Callback bekommt { created, updated, deleted, failed } für User-Feedback
 // ============================================================
-export async function syncEventsDiff(oldEvents, newEvents) {
+export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
   const oldMap = new Map(flatten(oldEvents).map(x => [x.localId, x]));
   const newMap = new Map(flatten(newEvents).map(x => [x.localId, x]));
   const oldGcalIds = extractGcalIds(oldEvents);
@@ -141,28 +142,36 @@ export async function syncEventsDiff(oldEvents, newEvents) {
     }
   }
 
-  // DELETE: in old aber nicht in new (oder Status auf deleted/pending)
+  // DELETE: in old aber nicht in new (status-wechsel booked→pending/deleted zählt hier)
+  // newGcalIds wird hier bewusst auch als Quelle genutzt, damit ein Event das pending ist
+  // aber noch eine gcalId trägt (weil das alte booked war) auch gelöscht wird
   for (const [localId, entry] of oldMap) {
     if (!newMap.has(localId)) {
-      const gcalId = oldGcalIds.get(localId)?.gcalId;
+      const gcalId = oldGcalIds.get(localId)?.gcalId || newGcalIds.get(localId)?.gcalId;
       if (gcalId) ops.push({ op: "delete", localId, gcalId });
     }
   }
-  // Zusätzlich: Soft-delete (Status auf "deleted") & pending-Umstellung
-  for (const [dateKey, ev] of Object.entries(newEvents || {})) {
+  // Zusätzlich: jeder Event der eine gcalId hat, aber jetzt nicht mehr syncable ist → delete
+  // Fängt Edge-Cases ab, auch wenn oldEvents fehlerhaft oder leer war
+  const allNewWithGcalId = [];
+  for (const [dk, ev] of Object.entries(newEvents || {})) {
     if (!ev) continue;
-    const wasSyncable = shouldSync(oldEvents?.[dateKey]);
-    const isSyncable = shouldSync(ev);
-    if (wasSyncable && !isSyncable && oldGcalIds.has(ev.localId)) {
-      const gcalId = oldGcalIds.get(ev.localId).gcalId;
-      if (gcalId && !ops.find(o => o.gcalId === gcalId)) {
-        ops.push({ op: "delete", localId: ev.localId, gcalId });
-      }
+    if (ev.localId && ev.googleEventId && !shouldSync(ev)) allNewWithGcalId.push({ localId: ev.localId, gcalId: ev.googleEventId, dk });
+    if (Array.isArray(ev.subEvents)) {
+      ev.subEvents.forEach(s => {
+        if (s?.localId && s?.googleEventId && !shouldSync(s)) allNewWithGcalId.push({ localId: s.localId, gcalId: s.googleEventId, dk });
+      });
+    }
+  }
+  for (const x of allNewWithGcalId) {
+    if (!ops.find(o => o.localId === x.localId && o.op === "delete")) {
+      ops.push({ op: "delete", localId: x.localId, gcalId: x.gcalId });
     }
   }
 
   if (ops.length === 0) {
     console.log("[gcal sync] no ops — oldMap size:", oldMap.size, "newMap size:", newMap.size);
+    if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: 0 });
     return null;
   }
   console.log("[gcal sync] sending ops:", ops);
@@ -177,10 +186,15 @@ export async function syncEventsDiff(oldEvents, newEvents) {
     });
     const data = await res.json();
     console.log("[gcal sync] response:", data);
-    if (!data.ok) { console.warn("[gcal sync] batch failed:", data); return null; }
+    if (!data.ok) {
+      console.warn("[gcal sync] batch failed:", data);
+      if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: ops.length });
+      return null;
+    }
     results = data.results || [];
   } catch (e) {
     console.warn("[gcal sync] network error:", e);
+    if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: ops.length });
     return null;
   }
 
@@ -213,17 +227,24 @@ export async function syncEventsDiff(oldEvents, newEvents) {
     }
     return false;
   };
+  const stats = { created: 0, updated: 0, deleted: 0, failed: 0 };
   for (const r of results) {
-    if (!r.ok) continue;
     const op = opByLocalId.get(r.localId);
+    if (!r.ok) { stats.failed++; continue; }
     if (op === "delete") {
+      stats.deleted++;
       // gelöschte Events: googleEventId lokal entfernen, damit Re-Enable später einen neuen Event anlegt
       modifyByLocalId(r.localId, ev => { const { googleEventId, ...rest } = ev; return rest; });
+    } else if (op === "update") {
+      stats.updated++;
     } else if (r.googleEventId) {
+      stats.created++;
       // create: neue googleEventId einsetzen
       modifyByLocalId(r.localId, ev => ({ ...ev, googleEventId: r.googleEventId }));
     }
   }
+  console.log("[gcal sync] stats:", stats);
+  if (onComplete) onComplete(stats);
 
   return anyPatched ? patched : null;
 }
