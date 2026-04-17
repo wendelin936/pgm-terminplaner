@@ -15,7 +15,7 @@ const BRAND = {
   white: "#ffffff",
 };
 
-// Design-Theme für Kundenansicht (anpassbar über Admin → "Design anpassen")
+// Design-Theme für Kundenansicht (anpassbar über Admin → "Design anpassen - Kundenansicht")
 // Event-Typ-Akzente kommen separat aus eventTypes[i].color
 const DEFAULT_THEME = {
   bgColor: "#f0ecf0",       // Hintergrund der Kundenansicht
@@ -25,6 +25,15 @@ const DEFAULT_THEME = {
   footerText: "#58084a",     // Footer Textfarbe
   bookBtnBg: "#58084a",      // "Location buchen" Button Hintergrund
   bookBtnText: "#ffffff",    // "Location buchen" Button Textfarbe
+};
+
+// Design-Theme für Adminansicht (Kalender-Akzentfarben etc.)
+const DEFAULT_ADMIN_THEME = {
+  bookedColor: "#903486",   // Gebuchte Termine (lila)
+  pendingColor: "#f28c5a",  // Offene Anfragen (aprikot)
+  blockedColor: "#009a93",  // Interne/blockierte Termine (türkis)
+  seriesColor: "#009a93",   // Serientermine (türkis)
+  todayColor: "#8ec89a",    // Heute-Markierung (mintgrün)
 };
 
 const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
@@ -638,9 +647,12 @@ export default function App() {
   const [hoveredDate, setHoveredDate] = useState(null);
   const [showPrices, setShowPrices] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
+  const [showDesignAdmin, setShowDesignAdmin] = useState(false);
   const [siteTheme, setSiteTheme] = useState(DEFAULT_THEME);
+  const [adminTheme, setAdminTheme] = useState(DEFAULT_ADMIN_THEME);
   const [designDraftTypes, setDesignDraftTypes] = useState(null);
   const [designDraftTheme, setDesignDraftTheme] = useState(null);
+  const [designDraftAdmin, setDesignDraftAdmin] = useState(null);
   const [openPicker, setOpenPicker] = useState(null);
   const [showPast, setShowPast] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
@@ -707,7 +719,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); setEvents(parsed); lastSyncedEvents.current = parsed; } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); setEvents(parsed); lastSyncedEvents.current = parsed; } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated) => {
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
@@ -725,6 +737,7 @@ export default function App() {
   }, []);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
   const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
+  const saveAdminTheme = useCallback(async (updated) => { setAdminTheme(updated); try { await saveData("adminTheme", JSON.stringify(updated)); } catch {} }, []);
   const handleLogin = async () => { setLoginError(""); try { await adminLogin(loginEmail, loginPw); setLoginModal(false); setLoginEmail(""); setLoginPw(""); } catch (e) { setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen"); } };
   const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
 
@@ -1049,10 +1062,10 @@ export default function App() {
 
       {isAdmin && (
         <div style={{ background:`${BRAND.aubergine}12`, padding: winW < 520 ? "5px 10px" : "5px 24px", fontSize: winW < 520 ? 9 : 11, display:"flex", gap: winW < 520 ? 8 : 16, alignItems:"center", borderBottom:"1px solid #e8e0e5", flexWrap:"wrap" }}>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.lila, display:"inline-block" }} /> Gebucht</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, #009a9325 2px, #009a9325 3.5px)`, border:"1px solid #009a9330", display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:adminTheme.bookedColor, display:"inline-block" }} /> Gebucht</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:adminTheme.pendingColor, display:"inline-block" }} /> Anfrage</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, ${adminTheme.blockedColor}25 2px, ${adminTheme.blockedColor}25 3.5px)`, border:`1px solid ${adminTheme.blockedColor}30`, display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
         </div>
       )}
 
@@ -1090,7 +1103,7 @@ export default function App() {
             {!isDesk && <div style={{ position:"absolute", top:0, left:0, right:0, height:"55%", background:"linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)", zIndex:2 }} />}
             {isDesk && <div style={{ position:"absolute", bottom:0, left:0, width:"70%", height:"70%", background:"radial-gradient(ellipse at bottom left, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.35) 40%, transparent 70%)", zIndex:2 }} />}
             <div style={{ position:"absolute", top:0, right:0, width:"40%", height:"35%", background:"radial-gradient(ellipse at top right, rgba(0,0,0,0.4) 0%, transparent 70%)", zIndex:2 }} />
-            <img src="/assets/logo-bild.png" alt="" style={{ position:"absolute", top: isDesk ? (big ? 26 : 20) : 12, right: isDesk ? (big ? 30 : 24) : 12, height: isDesk ? (big ? 70 : 56) : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
+            <img src="/assets/logo-titelbild.png" alt="" style={{ position:"absolute", top: isDesk ? (big ? 26 : 20) : 12, right: isDesk ? (big ? 30 : 24) : 12, height: isDesk ? (big ? 70 : 56) : 30, opacity:0.85, filter:"drop-shadow(0 2px 8px rgba(0,0,0,0.3))", zIndex:3 }} />
             {!isDesk && (
               <div style={{ position:"absolute", top:0, left:0, right:0, padding:"16px 16px", zIndex:3 }}>
                 <div style={{ fontSize:20, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)", lineHeight:1.3 }}>Ihr Veranstaltungsort<br/>in Klagenfurt am Wörthersee</div>
@@ -1246,7 +1259,7 @@ export default function App() {
             const customerPublic = !isAdmin && ev && ev.isPublic && !ev.isSeries;
             const customerSeries = !isAdmin && ev && ev.isSeries;
             const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries || !ev.allDay);
-            const statusColor = ev ? (ev.status === "booked" ? BRAND.lila : ev.status === "pending" ? BRAND.aprikot : "#009a93") : null;
+            const statusColor = ev ? (ev.status === "booked" ? adminTheme.bookedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.blockedColor) : null;
             const isPending = ev?.status === "pending" && isAdmin;
             const isBlockedAdmin = ev && isAdmin && ev.status === "blocked" && !ev.isSeries;
             const isSeriesAdmin = ev && isAdmin && ev.isSeries;
@@ -1255,22 +1268,22 @@ export default function App() {
                 onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2.5px solid #8ec89a` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${BRAND.aprikot}` : customerBooked ? `1.5px solid ${BRAND.lila}60` : isBlockedAdmin ? `1px solid #009a9330` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid ${adminTheme.todayColor}` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}60` : isBlockedAdmin ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, #009a9310 3px, #009a9310 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}30` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? `${statusColor}20` : isToday ? "#8ec89a10" : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, ${adminTheme.blockedColor}10 3px, ${adminTheme.blockedColor}10 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}30` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? `${statusColor}20` : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
                 }}>
                 {/* Series indicator for admin - S badge */}
-                {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>S</div>}
+                {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>S</div>}
                 {/* Pending indicator for admin */}
-                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:BRAND.aprikot, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
+                {isPending && !isPast && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
                   <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{hol}</div>
                   : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0" }} />
                 )}
-                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin && !ev.isSeries) || customerBooked ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? "#8ec89a" : customerBooked ? BRAND.lila : ev && isAdmin && !ev.isSeries && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
+                <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin && !ev.isSeries) || customerBooked ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? adminTheme.todayColor : customerBooked ? BRAND.lila : ev && isAdmin && !ev.isSeries && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ display:"flex", gap:2, marginTop:2 }}><div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.lila }} /></div>}
                 {customerPublic && <div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
                 {customerSeries && ev.isPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
@@ -1279,7 +1292,7 @@ export default function App() {
                   // Haupt-Event: nur Dot wenn NICHT blocked (blocked zeigt Hatching, braucht keinen extra Dot)
                   if (ev.status !== "blocked") dots.push({ color: statusColor });
                   // Sub-Events: Dots für alle nicht-blocked (auch wenn das Haupt-Event blocked ist)
-                  if (ev.subEvents) ev.subEvents.forEach(s => { if (s.status !== "blocked") dots.push({ color: s.status === "booked" ? BRAND.lila : BRAND.aprikot }); });
+                  if (ev.subEvents) ev.subEvents.forEach(s => { if (s.status !== "blocked") dots.push({ color: s.status === "booked" ? adminTheme.bookedColor : adminTheme.pendingColor }); });
                   if (dots.length === 0) return null;
                   const sz = winW > 900 ? 6 : 4;
                   return (
@@ -1523,7 +1536,12 @@ export default function App() {
             <button onClick={() => setShowDesign(true)}
               onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
               style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:BRAND.lila, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
-              Design anpassen
+              Design anpassen – Kundenansicht
+            </button>
+            <button onClick={() => setShowDesignAdmin(true)}
+              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:"#009a93", border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
+              Design anpassen – Adminansicht
             </button>
           </div>
         )}
@@ -1559,64 +1577,107 @@ export default function App() {
           </div>
         )}
 
-        {/* Design Modal */}
-        {showDesign && (() => {
-          // Draft-State: Änderungen werden erst beim Speichern übernommen
+        {/* Design Modals (Kunden- + Admin-Ansicht) */}
+        {(showDesign || showDesignAdmin) && (() => {
+          const isAdminMode = showDesignAdmin;
+          const modalTitle = isAdminMode ? "Design anpassen – Adminansicht" : "Design anpassen – Kundenansicht";
+
+          // Draft-State pro Modal
           const draftTypes = designDraftTypes || eventTypes;
           const draftTheme = designDraftTheme || siteTheme;
+          const draftAdmin = designDraftAdmin || adminTheme;
 
-          const updateDraftType = (id, color) => {
-            const updated = draftTypes.map(t => t.id === id ? { ...t, color } : t);
-            setDesignDraftTypes(updated);
+          // Helper: hat sich ein bestimmtes Feld geändert (vs. persistiertem Wert)?
+          const isDirtyType = (id) => {
+            if (!designDraftTypes) return false;
+            const d = designDraftTypes.find(t => t.id === id);
+            const o = eventTypes.find(t => t.id === id);
+            return d && o && (d.color || "").toLowerCase() !== (o.color || "").toLowerCase();
           };
-          const updateDraftTheme = (key, value) => {
-            setDesignDraftTheme({ ...draftTheme, [key]: value });
+          const isDirtyTheme = (key) => designDraftTheme && (designDraftTheme[key] || "").toLowerCase() !== (siteTheme[key] || "").toLowerCase();
+          const isDirtyAdmin = (key) => designDraftAdmin && (designDraftAdmin[key] || "").toLowerCase() !== (adminTheme[key] || "").toLowerCase();
+
+          const updateDraftType = (id, color) => setDesignDraftTypes((designDraftTypes || eventTypes).map(t => t.id === id ? { ...t, color } : t));
+          const updateDraftTheme = (key, value) => setDesignDraftTheme({ ...(designDraftTheme || siteTheme), [key]: value });
+          const updateDraftAdmin = (key, value) => setDesignDraftAdmin({ ...(designDraftAdmin || adminTheme), [key]: value });
+
+          // Speichern pro Feld
+          const saveFieldType = (id) => {
+            if (!designDraftTypes) return;
+            const d = designDraftTypes.find(t => t.id === id);
+            if (!d) return;
+            const merged = eventTypes.map(t => t.id === id ? { ...t, color: d.color } : t);
+            saveTypes(merged);
+            // Aus Draft rausnehmen (nur dieses Feld)
+            const remaining = designDraftTypes.map(t => t.id === id ? { ...t, color: d.color } : t);
+            setDesignDraftTypes(remaining);
           };
-          const resetField = (kind, key) => {
-            if (kind === "type") {
-              const def = DEFAULT_TYPES.find(d => d.id === key);
-              if (def) updateDraftType(key, def.color);
-            } else if (kind === "theme") {
-              updateDraftTheme(key, DEFAULT_THEME[key]);
-            }
+          const saveFieldTheme = (key) => {
+            if (!designDraftTheme) return;
+            saveTheme({ ...siteTheme, [key]: designDraftTheme[key] });
           };
+          const saveFieldAdmin = (key) => {
+            if (!designDraftAdmin) return;
+            saveAdminTheme({ ...adminTheme, [key]: designDraftAdmin[key] });
+          };
+
+          // Reset pro Feld → Draft auf Default setzen (nicht automatisch speichern)
+          const resetFieldType = (id) => {
+            const def = DEFAULT_TYPES.find(d => d.id === id);
+            if (def) updateDraftType(id, def.color);
+          };
+          const resetFieldTheme = (key) => updateDraftTheme(key, DEFAULT_THEME[key]);
+          const resetFieldAdmin = (key) => updateDraftAdmin(key, DEFAULT_ADMIN_THEME[key]);
+
+          // Globales "Alles auf Standard"
           const resetAll = () => {
-            setDesignDraftTheme({ ...DEFAULT_THEME });
-            setDesignDraftTypes(eventTypes.map(t => {
-              const def = DEFAULT_TYPES.find(d => d.id === t.id);
-              return def ? { ...t, color: def.color } : t;
-            }));
-          };
-          const closeModal = (save) => {
-            if (save) {
-              if (designDraftTypes) saveTypes(designDraftTypes);
-              if (designDraftTheme) saveTheme(designDraftTheme);
+            if (isAdminMode) {
+              setDesignDraftAdmin({ ...DEFAULT_ADMIN_THEME });
+            } else {
+              setDesignDraftTheme({ ...DEFAULT_THEME });
+              setDesignDraftTypes(eventTypes.map(t => {
+                const def = DEFAULT_TYPES.find(d => d.id === t.id);
+                return def ? { ...t, color: def.color } : t;
+              }));
             }
+          };
+
+          const closeModal = () => {
             setDesignDraftTypes(null);
             setDesignDraftTheme(null);
+            setDesignDraftAdmin(null);
             setOpenPicker(null);
             setShowDesign(false);
+            setShowDesignAdmin(false);
           };
-          const hasChanges = designDraftTypes !== null || designDraftTheme !== null;
 
-          const FieldRow = ({ label, value, defaultValue, pickerKey, onChange }) => {
+          // Einheitliche Feld-Zeile mit Speichern- + Reset-Icon
+          const FieldRow = ({ label, value, defaultValue, dirty, pickerKey, onChange, onSave, onReset }) => {
             const isOpen = openPicker === pickerKey;
-            const isChanged = (value || "").toLowerCase() !== (defaultValue || "").toLowerCase();
+            const canReset = (value || "").toLowerCase() !== (defaultValue || "").toLowerCase();
             const isValidHex = /^#[0-9a-fA-F]{6}$/.test(value);
             return (
               <div style={{ background:"#fff", borderRadius:10, border:`1px solid ${isOpen ? BRAND.lila+"50" : "#ede8ed"}`, transition:"all .15s", overflow:"hidden" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px" }}>
                   <button onClick={() => setOpenPicker(isOpen ? null : pickerKey)}
-                    style={{ width:28, height:28, borderRadius:6, border:"1px solid rgba(0,0,0,0.12)", background:isValidHex ? value : "#ccc", cursor:"pointer", padding:0, flexShrink:0, boxShadow:isOpen ? `0 0 0 3px ${BRAND.lila}20` : "none", transition:"all .15s" }} />
+                    style={{ width:28, height:28, borderRadius:6, border:"1px solid rgba(0,0,0,0.12)", background: isValidHex ? value : "#ccc", cursor:"pointer", padding:0, flexShrink:0, boxShadow: isOpen ? `0 0 0 3px ${BRAND.lila}20` : "none", transition:"all .15s" }} />
                   <span style={{ flex:1, fontSize:13, color:BRAND.aubergine, fontWeight:500 }}>{label}</span>
                   <input type="text" value={value} onChange={e => { const v = e.target.value; if (/^#?[0-9a-fA-F]{0,6}$/.test(v.replace("#",""))) onChange(v.startsWith("#") ? v : "#"+v); }}
                     style={{ width:82, padding:"5px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:12, fontFamily:"monospace", color:BRAND.aubergine, boxSizing:"border-box", textAlign:"center" }} />
-                  <button onClick={() => resetField(pickerKey.split(":")[0], pickerKey.split(":")[1])}
-                    disabled={!isChanged}
+                  {/* Save button: nur wenn geändert + noch nicht gespeichert */}
+                  <button onClick={onSave} disabled={!dirty}
+                    title={dirty ? "Speichern" : "Nichts zu speichern"}
+                    style={{ width:26, height:26, borderRadius:6, border:"none", background: dirty ? BRAND.mintgruen+"20" : "transparent", cursor: dirty ? "pointer" : "default", padding:0, flexShrink:0, opacity: dirty ? 1 : 0.15, transition:"opacity .15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dirty ? "#1e8a5a" : BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </button>
+                  {/* Reset button: nur sichtbar wenn != default */}
+                  <button onClick={onReset} disabled={!canReset}
                     title="Auf Standard zurücksetzen"
-                    style={{ width:26, height:26, borderRadius:6, border:"none", background:"transparent", cursor: isChanged ? "pointer" : "default", padding:0, flexShrink:0, opacity: isChanged ? 0.6 : 0.15, transition:"opacity .15s", display:"flex", alignItems:"center", justifyContent:"center" }}
-                    onMouseEnter={e => { if (isChanged) e.currentTarget.style.opacity="1"; }}
-                    onMouseLeave={e => { if (isChanged) e.currentTarget.style.opacity="0.6"; }}>
+                    style={{ width:26, height:26, borderRadius:6, border:"none", background:"transparent", cursor: canReset ? "pointer" : "default", padding:0, flexShrink:0, opacity: canReset ? 0.6 : 0.15, transition:"opacity .15s", display:"flex", alignItems:"center", justifyContent:"center" }}
+                    onMouseEnter={e => { if (canReset) e.currentTarget.style.opacity="1"; }}
+                    onMouseLeave={e => { if (canReset) e.currentTarget.style.opacity="0.6"; }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
                     </svg>
@@ -1627,74 +1688,89 @@ export default function App() {
             );
           };
 
+          // Section-Wrapper: leicht farbliche Hinterlegung
+          const Section = ({ title, children }) => (
+            <div style={{ background:`${BRAND.lila}06`, borderRadius:12, padding:"14px 14px 12px", border:`1px solid ${BRAND.lila}12`, marginBottom:14 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:2, marginBottom:10, paddingLeft:2 }}>{title}</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>{children}</div>
+            </div>
+          );
+
           return (
-          <div onClick={() => closeModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", backdropFilter:"blur(6px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background:"#fafafa", borderRadius:20, maxWidth:560, width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.25)", overflow:"hidden" }}>
+          <div onClick={closeModal} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", backdropFilter:"blur(6px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fafafa", borderRadius:20, maxWidth:580, width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.25)", overflow:"hidden" }}>
               {/* Header */}
               <div style={{ padding:"18px 22px", borderBottom:"1px solid #ede8ed", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
                 <div>
-                  <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:BRAND.aubergine, letterSpacing:0.2 }}>Design anpassen</h3>
-                  <div style={{ fontSize:11, color:"#999", marginTop:2 }}>{hasChanges ? "Ungespeicherte Änderungen" : "Klick auf eine Farbe zum Bearbeiten"}</div>
+                  <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:BRAND.aubergine, letterSpacing:0.2 }}>{modalTitle}</h3>
+                  <div style={{ fontSize:11, color:"#999", marginTop:2 }}>Klick auf eine Farbe zum Bearbeiten, dann ✓ zum Speichern</div>
                 </div>
-                <button onClick={() => closeModal(false)} style={{ background:"#f5f3f4", border:"none", width:32, height:32, borderRadius:8, fontSize:18, color:"#888", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}
+                <button onClick={closeModal} style={{ background:"#f5f3f4", border:"none", width:32, height:32, borderRadius:8, fontSize:18, color:"#888", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}
                   onMouseEnter={e => { e.currentTarget.style.background="#ede8ed"; e.currentTarget.style.color=BRAND.aubergine; }}
                   onMouseLeave={e => { e.currentTarget.style.background="#f5f3f4"; e.currentTarget.style.color="#888"; }}>×</button>
               </div>
 
-              {/* Scrollable body */}
-              <div style={{ padding:"18px 22px", overflowY:"auto", flex:1 }}>
-                {/* Section: Event types */}
-                <div style={{ fontSize:10, fontWeight:700, color:"#888", textTransform:"uppercase", letterSpacing:2, marginBottom:10, paddingLeft:2 }}>Veranstaltungstypen</div>
-                <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:22 }}>
-                  {draftTypes.map(et => {
-                    const def = DEFAULT_TYPES.find(d => d.id === et.id);
-                    return (
-                      <FieldRow key={et.id} label={et.label} value={et.color} defaultValue={def?.color || et.color}
-                        pickerKey={`type:${et.id}`} onChange={v => updateDraftType(et.id, v)} />
-                    );
-                  })}
-                </div>
+              {/* Body */}
+              <div style={{ padding:"16px 18px", overflowY:"auto", flex:1 }}>
+                {!isAdminMode && (
+                  <>
+                    <Section title="Veranstaltungstypen">
+                      {draftTypes.map(et => {
+                        const def = DEFAULT_TYPES.find(d => d.id === et.id);
+                        return (
+                          <FieldRow key={et.id} label={et.label} value={et.color} defaultValue={def?.color || et.color}
+                            dirty={isDirtyType(et.id)}
+                            pickerKey={`type:${et.id}`}
+                            onChange={v => updateDraftType(et.id, v)}
+                            onSave={() => saveFieldType(et.id)}
+                            onReset={() => resetFieldType(et.id)} />
+                        );
+                      })}
+                    </Section>
 
-                {/* Section: Layout */}
-                <div style={{ fontSize:10, fontWeight:700, color:"#888", textTransform:"uppercase", letterSpacing:2, marginBottom:10, paddingLeft:2 }}>Layout – Kundenansicht</div>
-                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                  <FieldRow label="Hintergrund" value={draftTheme.bgColor} defaultValue={DEFAULT_THEME.bgColor}
-                    pickerKey="theme:bgColor" onChange={v => updateDraftTheme("bgColor", v)} />
-                  <FieldRow label="Titelleiste – Hintergrund" value={draftTheme.headerBg} defaultValue={DEFAULT_THEME.headerBg}
-                    pickerKey="theme:headerBg" onChange={v => updateDraftTheme("headerBg", v)} />
-                  <FieldRow label="Titelleiste – Textfarbe" value={draftTheme.headerText} defaultValue={DEFAULT_THEME.headerText}
-                    pickerKey="theme:headerText" onChange={v => updateDraftTheme("headerText", v)} />
-                  <FieldRow label="Fußleiste – Hintergrund" value={draftTheme.footerBg} defaultValue={DEFAULT_THEME.footerBg}
-                    pickerKey="theme:footerBg" onChange={v => updateDraftTheme("footerBg", v)} />
-                  <FieldRow label="Fußleiste – Textfarbe" value={draftTheme.footerText} defaultValue={DEFAULT_THEME.footerText}
-                    pickerKey="theme:footerText" onChange={v => updateDraftTheme("footerText", v)} />
-                  <FieldRow label="Button Location buchen – Hintergrund" value={draftTheme.bookBtnBg} defaultValue={DEFAULT_THEME.bookBtnBg}
-                    pickerKey="theme:bookBtnBg" onChange={v => updateDraftTheme("bookBtnBg", v)} />
-                  <FieldRow label="Button Location buchen – Textfarbe" value={draftTheme.bookBtnText} defaultValue={DEFAULT_THEME.bookBtnText}
-                    pickerKey="theme:bookBtnText" onChange={v => updateDraftTheme("bookBtnText", v)} />
-                </div>
+                    <Section title="Layout – Kundenansicht">
+                      {[
+                        ["bgColor", "Hintergrund"],
+                        ["headerBg", "Titelleiste – Hintergrund"],
+                        ["headerText", "Titelleiste – Textfarbe"],
+                        ["footerBg", "Fußleiste – Hintergrund"],
+                        ["footerText", "Fußleiste – Textfarbe"],
+                        ["bookBtnBg", "Button Location buchen – Hintergrund"],
+                        ["bookBtnText", "Button Location buchen – Textfarbe"],
+                      ].map(([k, lbl]) => (
+                        <FieldRow key={k} label={lbl} value={draftTheme[k]} defaultValue={DEFAULT_THEME[k]}
+                          dirty={isDirtyTheme(k)} pickerKey={`theme:${k}`}
+                          onChange={v => updateDraftTheme(k, v)}
+                          onSave={() => saveFieldTheme(k)}
+                          onReset={() => resetFieldTheme(k)} />
+                      ))}
+                    </Section>
+                  </>
+                )}
+
+                {isAdminMode && (
+                  <Section title="Kalender-Akzente – Adminansicht">
+                    {[
+                      ["bookedColor", "Gebuchte Termine"],
+                      ["pendingColor", "Offene Anfragen"],
+                      ["blockedColor", "Interne / blockierte Termine"],
+                      ["seriesColor", "Serientermine"],
+                      ["todayColor", "Heute-Markierung"],
+                    ].map(([k, lbl]) => (
+                      <FieldRow key={k} label={lbl} value={draftAdmin[k]} defaultValue={DEFAULT_ADMIN_THEME[k]}
+                        dirty={isDirtyAdmin(k)} pickerKey={`admin:${k}`}
+                        onChange={v => updateDraftAdmin(k, v)}
+                        onSave={() => saveFieldAdmin(k)}
+                        onReset={() => resetFieldAdmin(k)} />
+                    ))}
+                  </Section>
+                )}
 
                 <button onClick={resetAll}
-                  style={{ width:"100%", marginTop:18, padding:"10px 0", background:"transparent", color:"#888", border:"1px dashed #ccc", borderRadius:8, fontSize:12, fontWeight:500, cursor:"pointer", letterSpacing:0.3 }}
+                  style={{ width:"100%", marginTop:4, padding:"10px 0", background:"transparent", color:"#888", border:"1px dashed #ccc", borderRadius:8, fontSize:12, fontWeight:500, cursor:"pointer", letterSpacing:0.3 }}
                   onMouseEnter={e => { e.currentTarget.style.color=BRAND.aubergine; e.currentTarget.style.borderColor=BRAND.aubergine; }}
                   onMouseLeave={e => { e.currentTarget.style.color="#888"; e.currentTarget.style.borderColor="#ccc"; }}>
                   Alles auf Standard zurücksetzen
-                </button>
-              </div>
-
-              {/* Footer actions */}
-              <div style={{ padding:"14px 22px", borderTop:"1px solid #ede8ed", display:"flex", gap:10, background:"#fff" }}>
-                <button onClick={() => closeModal(false)}
-                  style={{ flex:1, padding:"11px 0", background:"#f5f3f4", color:BRAND.aubergine, border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", letterSpacing:0.3 }}
-                  onMouseEnter={e => e.currentTarget.style.background="#ede8ed"}
-                  onMouseLeave={e => e.currentTarget.style.background="#f5f3f4"}>
-                  Abbrechen
-                </button>
-                <button onClick={() => closeModal(true)} disabled={!hasChanges}
-                  style={{ flex:1, padding:"11px 0", background: hasChanges ? BRAND.aubergine : "#e0d8de", color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor: hasChanges ? "pointer" : "default", letterSpacing:0.3, transition:"all .15s" }}
-                  onMouseEnter={e => { if (hasChanges) e.currentTarget.style.opacity="0.9"; }}
-                  onMouseLeave={e => e.currentTarget.style.opacity="1"}>
-                  Speichern
                 </button>
               </div>
             </div>
