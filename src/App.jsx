@@ -2497,7 +2497,7 @@ export default function App() {
                       {et?.label || (adminForm.type === "blocked" ? "Interner Termin" : adminForm.label || "Ohne Typ")}
                     </h3>
                   </div>
-                  <button onClick={() => { if (events[selectedDate] && events[selectedDate].status !== "deleted") { setModalView("info"); } else { setModalView(null); } }}
+                  <button onClick={() => { if (fromCalendar && events[selectedDate] && events[selectedDate].status !== "deleted") { setModalView("info"); } else { setModalView(null); } }}
                     style={{ background:"none", border:"none", cursor:"pointer", color:"#aaa", padding:4, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", transition:"color .15s" }}
                     onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
@@ -2716,9 +2716,9 @@ export default function App() {
                   );
                 })()}
 
-                {/* Checkliste - framed */}
-                <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
-                  <label style={{ fontSize:9, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:6, display:"block" }}>Checkliste</label>
+                {/* Checkliste - D-Stil */}
+                <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                  <div style={{ fontSize:11, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Checkliste</div>
                   <ChecklistNote items={adminForm.checklist||[]} onChange={(items) => setAdminForm(f=>({...f, checklist:items}))} />
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, cursor:"text" }}
                     onClick={e => { const inp = e.currentTarget.querySelector("input"); if(inp) inp.focus(); }}>
@@ -2729,10 +2729,11 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Interne Notiz - framed */}
-                <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
-                  <label style={{ fontSize:9, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:4 }}>Interne Notiz</label>
-                  <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))} style={{ ...inputStyle, height:60, resize:"vertical", background:"#fff", borderColor:"#e0d5df", marginBottom:0 }} />
+                {/* Interne Notiz - D-Stil */}
+                <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                  <div style={{ fontSize:11, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Interne Notiz</div>
+                  <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))}
+                    style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
                 </div>
 
                 {/* Vereinbarter Preis - bei Veranstaltungen & Serien, nicht bei Gruppenführungen & internen Terminen */}
@@ -2749,11 +2750,11 @@ export default function App() {
                     { v: "paid", l: "Bezahlt", c: "#006930", bg: "#e6f3ea", bd: "#006930" },
                   ];
                   return (
-                    <div style={{ background:"#f8f4f8", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #e0d5df" }}>
-                      <label style={{ fontSize:9, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:6 }}>Vereinbarter Preis</label>
+                    <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                      <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Vereinbarter Preis</div>
                       <div style={{ position:"relative", marginBottom:10 }}>
                         <input placeholder="0,00" value={adminForm.price} onChange={e => setAdminForm(f=>({...f, price:e.target.value}))}
-                          style={{ ...inputStyle, paddingRight:30, background:"#fff", borderColor:"#e0d5df", marginBottom:0 }} />
+                          style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                         <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color: BRAND.lila, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
                       </div>
                       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
@@ -2761,7 +2762,7 @@ export default function App() {
                           const active = adminForm.paymentStatus === s.v;
                           return (
                             <button key={s.v} onClick={() => setAdminForm(f=>({...f, paymentStatus: s.v}))}
-                              style={{ padding:"8px 14px", border:`1.5px solid ${active ? s.bd : "#e0d5df"}`, borderRadius:8, background: active ? s.bg : "#fff", color: active ? s.c : "#999", fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.2 }}>
+                              style={{ padding:"8px 14px", border:`1.5px solid ${active ? s.bd : "#e8d8e4"}`, borderRadius:8, background: active ? s.bg : "#fff", color: active ? s.c : "#999", fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.2, fontFamily:"inherit" }}>
                               {s.l}
                             </button>
                           );
@@ -2778,7 +2779,7 @@ export default function App() {
                         <>
                           <div style={{ position:"relative", marginTop:8 }}>
                             <input placeholder="Angezahlter Betrag" value={adminForm.partialAmount} onChange={e => setAdminForm(f=>({...f, partialAmount:e.target.value}))}
-                              style={{ ...inputStyle, paddingRight:30, background:"#fff", borderColor:"#e0d5df", marginBottom:0, fontSize:13 }} />
+                              style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                             <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#8a6a00", fontWeight:600, fontSize:13, pointerEvents:"none" }}>€</span>
                           </div>
                           <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:6, paddingRight:2 }}>
