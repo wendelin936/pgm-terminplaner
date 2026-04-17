@@ -46,8 +46,10 @@ export function ensureLocalIds(events) {
 // ============================================================
 function shouldSync(ev) {
   if (!ev) return false;
-  // nur booked + internal, pending/deleted werden NICHT gesynct
-  return ev.status === "booked" || ev.status === "internal";
+  // Serientermine (einzelne Tage mit seriesId, oder isSeries-Flag) werden NICHT gesynct
+  if (ev.isSeries || ev.seriesId) return false;
+  // nur booked (bestätigt) + blocked (intern), pending/deleted werden NICHT gesynct
+  return ev.status === "booked" || ev.status === "blocked";
 }
 
 // Flach-Liste aller sync-fähigen Events mit Kontext
