@@ -807,6 +807,21 @@ export default function App() {
   // So ist beim Öffnen eines Termins die Type-Auswahl immer eingeklappt (wenn ein Typ gewählt ist)
   useEffect(() => { setEditingSubIndex(-1); setTypeSelectExpanded(false); }, [modalView, selectedDate]);
 
+  // Autosave im Admin-Modal: speichert 1s nach der letzten Eingabe automatisch,
+  // aber nur beim Bearbeiten existierender Termine (nicht beim Neu-Anlegen oder addToExisting).
+  // Das Modal bleibt offen, der "Speichern"-Button wird nur für den expliziten Abschluss gebraucht.
+  useEffect(() => {
+    if (modalView !== "admin" || !selectedDate) return;
+    if (adminForm.addToExisting) return; // neuer SubEvent - kein Autosave, weil noch nicht in DB
+    const existing = events[selectedDate];
+    const mainExists = existing && existing.status !== "deleted";
+    const subExists = editingSubIndex >= 0 && existing?.subEvents?.[editingSubIndex];
+    const seriesEdit = adminForm.editAllSeries;
+    if (!mainExists && !subExists && !seriesEdit) return; // Neu-Anlage - kein Autosave
+    const timer = setTimeout(() => { handleAdminSave(true); }, 1000);
+    return () => clearTimeout(timer);
+  }, [adminForm, modalView, selectedDate, editingSubIndex]);
+
 
 
   const today = new Date();
@@ -857,9 +872,10 @@ export default function App() {
     setModalView("form");
   };
 
-  const handleAdminSave = () => {
+  const handleAdminSave = (silent = false) => {
     // Pflichtfeld-Check bei Kundenbuchungen + Anfragen (type="booked" | "pending")
-    if (adminForm.type === "booked" || adminForm.type === "pending") {
+    // Bei silent=true (Autosave) wird die Validation übersprungen
+    if (!silent && (adminForm.type === "booked" || adminForm.type === "pending")) {
       const isGroup = adminForm.eventType === "gruppenfuehrung";
       if (isGroup) {
         // Gruppenführung: Ansprechpartner + Telefon
@@ -930,8 +946,10 @@ export default function App() {
       if (!wasAlreadyBooked) notifyGroupTour(selectedDate, entry);
     }
     saveEvents(updated);
-    setModalView(null);
-    setEditingSubIndex(-1);
+    if (!silent) {
+      setModalView(null);
+      setEditingSubIndex(-1);
+    }
   };
 
   const handleCustomerSubmit = () => {
@@ -2417,24 +2435,27 @@ export default function App() {
                 </div>
                 )}
 
-                {/* Ganztägig + Zeitangabe — direkt unter Status-Buttons */}
-                <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
-                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.allDay ? `${adminForm.type==="blocked" ? "#009a93" : BRAND.lila}10` : "#fff", border:`1.5px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
-                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff" }}>
-                    {adminForm.allDay && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                {/* Zeit + Ganztägig — gemeinsamer Rahmen mit vertikalem Trennstrich */}
+                <div style={{ background:"#f8f4f8", border:"1px solid #e0d5df", borderRadius:10, padding:"10px 14px", marginBottom:10, display:"flex", alignItems:"center", gap:14, flexWrap:"wrap" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flex:"1 1 auto" }}>
+                    {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
+                      const timeVal = adminForm[field] || "08:00";
+                      return (
+                        <div key={field} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
+                          <TimeInput value={timeVal} onChange={v => setAdminForm(f=>({...f,[field]:v}))} />
+                        </div>
+                      );
+                    })}
                   </div>
-                  <span style={{ fontWeight:600, fontSize:15, color: BRAND.aubergine }}>Ganztägig</span>
-                </label>
-                <div style={{ display:"flex", gap:10, marginBottom:10, alignItems:"center" }}>
-                  {[["Von","startTime"],["Bis","endTime"]].map(([lbl,field]) => {
-                    const timeVal = adminForm[field] || "08:00";
-                    return (
-                      <div key={field} style={{ display:"flex", alignItems:"center", gap:6 }}>
-                        <label style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>{lbl}</label>
-                        <TimeInput value={timeVal} onChange={v => setAdminForm(f=>({...f,[field]:v}))} />
-                      </div>
-                    );
-                  })}
+                  <div style={{ width:1, height:24, background:"#d8cdd5", flexShrink:0 }} />
+                  <label onClick={() => setAdminForm(f=>({...f, allDay:!f.allDay}))}
+                    style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", flexShrink:0 }}>
+                    <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.allDay ? (adminForm.type==="blocked" ? "#009a93" : BRAND.lila) : "#fff", transition:"all .15s" }}>
+                      {adminForm.allDay && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span style={{ fontWeight:500, fontSize:14, color:BRAND.aubergine }}>Ganztägig</span>
+                  </label>
                 </div>
 
                 <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
