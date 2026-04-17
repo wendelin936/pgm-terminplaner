@@ -812,8 +812,8 @@ export default function App() {
   };
 
   const handleAdminSave = () => {
-    // Pflichtfeld-Check bei Kundenbuchungen (type="booked")
-    if (adminForm.type === "booked") {
+    // Pflichtfeld-Check bei Kundenbuchungen + Anfragen (type="booked" | "pending")
+    if (adminForm.type === "booked" || adminForm.type === "pending") {
       const isGroup = adminForm.eventType === "gruppenfuehrung";
       if (isGroup) {
         // Gruppenführung: Ansprechpartner + Telefon
@@ -822,7 +822,7 @@ export default function App() {
           return;
         }
       } else {
-        // Normale Kundenbuchung: Name (groupName-Feld) + Telefon
+        // Normale Kundenbuchung / Anfrage: Name (groupName-Feld) + Telefon
         if (!(adminForm.groupName || "").trim() || !(adminForm.customerPhone || "").trim()) {
           setAdminSubmitAttempted(true);
           return;
@@ -835,7 +835,7 @@ export default function App() {
     const st = adminForm.startTime || "08:00";
     const et = adminForm.endTime || "22:00";
     const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "" };
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: adminForm.groupName || adminForm.contactName || "", email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "" };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -2303,10 +2303,10 @@ export default function App() {
                 </div>
                 {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
                 {((!events[selectedDate] || events[selectedDate]?.status === "deleted") || adminForm.addToExisting) && !adminForm.editAllSeries && (
-                <div style={{ display:"flex", gap:8, marginBottom:14 }}>
-                  {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"]].map(([v,l,c]) => (
+                <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+                  {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
-                      style={{ flex:1, padding:"8px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 11 : 12, cursor:"pointer" }}>
+                      style={{ flex:1, padding:"8px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 10 : 12, cursor:"pointer", letterSpacing:0.1 }}>
                       {l}
                     </button>
                   ))}
@@ -2336,7 +2336,7 @@ export default function App() {
                 <input placeholder={adminForm.type==="blocked" ? "z.B. Geburtstag" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
 
                 {/* Event type suggestions - only for booked */}
-                {adminForm.type === "booked" && (
+                {(adminForm.type === "booked" || adminForm.type === "pending") && (
                   <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
                     {eventTypes.map(t => {
                       const typeLabels = eventTypes.map(x => x.label);
@@ -2350,10 +2350,12 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Customer data fields - for booked events (not Gruppenführung which has own section) */}
-                {adminForm.type === "booked" && adminForm.eventType !== "gruppenfuehrung" && (
+                {/* Customer data fields - for booked + pending events (not Gruppenführung which has own section) */}
+                {(adminForm.type === "booked" || adminForm.type === "pending") && adminForm.eventType !== "gruppenfuehrung" && (
                   <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
-                    <div style={{ fontSize:9, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Kundendaten</div>
+                    <div style={{ fontSize:9, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>
+                      {adminForm.type === "pending" ? "Anfrage – Kundendaten" : "Kundendaten"}
+                    </div>
                     <input placeholder="Name * (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
                     <div style={{ display:"flex", gap:6, marginBottom:6 }}>
@@ -2363,16 +2365,22 @@ export default function App() {
                         style={{ flex:1, padding:"8px 10px", border:`1.5px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
                     <input placeholder="Anzahl Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box" }} />
+                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom: adminForm.type === "pending" ? 6 : 0 }} />
+                    {adminForm.type === "pending" && (
+                      <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
+                        style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:70, resize:"none" }} />
+                    )}
                   </div>
                 )}
 
-                {/* Group tour fields - for Gruppenführung */}
-                {adminForm.eventType === "gruppenfuehrung" && adminForm.type === "booked" && (() => {
+                {/* Group tour fields - for Gruppenführung (booked + pending) */}
+                {adminForm.eventType === "gruppenfuehrung" && (adminForm.type === "booked" || adminForm.type === "pending") && (() => {
                   const gt = eventTypes.find(t => t.id === "gruppenfuehrung");
                   return (
                   <div style={{ background:`${BRAND.moosgruen}08`, border:`1px solid ${BRAND.moosgruen}20`, borderRadius:10, padding:"14px", marginBottom:10 }}>
-                    <div style={{ fontSize:10, fontWeight:600, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Gruppenführung Details</div>
+                    <div style={{ fontSize:10, fontWeight:600, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
+                      {adminForm.type === "pending" ? "Anfrage – Gruppenführung" : "Gruppenführung Details"}
+                    </div>
                     <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
                     <div style={{ display:"flex", gap:6, marginBottom:8 }}>
@@ -2405,6 +2413,10 @@ export default function App() {
                       </div>
                       <span style={{ fontSize:12, color:BRAND.aubergine, fontWeight:500 }}>Mit Führung ({gt ? `€ ${gt.guideCost}` : "€ 80"})</span>
                     </label>
+                    {adminForm.type === "pending" && (
+                      <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
+                        style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:60, resize:"none", marginTop:6 }} />
+                    )}
                   </div>
                   );
                 })()}
@@ -2514,7 +2526,12 @@ export default function App() {
                           const dk = dateKey(sy,sm,d);
                           const isSel = dk === selectedDate;
                           const isInSeries = (adminForm.seriesDates||[]).includes(dk);
-                          const hasEv = events[dk] && dk !== selectedDate;
+                          // Konsistent mit dem Haupt-Picker: nur ganztägig-gebuchte/blockierte Events blockieren
+                          // (pending, deleted, !allDay, Serien sind OK)
+                          const evRaw = events[dk];
+                          const evHere = evRaw?.status === "deleted" ? null : evRaw;
+                          const blockedByEv = evHere && evHere.allDay && evHere.status !== "pending" && !evHere.isSeries;
+                          const hasEv = blockedByEv && dk !== selectedDate;
                           const isPast = new Date(sy,sm,d) < new Date(today.getFullYear(),today.getMonth(),today.getDate());
                           cells.push(
                             <button key={dk} disabled={isSel||hasEv||isPast}
@@ -2815,7 +2832,7 @@ export default function App() {
                         const editSub = () => {
                           const src = sub._isMain ? ev : sub;
                           setEditingSubIndex(sub._isMain ? -1 : subIndex);
-                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "" });
+                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "" });
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
                         return (
