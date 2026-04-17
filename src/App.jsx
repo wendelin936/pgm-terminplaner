@@ -34,6 +34,8 @@ const DEFAULT_ADMIN_THEME = {
   blockedColor: "#009a93",  // Interne/blockierte Termine (türkis)
   seriesColor: "#009a93",   // Serientermine (türkis)
   todayColor: "#8ec89a",    // Heute-Markierung (mintgrün)
+  showHolidaysAdmin: true,     // Feiertage im Admin-Kalender anzeigen
+  showHolidaysCustomer: true,  // Feiertage im Kunden-Kalender anzeigen
 };
 
 const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
@@ -572,6 +574,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:10, tourMin:0, tourEndHour:18, tourEndMin:0 });
   const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
+  const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -638,6 +641,9 @@ export default function App() {
   const [showPrices, setShowPrices] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
   const [showDesignAdmin, setShowDesignAdmin] = useState(false);
+  const [showBackups, setShowBackups] = useState(false);
+  const [backupsIndex, setBackupsIndex] = useState([]);
+  const [openedBackup, setOpenedBackup] = useState(null); // { date, events }
   const [siteTheme, setSiteTheme] = useState(DEFAULT_THEME);
   const [adminTheme, setAdminTheme] = useState(DEFAULT_ADMIN_THEME);
   const [designDraftTypes, setDesignDraftTypes] = useState(null);
@@ -709,7 +715,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); setEvents(parsed); lastSyncedEvents.current = parsed; } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); setEvents(parsed); lastSyncedEvents.current = parsed; } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); setEventTypes(DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); return s ? { ...d, ...s } : d; })); } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated) => {
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
@@ -728,10 +734,31 @@ export default function App() {
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
   const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
   const saveAdminTheme = useCallback(async (updated) => { setAdminTheme(updated); try { await saveData("adminTheme", JSON.stringify(updated)); } catch {} }, []);
+
+  // Auto-Backup: beim Admin-Login prüfen, ob heute schon ein Backup existiert.
+  // Falls nicht → Snapshot der Events in Firebase speichern (backup-YYYY-MM-DD).
+  // Retention: Index zeigt nur die letzten 30 Einträge, ältere bleiben aber in Firestore.
+  useEffect(() => {
+    if (!isAdmin || loading) return;
+    (async () => {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const currentIndex = Array.isArray(backupsIndex) ? backupsIndex : [];
+      if (currentIndex.includes(today)) return; // heute schon erledigt
+      try {
+        await saveData(`backup-${today}`, JSON.stringify({ date: today, createdAt: new Date().toISOString(), events }));
+        // Index neu aufbauen, neuestes zuerst, auf 30 beschränkt
+        const updated = [today, ...currentIndex.filter(d => d !== today)].slice(0, 30);
+        await saveData("backups-index", JSON.stringify(updated));
+        setBackupsIndex(updated);
+      } catch (e) { console.warn("[backup] failed:", e); }
+    })();
+  }, [isAdmin, loading]);
   const handleLogin = async () => { setLoginError(""); try { await adminLogin(loginEmail, loginPw); setLoginModal(false); setLoginEmail(""); setLoginPw(""); } catch (e) { setLoginError(e.code === "auth/invalid-credential" ? "E-Mail oder Passwort falsch" : "Login fehlgeschlagen"); } };
   const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
 
   useEffect(() => { setAdminSubmitAttempted(false); }, [modalView, selectedDate]);
+  // Wenn das Admin-Modal geschlossen/weggeschaltet wird, den SubEvent-Edit-Kontext zurücksetzen
+  useEffect(() => { if (modalView !== "admin") setEditingSubIndex(-1); }, [modalView]);
 
 
 
@@ -749,6 +776,7 @@ export default function App() {
         setModalView("info");
       } else {
         setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0 });
+        setEditingSubIndex(-1);
         setModalView("admin");
       }
     } else if (ev && ev.allDay && ev.status !== "pending" && !ev.isSeries && !ev.isPublic) {
@@ -811,22 +839,37 @@ export default function App() {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
           const old = updated[k];
-          updated[k] = { ...entry, checklist: entry.checklist.map(c => ({...c})), subEvents: old.subEvents || [] };
+          // WICHTIG: localId + googleEventId erhalten, sonst erkennt Google Calendar das Event als neu (Duplikat!)
+          updated[k] = { ...entry, localId: old.localId, googleEventId: old.googleEventId, checklist: entry.checklist.map(c => ({...c})), subEvents: old.subEvents || [] };
         }
       });
+    } else if (editingSubIndex >= 0 && updated[selectedDate]?.subEvents?.[editingSubIndex]) {
+      // SubEvent bearbeiten: nur Eintrag im subEvents-Array patchen, Main-Event unangetastet lassen
+      const main = { ...updated[selectedDate] };
+      const oldSub = main.subEvents[editingSubIndex];
+      const newSubs = [...main.subEvents];
+      newSubs[editingSubIndex] = { ...entry, ...(oldSub?.localId ? { localId: oldSub.localId } : {}), ...(oldSub?.googleEventId ? { googleEventId: oldSub.googleEventId } : {}) };
+      main.subEvents = newSubs;
+      updated[selectedDate] = main;
     } else if (adminForm.addToExisting && updated[selectedDate]) {
       const existing = { ...updated[selectedDate] };
       existing.subEvents = [...(existing.subEvents || []), entry];
       updated[selectedDate] = existing;
     } else {
-      const oldSubs = updated[selectedDate]?.subEvents || [];
-      updated[selectedDate] = { ...entry, subEvents: oldSubs };
+      const old = updated[selectedDate];
+      const oldSubs = old?.subEvents || [];
+      // WICHTIG: bei Bearbeitung (nicht Neuanlage) localId + googleEventId erhalten
+      updated[selectedDate] = { ...entry, ...(old?.localId ? { localId: old.localId } : {}), ...(old?.googleEventId ? { googleEventId: old.googleEventId } : {}), subEvents: oldSubs };
       if (adminForm.seriesDates && adminForm.seriesDates.length > 0) {
-        adminForm.seriesDates.forEach(dk => { updated[dk] = { ...entry, subEvents: updated[dk]?.subEvents || [], checklist: entry.checklist.map(c => ({...c, done:false})) }; });
+        adminForm.seriesDates.forEach(dk => {
+          const oldD = updated[dk];
+          updated[dk] = { ...entry, ...(oldD?.localId ? { localId: oldD.localId } : {}), ...(oldD?.googleEventId ? { googleEventId: oldD.googleEventId } : {}), subEvents: oldD?.subEvents || [], checklist: entry.checklist.map(c => ({...c, done:false})) };
+        });
       }
     }
     saveEvents(updated);
     setModalView(null);
+    setEditingSubIndex(-1);
   };
 
   const handleCustomerSubmit = () => {
@@ -1052,17 +1095,23 @@ export default function App() {
                   label:"Design Admin", full:"Design Adminansicht", color:BRAND.tuerkis, onClick:() => setShowDesignAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                 },
+                {
+                  label:"Backups", full:"Backups anzeigen", color:BRAND.mintgruen, onClick:() => setShowBackups(true),
+                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+                },
               ];
               return actions.map((a, i) => (
                 <button key={i} onClick={a.onClick} title={a.full}
-                  onMouseEnter={e => { e.currentTarget.style.background=`${a.color}35`; e.currentTarget.style.borderColor=`${a.color}90`; }}
-                  onMouseLeave={e => { e.currentTarget.style.background=`${a.color}20`; e.currentTarget.style.borderColor=`${a.color}55`; }}
-                  style={{ background:`${a.color}20`, border:`1px solid ${a.color}55`, color:"#fff", height:H, width: isSmall ? H : "auto", padding: isSmall ? 0 : "0 12px", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:600, letterSpacing:0.3, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s" }}>
+                  onMouseEnter={e => { e.currentTarget.style.background="rgba(255,255,255,0.2)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.4)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.25)"; }}
+                  style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", height:H, width: isSmall ? H : "auto", padding: isSmall ? 0 : "0 12px", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:600, letterSpacing:0.3, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s" }}>
                   <span style={{ color:a.color, display:"flex", alignItems:"center" }}>{a.icon}</span>
                   {!isSmall && <span>{a.label}</span>}
                 </button>
               ));
             })()}
+            {/* Trennstrich zwischen Admin-Aktionen und Ansicht-Umschaltern */}
+            <div style={{ width:1, height:20, background:"rgba(255,255,255,0.35)", margin:"0 6px", flexShrink:0 }} />
             <button onClick={() => { setIsAdmin(false); setModalView(null); }}
               style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", padding: winW < 900 ? 0 : "0 12px", width: winW < 900 ? 32 : "auto", height:32, borderRadius:6, cursor:"pointer", fontSize:11, letterSpacing:0.5, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}
               title="Kundenansicht">
@@ -1271,7 +1320,8 @@ export default function App() {
             const key = dateKey(year, month, day);
             const evRaw = events[key];
             const ev = evRaw?.status === "deleted" ? null : evRaw;
-            const hol = holidays[key];
+            const holRaw = holidays[key];
+            const hol = (isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) ? holRaw : null;
             const isToday = key === todayKey;
             const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && ev.allDay && !ev.isPublic && !ev.isSeries;
@@ -1511,9 +1561,9 @@ export default function App() {
                 if (!deletedAll.length) return null;
                 return (
                   <div style={{ marginTop:20 }}>
-                    <h3 onClick={() => setShowDeleted(s=>!s)} style={{ fontSize: winW > 900 ? 14 : 12, fontWeight:600, color:"#c44", letterSpacing:2, textTransform:"uppercase", marginBottom: showDeleted ? 10 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8, opacity:0.7 }}>
+                    <h3 onClick={() => setShowDeleted(s=>!s)} style={{ fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#c44", letterSpacing:2, textTransform:"uppercase", marginBottom: showDeleted ? 10 : 0, cursor:"pointer", display:"flex", alignItems:"center", gap:8, opacity:0.7 }}>
                       Gelöschte Termine ({deletedAll.length})
-                      <svg width="12" height="12" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showDeleted ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#c44" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showDeleted ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#c44" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </h3>
                     {showDeleted && deletedAll.map(([key, ev]) => {
                       const [yy,mm,dd] = key.split("-").map(Number);
@@ -1593,7 +1643,7 @@ export default function App() {
             return d && o && (d.color || "").toLowerCase() !== (o.color || "").toLowerCase();
           };
           const isDirtyTheme = (key) => designDraftTheme && (designDraftTheme[key] || "").toLowerCase() !== (siteTheme[key] || "").toLowerCase();
-          const isDirtyAdmin = (key) => designDraftAdmin && (designDraftAdmin[key] || "").toLowerCase() !== (adminTheme[key] || "").toLowerCase();
+          const isDirtyAdmin = (key) => designDraftAdmin && String(designDraftAdmin[key]) !== String(adminTheme[key]);
 
           const updateDraftType = (id, color) => setDesignDraftTypes((designDraftTypes || eventTypes).map(t => t.id === id ? { ...t, color } : t));
           const updateDraftTheme = (key, value) => setDesignDraftTheme({ ...(designDraftTheme || siteTheme), [key]: value });
@@ -1662,26 +1712,54 @@ export default function App() {
                   <span style={{ flex:1, fontSize:13, color:BRAND.aubergine, fontWeight:500 }}>{label}</span>
                   <input type="text" value={value} onChange={e => { const v = e.target.value; if (/^#?[0-9a-fA-F]{0,6}$/.test(v.replace("#",""))) onChange(v.startsWith("#") ? v : "#"+v); }}
                     style={{ width:82, padding:"5px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:12, fontFamily:"monospace", color:BRAND.aubergine, boxSizing:"border-box", textAlign:"center" }} />
-                  {/* Save button: nur wenn geändert + noch nicht gespeichert */}
+                  {/* Save button: grün hinterlegt wenn dirty */}
                   <button onClick={onSave} disabled={!dirty}
                     title={dirty ? "Speichern" : "Nichts zu speichern"}
-                    style={{ width:26, height:26, borderRadius:6, border:"none", background: dirty ? BRAND.mintgruen+"20" : "transparent", cursor: dirty ? "pointer" : "default", padding:0, flexShrink:0, opacity: dirty ? 1 : 0.15, transition:"opacity .15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dirty ? "#1e8a5a" : BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    style={{ width:26, height:26, borderRadius:6, border:"none", background: dirty ? BRAND.mintgruen : "transparent", cursor: dirty ? "pointer" : "default", padding:0, flexShrink:0, opacity: dirty ? 1 : 0.15, transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dirty ? "#fff" : BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
                   </button>
-                  {/* Reset button: nur sichtbar wenn != default */}
+                  {/* Reset button: violett hinterlegt wenn != default */}
                   <button onClick={onReset} disabled={!canReset}
                     title="Auf Standard zurücksetzen"
-                    style={{ width:26, height:26, borderRadius:6, border:"none", background:"transparent", cursor: canReset ? "pointer" : "default", padding:0, flexShrink:0, opacity: canReset ? 0.6 : 0.15, transition:"opacity .15s", display:"flex", alignItems:"center", justifyContent:"center" }}
-                    onMouseEnter={e => { if (canReset) e.currentTarget.style.opacity="1"; }}
-                    onMouseLeave={e => { if (canReset) e.currentTarget.style.opacity="0.6"; }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    style={{ width:26, height:26, borderRadius:6, border:"none", background: canReset ? BRAND.lila : "transparent", cursor: canReset ? "pointer" : "default", padding:0, flexShrink:0, opacity: canReset ? 1 : 0.15, transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={canReset ? "#fff" : BRAND.aubergine} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
                     </svg>
                   </button>
                 </div>
                 {isOpen && <div style={{ padding:"0 12px 12px" }}><ColorPicker value={value} onChange={onChange} /></div>}
+              </div>
+            );
+          };
+
+          // Toggle-Zeile für boolean Werte (z.B. Feiertage an/aus)
+          const ToggleRow = ({ label, value, defaultValue, dirty, onChange, onSave, onReset }) => {
+            const canReset = value !== defaultValue;
+            return (
+              <div style={{ background:"#fff", borderRadius:10, border:"1px solid #ede8ed", transition:"all .15s" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px" }}>
+                  <button onClick={() => onChange(!value)}
+                    style={{ width:40, height:22, borderRadius:11, border:"none", background: value ? BRAND.lila : "#d5cdd3", padding:0, cursor:"pointer", position:"relative", flexShrink:0, transition:"background .15s" }}>
+                    <div style={{ position:"absolute", top:2, left: value ? 20 : 2, width:18, height:18, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.2)", transition:"left .15s" }} />
+                  </button>
+                  <span style={{ flex:1, fontSize:13, color:BRAND.aubergine, fontWeight:500 }}>{label}</span>
+                  <button onClick={onSave} disabled={!dirty}
+                    title={dirty ? "Speichern" : "Nichts zu speichern"}
+                    style={{ width:26, height:26, borderRadius:6, border:"none", background: dirty ? BRAND.mintgruen : "transparent", cursor: dirty ? "pointer" : "default", padding:0, flexShrink:0, opacity: dirty ? 1 : 0.15, transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={dirty ? "#fff" : BRAND.aubergine} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </button>
+                  <button onClick={onReset} disabled={!canReset}
+                    title="Auf Standard zurücksetzen"
+                    style={{ width:26, height:26, borderRadius:6, border:"none", background: canReset ? BRAND.lila : "transparent", cursor: canReset ? "pointer" : "default", padding:0, flexShrink:0, opacity: canReset ? 1 : 0.15, transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={canReset ? "#fff" : BRAND.aubergine} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             );
           };
@@ -1764,6 +1842,21 @@ export default function App() {
                   </Section>
                 )}
 
+                {isAdminMode && (
+                  <Section title="Feiertage">
+                    {[
+                      ["showHolidaysAdmin", "Feiertage in Adminansicht anzeigen"],
+                      ["showHolidaysCustomer", "Feiertage in Kundenansicht anzeigen"],
+                    ].map(([k, lbl]) => (
+                      <ToggleRow key={k} label={lbl} value={!!draftAdmin[k]} defaultValue={!!DEFAULT_ADMIN_THEME[k]}
+                        dirty={isDirtyAdmin(k)}
+                        onChange={v => updateDraftAdmin(k, v)}
+                        onSave={() => saveFieldAdmin(k)}
+                        onReset={() => resetFieldAdmin(k)} />
+                    ))}
+                  </Section>
+                )}
+
                 <button onClick={resetAll}
                   style={{ width:"100%", marginTop:4, padding:"10px 0", background:"transparent", color:"#888", border:"1px dashed #ccc", borderRadius:8, fontSize:12, fontWeight:500, cursor:"pointer", letterSpacing:0.3 }}
                   onMouseEnter={e => { e.currentTarget.style.color=BRAND.aubergine; e.currentTarget.style.borderColor=BRAND.aubergine; }}
@@ -1776,7 +1869,151 @@ export default function App() {
           );
         })()}
 
-        {/* Customer: Contact */}
+        {/* Backup Modal */}
+        {showBackups && (() => {
+          const closeBackups = () => { setShowBackups(false); setOpenedBackup(null); };
+          const loadBackup = async (date) => {
+            try {
+              const raw = await loadData(`backup-${date}`);
+              if (!raw) { showToast("Fehler", "Backup nicht gefunden", false, "#c44"); return; }
+              const parsed = JSON.parse(raw);
+              setOpenedBackup({ date, events: parsed.events || {}, createdAt: parsed.createdAt });
+            } catch (e) {
+              showToast("Fehler", "Backup konnte nicht geladen werden", false, "#c44");
+            }
+          };
+          const restoreEvent = (key, evFromBackup, subIdx) => {
+            const entry = subIdx >= 0 ? (evFromBackup.subEvents || [])[subIdx] : evFromBackup;
+            if (!entry) return;
+            const label = entry.label || entry.name || "Termin";
+            const existing = events[key];
+            const hasExisting = existing && existing.status !== "deleted";
+            let msg;
+            if (hasExisting) {
+              msg = `Am ${fmtDateAT(key)} ist bereits ein Termin eingetragen.\n\nSoll „${label}" aus dem Backup als zusätzliche Buchung (Sub-Event) hinzugefügt werden?`;
+            } else {
+              msg = `„${label}" aus dem Backup vom ${openedBackup.date} für den ${fmtDateAT(key)} wiederherstellen?`;
+            }
+            if (!confirm(msg)) return;
+            prevEvents.current = { ...events };
+            const updated = { ...events };
+            // Neue localId erzeugen, damit Google-Sync es als NEU erkennt; subEvents leeren (keine verschachtelten Strukturen)
+            const cleanEntry = { ...entry };
+            delete cleanEntry.localId;
+            delete cleanEntry.googleEventId;
+            delete cleanEntry.subEvents;
+            if (hasExisting) {
+              const base = { ...existing };
+              base.subEvents = [...(base.subEvents || []), cleanEntry];
+              updated[key] = base;
+            } else {
+              updated[key] = { ...cleanEntry, subEvents: [] };
+            }
+            saveEvents(updated);
+            showToast("Wiederhergestellt", `${fmtDateAT(key)} · ${label}`, true, BRAND.mintgruen);
+          };
+
+          return (
+            <div onClick={closeBackups} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", backdropFilter:"blur(6px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:"#fafafa", borderRadius:20, maxWidth:580, width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.25)", overflow:"hidden" }}>
+                {/* Header */}
+                <div style={{ padding:"18px 22px", borderBottom:"1px solid #ede8ed", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    {openedBackup && (
+                      <button onClick={() => setOpenedBackup(null)}
+                        style={{ background:"#f5f3f4", border:"none", width:32, height:32, borderRadius:8, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+                      </button>
+                    )}
+                    <div>
+                      <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:BRAND.aubergine, letterSpacing:0.2 }}>
+                        {openedBackup ? `Backup vom ${openedBackup.date}` : "Backups"}
+                      </h3>
+                      <div style={{ fontSize:11, color:"#999", marginTop:2 }}>
+                        {openedBackup ? "Klick auf einen Termin zum Wiederherstellen" : `${backupsIndex.length} Backup${backupsIndex.length === 1 ? "" : "s"} · täglich automatisch beim ersten Admin-Login`}
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={closeBackups} style={{ background:"#f5f3f4", border:"none", width:32, height:32, borderRadius:8, fontSize:18, color:"#888", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}
+                    onMouseEnter={e => { e.currentTarget.style.background="#ede8ed"; e.currentTarget.style.color=BRAND.aubergine; }}
+                    onMouseLeave={e => { e.currentTarget.style.background="#f5f3f4"; e.currentTarget.style.color="#888"; }}>×</button>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding:"16px 18px", overflowY:"auto", flex:1 }}>
+                  {!openedBackup && backupsIndex.length === 0 && (
+                    <div style={{ padding:"40px 20px", textAlign:"center", color:"#999", fontSize:13 }}>
+                      Noch keine Backups vorhanden.<br/>Das erste Backup wird automatisch erstellt.
+                    </div>
+                  )}
+                  {!openedBackup && backupsIndex.length > 0 && (
+                    <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                      {backupsIndex.map(date => {
+                        const d = new Date(date);
+                        const wk = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
+                        return (
+                          <button key={date} onClick={() => loadBackup(date)}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor=BRAND.lila+"50"; e.currentTarget.style.background="#fff"; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor="#ede8ed"; e.currentTarget.style.background="#fff"; }}
+                            style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", background:"#fff", border:"1px solid #ede8ed", borderRadius:10, cursor:"pointer", transition:"all .15s", textAlign:"left" }}>
+                            <div>
+                              <div style={{ fontWeight:600, color:BRAND.aubergine, fontSize:14 }}>{wk}, {d.getDate().toString().padStart(2,"0")}.{(d.getMonth()+1).toString().padStart(2,"0")}.{d.getFullYear()}</div>
+                              <div style={{ fontSize:11, color:"#999", marginTop:2 }}>Klick zum Öffnen</div>
+                            </div>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" style={{ opacity:0.4 }}><path d="M9 5l7 7-7 7"/></svg>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {openedBackup && (() => {
+                    const entries = Object.entries(openedBackup.events || {}).filter(([,v]) => v && v.status !== "deleted").sort(([a],[b]) => a.localeCompare(b));
+                    if (entries.length === 0) {
+                      return <div style={{ padding:"40px 20px", textAlign:"center", color:"#999", fontSize:13 }}>Dieses Backup enthält keine Termine.</div>;
+                    }
+                    const renderItem = (key, ev, subIdx) => {
+                      const [yy,mm,dd] = key.split("-").map(Number);
+                      const c = ev.status === "booked" ? adminTheme.bookedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.blockedColor;
+                      const label = ev.status === "pending" ? "Anfrage" : ev.status === "blocked" ? "Intern" : "Gebucht";
+                      return (
+                        <div key={`${key}:${subIdx}`} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#fff", borderLeft:`3px solid ${c}`, borderRadius:8, border:"1px solid #ede8ed" }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, marginBottom:2 }}>
+                              {dd.toString().padStart(2,"0")}.{mm.toString().padStart(2,"0")}.{yy} · {ev.label || ev.name || "Termin"}
+                            </div>
+                            <div style={{ fontSize:11, color:"#888" }}>
+                              <span style={{ color:c, fontWeight:600 }}>{label}</span>
+                              {ev.name && ` · ${ev.name}`}
+                              {ev.slotLabel && ` · ${ev.slotLabel}`}
+                            </div>
+                          </div>
+                          <button onClick={() => restoreEvent(key, ev, subIdx)}
+                            title="Wiederherstellen"
+                            style={{ padding:"6px 12px", background:BRAND.mintgruen, color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:600, letterSpacing:0.3, display:"flex", alignItems:"center", gap:4, flexShrink:0 }}
+                            onMouseEnter={e => e.currentTarget.style.opacity="0.85"}
+                            onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+                            Wiederherstellen
+                          </button>
+                        </div>
+                      );
+                    };
+                    const rows = [];
+                    entries.forEach(([key, ev]) => {
+                      rows.push(renderItem(key, ev, -1));
+                      if (Array.isArray(ev.subEvents)) {
+                        ev.subEvents.forEach((sub, i) => {
+                          if (sub && sub.status !== "deleted") rows.push(renderItem(key, sub, i));
+                        });
+                      }
+                    });
+                    return <div style={{ display:"flex", flexDirection:"column", gap:6 }}>{rows}</div>;
+                  })()}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {!isAdmin && (
           <div style={{ background:BRAND.aubergine, borderRadius:10, padding: winW < 520 ? "14px 16px" : "16px 28px", textAlign:"center", marginBottom:24 }}>
             <div style={{ fontSize: winW < 520 ? 12 : 13, fontWeight:700, color:"#fff", letterSpacing:2, marginBottom:4, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
@@ -1901,7 +2138,7 @@ export default function App() {
                 <div style={{ textAlign:"center", marginBottom:20 }}>
                   <div style={{ fontSize:18, fontWeight:700, color: BRAND.aubergine, marginBottom:4 }}>Veranstaltung anfragen</div>
                   {selectedDate && <div style={{ fontSize:13, color:"#999" }}>{fmtDate(selectedDate)}</div>}
-                  {selectedDate && holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:10, borderRadius:4, padding:"3px 10px", marginTop:6 }}>{holidays[selectedDate]}</div>}
+                  {selectedDate && (isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:10, borderRadius:4, padding:"3px 10px", marginTop:6 }}>{holidays[selectedDate]}</div>}
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {eventTypes.map(et => (
@@ -2005,7 +2242,7 @@ export default function App() {
                       const isFree = (!ev || !ev.allDay || ev.status === "pending" || ev.isSeries) && !isPast;
                       const isOccupied = !!ev && ev.allDay && ev.status !== "pending" && !ev.isSeries && !isPast;
                       const isPickToday = key === todayKey;
-                      const hol = holidays[key];
+                      const hol = adminTheme.showHolidaysCustomer ? holidays[key] : null;
                       return (
                         <button key={key} onClick={() => handlePickerDateClick(day)}
                           title={isOccupied ? "nicht verfügbar" : hol || ""}
@@ -2052,7 +2289,7 @@ export default function App() {
                     <div style={{ fontSize:13, color:"#999" }}>{fmtDateAT(selectedDate)}</div>
                   </div>
                 </div>
-                {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
+                {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:12, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
                 {((!events[selectedDate] || events[selectedDate]?.status === "deleted") || adminForm.addToExisting) && !adminForm.editAllSeries && (
                 <div style={{ display:"flex", gap:8, marginBottom:14 }}>
                   {[["booked","Gebucht",BRAND.lila],["blocked","Interner Termin","#009a93"]].map(([v,l,c]) => (
@@ -2330,7 +2567,7 @@ export default function App() {
                     <div>
                       <h3 style={{ margin:0, color: et?.color || BRAND.aubergine, fontSize:18, fontWeight:700 }}>{et?.label}</h3>
                       <div style={{ fontSize:13, color: BRAND.lila, fontWeight:500 }}>{fmtDateAT(selectedDate)}</div>
-                      {holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:9, borderRadius:3, padding:"2px 6px", marginTop:2 }}>{holidays[selectedDate]}</div>}
+                      {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ display:"inline-block", background:BRAND.aubergine, color:"rgba(255,255,255,0.8)", fontSize:9, borderRadius:3, padding:"2px 6px", marginTop:2 }}>{holidays[selectedDate]}</div>}
                     </div>
                   </div>
 
@@ -2554,7 +2791,7 @@ export default function App() {
                   <div style={{ marginBottom: 14 }}>
                     <h3 style={{ margin:0, color: BRAND.aubergine, fontSize:18, fontWeight:700 }}>{fmtDateAT(selectedDate)}</h3>
                   </div>
-                  {holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:6, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
+                  {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:11, color: BRAND.moosgruen, marginBottom:6, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
 
                   {isAdmin ? (
                     <div style={{ marginBottom:10 }}>
@@ -2565,6 +2802,7 @@ export default function App() {
                         const subEt = eventTypes.find(e => e.id === sub.type);
                         const editSub = () => {
                           const src = sub._isMain ? ev : sub;
+                          setEditingSubIndex(sub._isMain ? -1 : subIndex);
                           setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "" });
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
