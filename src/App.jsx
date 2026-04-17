@@ -793,8 +793,9 @@ export default function App() {
   const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
 
   useEffect(() => { setAdminSubmitAttempted(false); }, [modalView, selectedDate]);
-  // Wenn das Admin-Modal geschlossen/weggeschaltet wird, den SubEvent-Edit-Kontext zurücksetzen
-  useEffect(() => { if (modalView !== "admin") { setEditingSubIndex(-1); setTypeSelectExpanded(false); } }, [modalView]);
+  // Bei jedem Wechsel des Admin-Modals oder Datums: Collapse-State und SubEvent-Edit-Kontext zurücksetzen
+  // So ist beim Öffnen eines Termins die Type-Auswahl immer eingeklappt (wenn ein Typ gewählt ist)
+  useEffect(() => { setEditingSubIndex(-1); setTypeSelectExpanded(false); }, [modalView, selectedDate]);
 
 
 
@@ -1395,7 +1396,7 @@ export default function App() {
                   aspectRatio:"1",
                   border: isToday ? `2.5px solid ${adminTheme.todayColor}` : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}60` : isBlockedAdmin ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, ${adminTheme.blockedColor}10 3px, ${adminTheme.blockedColor}10 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}30` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? `${statusColor}20` : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdmin ? `repeating-linear-gradient(-45deg, transparent, transparent 3px, ${adminTheme.blockedColor}10 3px, ${adminTheme.blockedColor}10 5px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}30` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : `repeating-linear-gradient(-45deg, transparent 0 9px, ${statusColor}8c 9px 10px)`) : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
@@ -2358,11 +2359,21 @@ export default function App() {
                   </div>
                 </div>
                 {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:14, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
-                {((!events[selectedDate] || events[selectedDate]?.status === "deleted") || adminForm.addToExisting) && !adminForm.editAllSeries && (
+                {!adminForm.editAllSeries && !adminForm.addToExisting && (
                 <div style={{ display:"flex", gap:6, marginBottom:14 }}>
                   {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]].map(([v,l,c]) => (
                     <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
                       style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize: v==="blocked" ? 12 : 14, cursor:"pointer", letterSpacing:0.1 }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                )}
+                {adminForm.addToExisting && (
+                <div style={{ display:"flex", gap:6, marginBottom:14 }}>
+                  {[["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]].map(([v,l,c]) => (
+                    <button key={v} onClick={() => setAdminForm(f=>({...f, type:v}))}
+                      style={{ flex:1, padding:"10px 0", border:`2px solid ${adminForm.type===v ? c : "#e0d8de"}`, borderRadius:8, background: adminForm.type===v ? c+"15" : "#fff", color: adminForm.type===v ? c : BRAND.aubergine, fontWeight:600, fontSize:14, cursor:"pointer", letterSpacing:0.1 }}>
                       {l}
                     </button>
                   ))}
