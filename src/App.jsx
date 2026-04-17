@@ -107,6 +107,122 @@ function ClockIcon({ size=12, color="#999" }) {
   return <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ display:"inline-block", verticalAlign:"-2px", marginRight:3 }}><circle cx="8" cy="8" r="6.5" stroke={color} strokeWidth="1.5"/><path d="M8 4.5V8l2.5 1.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
 
+// ============================================================
+// Color Picker
+// ============================================================
+function hexToHsv(hex) {
+  const h = (hex || "#000000").replace("#", "").padEnd(6, "0").slice(0, 6);
+  const r = parseInt(h.substr(0, 2), 16) / 255;
+  const g = parseInt(h.substr(2, 2), 16) / 255;
+  const b = parseInt(h.substr(4, 2), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let hue = 0;
+  if (d !== 0) {
+    if (max === r) hue = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) hue = ((b - r) / d + 2) * 60;
+    else hue = ((r - g) / d + 4) * 60;
+  }
+  return { h: hue, s: max === 0 ? 0 : (d / max) * 100, v: max * 100 };
+}
+function hsvToHex(h, s, v) {
+  s /= 100; v /= 100;
+  const c = v * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; }
+  else if (h < 120) { r = x; g = c; }
+  else if (h < 180) { g = c; b = x; }
+  else if (h < 240) { g = x; b = c; }
+  else if (h < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  const toHex = n => Math.round((n + m) * 255).toString(16).padStart(2, "0");
+  return "#" + toHex(r) + toHex(g) + toHex(b);
+}
+
+function ColorPicker({ value, onChange }) {
+  const [hsv, setHsv] = useState(() => hexToHsv(value));
+  const svRef = useRef(null);
+  const hueRef = useRef(null);
+  const lastExternalRef = useRef(value);
+
+  // Sync HSV wenn value extern geändert wird (Reset, Hex-Input)
+  useEffect(() => {
+    if (value !== lastExternalRef.current) {
+      lastExternalRef.current = value;
+      const next = hexToHsv(value);
+      // Nur übernehmen wenn die Farbe materially anders ist
+      const cur = hsvToHex(hsv.h, hsv.s, hsv.v);
+      if (cur.toLowerCase() !== (value || "").toLowerCase()) setHsv(next);
+    }
+  }, [value]);
+
+  const updateSV = (clientX, clientY) => {
+    const r = svRef.current.getBoundingClientRect();
+    const s = Math.max(0, Math.min(100, ((clientX - r.left) / r.width) * 100));
+    const v = Math.max(0, Math.min(100, (1 - (clientY - r.top) / r.height) * 100));
+    const next = { ...hsv, s, v };
+    setHsv(next);
+    const hex = hsvToHex(next.h, next.s, next.v);
+    lastExternalRef.current = hex;
+    onChange(hex);
+  };
+  const updateHue = (clientX) => {
+    const r = hueRef.current.getBoundingClientRect();
+    const h = Math.max(0, Math.min(360, ((clientX - r.left) / r.width) * 360));
+    const next = { ...hsv, h };
+    setHsv(next);
+    const hex = hsvToHex(next.h, next.s, next.v);
+    lastExternalRef.current = hex;
+    onChange(hex);
+  };
+
+  const pointerHandlers = (update, isHue) => ({
+    onPointerDown: (e) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      if (isHue) update(e.clientX); else update(e.clientX, e.clientY);
+    },
+    onPointerMove: (e) => {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        if (isHue) update(e.clientX); else update(e.clientX, e.clientY);
+      }
+    },
+    onPointerUp: (e) => e.currentTarget.releasePointerCapture(e.pointerId),
+  });
+
+  const pureHue = hsvToHex(hsv.h, 100, 100);
+
+  return (
+    <div style={{ padding:12, background:"#fff", borderRadius:10, border:"1px solid #ede8ed", marginTop:8 }}>
+      {/* Saturation/Value 2D field */}
+      <div ref={svRef} {...pointerHandlers(updateSV, false)}
+        style={{
+          position:"relative", width:"100%", height:140, borderRadius:8, cursor:"crosshair",
+          background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, ${pureHue})`,
+          touchAction:"none", userSelect:"none",
+        }}>
+        <div style={{
+          position:"absolute",
+          left:`calc(${hsv.s}% - 8px)`, top:`calc(${100 - hsv.v}% - 8px)`,
+          width:16, height:16, borderRadius:"50%", border:"2px solid #fff",
+          boxShadow:"0 0 0 1px rgba(0,0,0,0.3)", pointerEvents:"none",
+        }} />
+      </div>
+      {/* Hue slider */}
+      <div ref={hueRef} {...pointerHandlers(updateHue, true)}
+        style={{
+          position:"relative", width:"100%", height:14, borderRadius:7, marginTop:10, cursor:"pointer",
+          background:"linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)",
+          touchAction:"none", userSelect:"none",
+        }}>
+        <div style={{
+          position:"absolute", left:`calc(${(hsv.h / 360) * 100}% - 7px)`, top:-2,
+          width:14, height:18, borderRadius:4, background:"#fff",
+          boxShadow:"0 0 0 1px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.15)", pointerEvents:"none",
+        }} />
+      </div>
+    </div>
+  );
+}
+
 function SwipeRow({ children, onSwipeRight, onSwipeLeft, rightLabel="✓", leftLabel="✕", rightColor=BRAND.mintgruen, leftColor="#e0d5df" }) {
   const containerRef = useRef(null);
   const rowRef = useRef(null);
@@ -523,6 +639,9 @@ export default function App() {
   const [showPrices, setShowPrices] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
   const [siteTheme, setSiteTheme] = useState(DEFAULT_THEME);
+  const [designDraftTypes, setDesignDraftTypes] = useState(null);
+  const [designDraftTheme, setDesignDraftTheme] = useState(null);
+  const [openPicker, setOpenPicker] = useState(null);
   const [showPast, setShowPast] = useState(false);
   const [showDeleted, setShowDeleted] = useState(false);
   const [showPending, setShowPending] = useState(true);
@@ -934,21 +1053,6 @@ export default function App() {
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:BRAND.aprikot, display:"inline-block" }} /> Anfrage</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, #009a9325 2px, #009a9325 3.5px)`, border:"1px solid #009a9330", display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
-        </div>
-      )}
-
-      {isAdmin && (
-        <div style={{ padding: winW < 520 ? "8px 10px" : "10px 24px", display:"flex", gap:8, borderBottom:"1px solid #e8e0e5", flexWrap:"wrap" }}>
-          <button onClick={() => setShowPrices(true)}
-            onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
-            style={{ display:"inline-flex", alignItems:"center", gap:6, padding: winW < 520 ? "6px 12px" : "8px 16px", background:BRAND.aubergine, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
-            Preise verwalten
-          </button>
-          <button onClick={() => setShowDesign(true)}
-            onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
-            style={{ display:"inline-flex", alignItems:"center", gap:6, padding: winW < 520 ? "6px 12px" : "8px 16px", background:BRAND.lila, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
-            Design anpassen
-          </button>
         </div>
       )}
 
@@ -1408,6 +1512,22 @@ export default function App() {
           );
         })()}
 
+        {/* Admin: Preise verwalten + Design anpassen */}
+        {isAdmin && (
+          <div style={{ display:"flex", gap:8, marginTop:16, marginBottom:20, flexWrap:"wrap" }}>
+            <button onClick={() => setShowPrices(true)}
+              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:BRAND.aubergine, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
+              Preise verwalten
+            </button>
+            <button onClick={() => setShowDesign(true)}
+              onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
+              style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px", background:BRAND.lila, border:"none", borderRadius:8, cursor:"pointer", transition:"opacity .15s", fontSize: winW > 900 ? 13 : 11, fontWeight:600, color:"#fff", letterSpacing:1 }}>
+              Design anpassen
+            </button>
+          </div>
+        )}
+
         {/* Prices Modal */}
         {showPrices && (
           <div onClick={() => setShowPrices(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
@@ -1441,67 +1561,142 @@ export default function App() {
 
         {/* Design Modal */}
         {showDesign && (() => {
-          const updateType = (id, color) => {
-            const updated = eventTypes.map(t => t.id === id ? { ...t, color } : t);
-            saveTypes(updated);
+          // Draft-State: Änderungen werden erst beim Speichern übernommen
+          const draftTypes = designDraftTypes || eventTypes;
+          const draftTheme = designDraftTheme || siteTheme;
+
+          const updateDraftType = (id, color) => {
+            const updated = draftTypes.map(t => t.id === id ? { ...t, color } : t);
+            setDesignDraftTypes(updated);
           };
-          const updateTheme = (key, value) => saveTheme({ ...siteTheme, [key]: value });
+          const updateDraftTheme = (key, value) => {
+            setDesignDraftTheme({ ...draftTheme, [key]: value });
+          };
+          const resetField = (kind, key) => {
+            if (kind === "type") {
+              const def = DEFAULT_TYPES.find(d => d.id === key);
+              if (def) updateDraftType(key, def.color);
+            } else if (kind === "theme") {
+              updateDraftTheme(key, DEFAULT_THEME[key]);
+            }
+          };
           const resetAll = () => {
-            if (!confirm("Alle Design-Einstellungen auf Standard zurücksetzen?\n(Event-Farben + Layout-Farben)")) return;
-            saveTheme(DEFAULT_THEME);
-            // Event-Type Farben zurücksetzen aus DEFAULT_TYPES
-            const resetTypes = eventTypes.map(t => {
+            setDesignDraftTheme({ ...DEFAULT_THEME });
+            setDesignDraftTypes(eventTypes.map(t => {
               const def = DEFAULT_TYPES.find(d => d.id === t.id);
               return def ? { ...t, color: def.color } : t;
-            });
-            saveTypes(resetTypes);
+            }));
           };
-          const ColorField = ({ label, value, onChange }) => (
-            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#fff", borderRadius:8, border:"1px solid #ede8ed" }}>
-              <div style={{ flex:1, fontSize:13, color:BRAND.aubergine, fontWeight:500 }}>{label}</div>
-              <input type="color" value={value} onChange={e => onChange(e.target.value)}
-                style={{ width:36, height:28, border:"1px solid #e0d8de", borderRadius:6, padding:0, cursor:"pointer", background:"none" }} />
-              <input type="text" value={value} onChange={e => { const v = e.target.value.trim(); if (/^#[0-9a-fA-F]{0,6}$/.test(v) || v === "") onChange(v); }}
-                onBlur={e => { if (!/^#[0-9a-fA-F]{6}$/.test(e.target.value)) onChange(value); }}
-                style={{ width:80, padding:"4px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:12, fontFamily:"monospace", color:BRAND.aubergine, boxSizing:"border-box" }} />
-            </div>
-          );
+          const closeModal = (save) => {
+            if (save) {
+              if (designDraftTypes) saveTypes(designDraftTypes);
+              if (designDraftTheme) saveTheme(designDraftTheme);
+            }
+            setDesignDraftTypes(null);
+            setDesignDraftTheme(null);
+            setOpenPicker(null);
+            setShowDesign(false);
+          };
+          const hasChanges = designDraftTypes !== null || designDraftTheme !== null;
+
+          const FieldRow = ({ label, value, defaultValue, pickerKey, onChange }) => {
+            const isOpen = openPicker === pickerKey;
+            const isChanged = (value || "").toLowerCase() !== (defaultValue || "").toLowerCase();
+            const isValidHex = /^#[0-9a-fA-F]{6}$/.test(value);
+            return (
+              <div style={{ background:"#fff", borderRadius:10, border:`1px solid ${isOpen ? BRAND.lila+"50" : "#ede8ed"}`, transition:"all .15s", overflow:"hidden" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px" }}>
+                  <button onClick={() => setOpenPicker(isOpen ? null : pickerKey)}
+                    style={{ width:28, height:28, borderRadius:6, border:"1px solid rgba(0,0,0,0.12)", background:isValidHex ? value : "#ccc", cursor:"pointer", padding:0, flexShrink:0, boxShadow:isOpen ? `0 0 0 3px ${BRAND.lila}20` : "none", transition:"all .15s" }} />
+                  <span style={{ flex:1, fontSize:13, color:BRAND.aubergine, fontWeight:500 }}>{label}</span>
+                  <input type="text" value={value} onChange={e => { const v = e.target.value; if (/^#?[0-9a-fA-F]{0,6}$/.test(v.replace("#",""))) onChange(v.startsWith("#") ? v : "#"+v); }}
+                    style={{ width:82, padding:"5px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:12, fontFamily:"monospace", color:BRAND.aubergine, boxSizing:"border-box", textAlign:"center" }} />
+                  <button onClick={() => resetField(pickerKey.split(":")[0], pickerKey.split(":")[1])}
+                    disabled={!isChanged}
+                    title="Auf Standard zurücksetzen"
+                    style={{ width:26, height:26, borderRadius:6, border:"none", background:"transparent", cursor: isChanged ? "pointer" : "default", padding:0, flexShrink:0, opacity: isChanged ? 0.6 : 0.15, transition:"opacity .15s", display:"flex", alignItems:"center", justifyContent:"center" }}
+                    onMouseEnter={e => { if (isChanged) e.currentTarget.style.opacity="1"; }}
+                    onMouseLeave={e => { if (isChanged) e.currentTarget.style.opacity="0.6"; }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                    </svg>
+                  </button>
+                </div>
+                {isOpen && <div style={{ padding:"0 12px 12px" }}><ColorPicker value={value} onChange={onChange} /></div>}
+              </div>
+            );
+          };
+
           return (
-          <div onClick={() => setShowDesign(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background:"#f5f3f4", borderRadius:16, padding:"24px 20px", maxWidth:540, width:"100%", maxHeight:"85vh", overflowY:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Design anpassen</h3>
-                <button onClick={() => setShowDesign(false)} style={{ background:"none", border:"none", fontSize:20, color:"#aaa", cursor:"pointer", padding:4, lineHeight:1 }}
-                  onMouseEnter={e => e.currentTarget.style.color=BRAND.aubergine} onMouseLeave={e => e.currentTarget.style.color="#aaa"}>×</button>
+          <div onClick={() => closeModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", backdropFilter:"blur(6px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fafafa", borderRadius:20, maxWidth:560, width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 32px 80px rgba(0,0,0,0.25)", overflow:"hidden" }}>
+              {/* Header */}
+              <div style={{ padding:"18px 22px", borderBottom:"1px solid #ede8ed", display:"flex", alignItems:"center", justifyContent:"space-between", background:"#fff" }}>
+                <div>
+                  <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:BRAND.aubergine, letterSpacing:0.2 }}>Design anpassen</h3>
+                  <div style={{ fontSize:11, color:"#999", marginTop:2 }}>{hasChanges ? "Ungespeicherte Änderungen" : "Klick auf eine Farbe zum Bearbeiten"}</div>
+                </div>
+                <button onClick={() => closeModal(false)} style={{ background:"#f5f3f4", border:"none", width:32, height:32, borderRadius:8, fontSize:18, color:"#888", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}
+                  onMouseEnter={e => { e.currentTarget.style.background="#ede8ed"; e.currentTarget.style.color=BRAND.aubergine; }}
+                  onMouseLeave={e => { e.currentTarget.style.background="#f5f3f4"; e.currentTarget.style.color="#888"; }}>×</button>
               </div>
 
-              {/* Section: Event types */}
-              <div style={{ fontSize:10, fontWeight:700, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Veranstaltungstypen</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:18 }}>
-                {eventTypes.map(et => (
-                  <ColorField key={et.id} label={et.label} value={et.color} onChange={v => updateType(et.id, v)} />
-                ))}
+              {/* Scrollable body */}
+              <div style={{ padding:"18px 22px", overflowY:"auto", flex:1 }}>
+                {/* Section: Event types */}
+                <div style={{ fontSize:10, fontWeight:700, color:"#888", textTransform:"uppercase", letterSpacing:2, marginBottom:10, paddingLeft:2 }}>Veranstaltungstypen</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:22 }}>
+                  {draftTypes.map(et => {
+                    const def = DEFAULT_TYPES.find(d => d.id === et.id);
+                    return (
+                      <FieldRow key={et.id} label={et.label} value={et.color} defaultValue={def?.color || et.color}
+                        pickerKey={`type:${et.id}`} onChange={v => updateDraftType(et.id, v)} />
+                    );
+                  })}
+                </div>
+
+                {/* Section: Layout */}
+                <div style={{ fontSize:10, fontWeight:700, color:"#888", textTransform:"uppercase", letterSpacing:2, marginBottom:10, paddingLeft:2 }}>Layout – Kundenansicht</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  <FieldRow label="Hintergrund" value={draftTheme.bgColor} defaultValue={DEFAULT_THEME.bgColor}
+                    pickerKey="theme:bgColor" onChange={v => updateDraftTheme("bgColor", v)} />
+                  <FieldRow label="Titelleiste – Hintergrund" value={draftTheme.headerBg} defaultValue={DEFAULT_THEME.headerBg}
+                    pickerKey="theme:headerBg" onChange={v => updateDraftTheme("headerBg", v)} />
+                  <FieldRow label="Titelleiste – Textfarbe" value={draftTheme.headerText} defaultValue={DEFAULT_THEME.headerText}
+                    pickerKey="theme:headerText" onChange={v => updateDraftTheme("headerText", v)} />
+                  <FieldRow label="Fußleiste – Hintergrund" value={draftTheme.footerBg} defaultValue={DEFAULT_THEME.footerBg}
+                    pickerKey="theme:footerBg" onChange={v => updateDraftTheme("footerBg", v)} />
+                  <FieldRow label="Fußleiste – Textfarbe" value={draftTheme.footerText} defaultValue={DEFAULT_THEME.footerText}
+                    pickerKey="theme:footerText" onChange={v => updateDraftTheme("footerText", v)} />
+                  <FieldRow label="Button Location buchen – Hintergrund" value={draftTheme.bookBtnBg} defaultValue={DEFAULT_THEME.bookBtnBg}
+                    pickerKey="theme:bookBtnBg" onChange={v => updateDraftTheme("bookBtnBg", v)} />
+                  <FieldRow label="Button Location buchen – Textfarbe" value={draftTheme.bookBtnText} defaultValue={DEFAULT_THEME.bookBtnText}
+                    pickerKey="theme:bookBtnText" onChange={v => updateDraftTheme("bookBtnText", v)} />
+                </div>
+
+                <button onClick={resetAll}
+                  style={{ width:"100%", marginTop:18, padding:"10px 0", background:"transparent", color:"#888", border:"1px dashed #ccc", borderRadius:8, fontSize:12, fontWeight:500, cursor:"pointer", letterSpacing:0.3 }}
+                  onMouseEnter={e => { e.currentTarget.style.color=BRAND.aubergine; e.currentTarget.style.borderColor=BRAND.aubergine; }}
+                  onMouseLeave={e => { e.currentTarget.style.color="#888"; e.currentTarget.style.borderColor="#ccc"; }}>
+                  Alles auf Standard zurücksetzen
+                </button>
               </div>
 
-              {/* Section: Layout */}
-              <div style={{ fontSize:10, fontWeight:700, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Layout – Kundenansicht</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:18 }}>
-                <ColorField label="Hintergrund" value={siteTheme.bgColor} onChange={v => updateTheme("bgColor", v)} />
-                <ColorField label="Titelleiste – Hintergrund" value={siteTheme.headerBg} onChange={v => updateTheme("headerBg", v)} />
-                <ColorField label="Titelleiste – Textfarbe" value={siteTheme.headerText} onChange={v => updateTheme("headerText", v)} />
-                <ColorField label="Fußleiste – Hintergrund" value={siteTheme.footerBg} onChange={v => updateTheme("footerBg", v)} />
-                <ColorField label="Fußleiste – Textfarbe" value={siteTheme.footerText} onChange={v => updateTheme("footerText", v)} />
-                <ColorField label="Button 'Location buchen' – Hintergrund" value={siteTheme.bookBtnBg} onChange={v => updateTheme("bookBtnBg", v)} />
-                <ColorField label="Button 'Location buchen' – Textfarbe" value={siteTheme.bookBtnText} onChange={v => updateTheme("bookBtnText", v)} />
+              {/* Footer actions */}
+              <div style={{ padding:"14px 22px", borderTop:"1px solid #ede8ed", display:"flex", gap:10, background:"#fff" }}>
+                <button onClick={() => closeModal(false)}
+                  style={{ flex:1, padding:"11px 0", background:"#f5f3f4", color:BRAND.aubergine, border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", letterSpacing:0.3 }}
+                  onMouseEnter={e => e.currentTarget.style.background="#ede8ed"}
+                  onMouseLeave={e => e.currentTarget.style.background="#f5f3f4"}>
+                  Abbrechen
+                </button>
+                <button onClick={() => closeModal(true)} disabled={!hasChanges}
+                  style={{ flex:1, padding:"11px 0", background: hasChanges ? BRAND.aubergine : "#e0d8de", color:"#fff", border:"none", borderRadius:10, fontSize:13, fontWeight:600, cursor: hasChanges ? "pointer" : "default", letterSpacing:0.3, transition:"all .15s" }}
+                  onMouseEnter={e => { if (hasChanges) e.currentTarget.style.opacity="0.9"; }}
+                  onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+                  Speichern
+                </button>
               </div>
-
-              {/* Reset */}
-              <button onClick={resetAll}
-                style={{ width:"100%", padding:"10px 0", background:"#fff", color:BRAND.aubergine, border:`1.5px solid ${BRAND.aubergine}40`, borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}
-                onMouseEnter={e => { e.currentTarget.style.background=`${BRAND.aubergine}08`; e.currentTarget.style.borderColor=BRAND.aubergine; }}
-                onMouseLeave={e => { e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor=`${BRAND.aubergine}40`; }}>
-                Auf Standard zurücksetzen
-              </button>
             </div>
           </div>
           );
