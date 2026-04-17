@@ -1514,7 +1514,7 @@ export default function App() {
                   <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showPending ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke={BRAND.aprikot} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
               </div>
-              {showPending && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+              {showPending && <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {pending.map(({ key, ev, subIndex }) => {
                   const [yy,mm,dd] = key.split("-").map(Number);
                   const d = new Date(yy,mm-1,dd);
@@ -1567,27 +1567,32 @@ export default function App() {
             seriesGroups[sid].items.push([k,v]);
           });
 
+          const MONTHS_SHORT = ["Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
           const renderRow = (key, ev, color, badge) => {
             const [yy,mm,dd] = key.split("-").map(Number);
             const d = new Date(yy,mm-1,dd);
             const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][d.getDay()];
+            const monthShort = MONTHS_SHORT[mm-1];
+            // Typ-Farbe für Akzentbalken links: bei blocked türkis, bei booked aus eventTypes, fallback grau
+            const typeColor = ev.status === "blocked" ? "#009a93" : (eventTypes.find(t => t.id === ev.type)?.color || "#b5a8b2");
             return (
               <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} className="admin-card"
-                style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "11px 14px" : "10px 12px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${typeColor}`, cursor:"pointer" }}>
+                <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
+                  <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{dayName}</div>
+                  <div style={{ fontSize:22, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"2px 0 1px" }}>{dd}</div>
+                  <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{monthShort}</div>
+                </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                    <span style={{ fontWeight:600, color, fontSize: winW > 900 ? 14 : 13 }}>{dayName}, {dd}. {MONTHS[mm-1]}</span>
-                    <span style={{ fontSize: winW > 900 ? 14 : 13, color:BRAND.aubergine, fontWeight:500 }}>{ev.label || ""}</span>
-                  </div>
+                  {ev.label && <div style={{ fontSize: winW > 900 ? 14 : 13, fontWeight:500, color:BRAND.aubergine, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label}</div>}
                   {(ev.slotLabel || ev.name) && (
-                    <div style={{ fontSize:12, color:"#999", marginTop:3, display:"flex", alignItems:"center", gap:10, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
-                      {ev.slotLabel && <span style={{ display:"inline-flex", alignItems:"center", gap:3, flexShrink:0 }}><ClockIcon color="#bbb" size={11} />{ev.slotLabel}</span>}
-                      {ev.slotLabel && ev.name && <span style={{ width:1, height:12, background:"#ddd", flexShrink:0 }} />}
-                      {ev.name && <span style={{ overflow:"hidden", textOverflow:"ellipsis" }}>{ev.name}</span>}
+                    <div style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:8, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
+                      {ev.slotLabel && <span style={{ flexShrink:0 }}>{ev.slotLabel}</span>}
+                      {ev.slotLabel && ev.name && <span style={{ width:1, height:11, background:"#ddd", flexShrink:0 }} />}
+                      {ev.name && <span style={{ overflow:"hidden", textOverflow:"ellipsis", minWidth:0 }}>{ev.name}</span>}
                     </div>
                   )}
                 </div>
-                {badge}
               </div>
             );
           };
@@ -1606,7 +1611,7 @@ export default function App() {
             <div style={{ marginBottom:24 }}>
               {bookedOnly.length > 0 && <>
                 {renderSectionHeader("Kommende Termine", bookedOnly.length, BRAND.aubergine, showUpcoming, setShowUpcoming)}
-                {showUpcoming && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                {showUpcoming && <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {bookedOnly.map(([key,ev]) => renderRow(key, ev, BRAND.lila,
                     <div style={{ background:BRAND.lila, color:"#fff", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Gebucht</div>
                   ))}
@@ -1615,7 +1620,7 @@ export default function App() {
 
               {(regularBlocked.length > 0 || Object.keys(seriesGroups).length > 0) && <>
                 {renderSectionHeader("Intern & Serie", internAndSeries.length, "#009a93", showInternal, setShowInternal)}
-                {showInternal && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                {showInternal && <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {regularBlocked.map(([key,ev]) => renderRow(key, ev, "#009a93",
                     <div style={{ background:"#009a93", color:"#fff", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Intern</div>
                   ))}
@@ -1669,7 +1674,7 @@ export default function App() {
                 if (!pastAll.length) return null;
                 return <>
                   {renderSectionHeader("Vergangene Termine", pastAll.length, "#aaa", showPast, setShowPast)}
-                  {showPast && <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                  {showPast && <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                     {pastAll.map(([key,ev]) => {
                       const isSeries = ev.isSeries;
                       const isBlocked = ev.status === "blocked";
