@@ -876,7 +876,8 @@ export default function App() {
     const et = eventTypes.find(e => e.id === formData.type);
     const isGroup = et?.isGroupTour;
     const valid = formData.name.trim() && formData.email.trim() && /\S+@\S+\.\S+/.test(formData.email)
-      && (!isGroup || (formData.phone.trim() && formData.guests && Number(formData.guests) >= (et?.minPersons || 10)));
+      && formData.phone.trim()
+      && (!isGroup || (formData.guests && Number(formData.guests) >= (et?.minPersons || 10)));
     if (!valid) { setSubmitAttempted(true); return; }
     let slotLabel, startTime, endTime;
     if (isGroup) {
@@ -1064,12 +1065,12 @@ export default function App() {
       <header style={{ background: isAdmin ? BRAND.aubergine : siteTheme.headerBg, color: isAdmin ? "#fff" : siteTheme.headerText, padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 1100 ? "sticky" : "relative", top:0, zIndex:50 }}>
         <div onClick={!isAdmin ? () => { if (loggedIn) { setIsAdmin(true); setModalView(null); } else setLoginModal(true); } : undefined}
           style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1, cursor: !isAdmin ? "pointer" : "default" }}>
-          <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? 24 : 26, flexShrink:0 }} />
-          <h1 style={{ margin:0, marginLeft: winW < 520 ? 8 : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", minWidth:0 }}>
+          <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? (isAdmin ? 17 : 24) : 26, flexShrink:0 }} />
+          <h1 style={{ margin:0, marginLeft: winW < 520 ? (isAdmin ? 6 : 8) : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", minWidth:0 }}>
             {winW < 520 ? (
               <>
-                <span style={{ fontSize:11, letterSpacing:2, color:"inherit", fontWeight:600, lineHeight:1.2 }}>PARADIESGÄRTEN</span>
-                <span style={{ fontSize:11, letterSpacing:2, color:"inherit", fontWeight:300, lineHeight:1.2 }}>MATTUSCHKA</span>
+                <span style={{ fontSize: isAdmin ? 8 : 11, letterSpacing: isAdmin ? 1.4 : 2, color:"inherit", fontWeight:600, lineHeight:1.2 }}>PARADIESGÄRTEN</span>
+                <span style={{ fontSize: isAdmin ? 8 : 11, letterSpacing: isAdmin ? 1.4 : 2, color:"inherit", fontWeight:300, lineHeight:1.2 }}>MATTUSCHKA</span>
               </>
             ) : (
               <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"inherit" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}> MATTUSCHKA</span></span>
@@ -1095,10 +1096,10 @@ export default function App() {
                   label:"Design Admin", full:"Design Adminansicht", color:BRAND.tuerkis, onClick:() => setShowDesignAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                 },
-                {
+                ...(winW < 520 ? [] : [{
                   label:"Backups", full:"Backups anzeigen", color:BRAND.mintgruen, onClick:() => setShowBackups(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
-                },
+                }]),
               ];
               return actions.map((a, i) => (
                 <button key={i} onClick={a.onClick} title={a.full}
@@ -2548,7 +2549,7 @@ export default function App() {
               const invalidEmail = !missingEmail && !/\S+@\S+\.\S+/.test(formData.email);
               const guestsTooLow = isGroup && nGuests < (et?.minPersons || 10);
               const missingGuests = isGroup && !formData.guests;
-              const missingPhone = isGroup && !formData.phone.trim();
+              const missingPhone = !formData.phone.trim();
               const canSubmit = !missingName && !missingEmail && !invalidEmail && !missingPhone && (!isGroup || (!missingGuests && !guestsTooLow));
               const sa = submitAttempted;
               const reqStyle = (empty, invalid) => !sa ? inputStyle : invalid ? { ...inputStyle, borderColor:"#c44", background:"#fdf6f6" } : empty ? { ...inputStyle, borderColor: et?.color || BRAND.aprikot, background: (et?.color || BRAND.aprikot)+"08" } : inputStyle;
@@ -2759,7 +2760,7 @@ export default function App() {
                       <input placeholder="Ihr Name *" value={formData.name} onChange={e => setFormData(f=>({...f, name:e.target.value}))} style={reqStyle(missingName, false)} />
                       <input placeholder="E-Mail *" type="email" value={formData.email} onChange={e => setFormData(f=>({...f, email:e.target.value}))} style={reqStyle(missingEmail, invalidEmail)} />
                       {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
-                      <input placeholder="Telefon" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={inputStyle} />
+                      <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))} style={reqStyle(missingPhone, false)} />
                       <input placeholder="Anzahl Gäste" type="number" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))} style={inputStyle} />
                       <textarea placeholder="Ihre Nachricht / Wünsche" value={formData.message} onChange={e => setFormData(f=>({...f, message:e.target.value}))} style={{ ...inputStyle, height:70, resize:"none" }} />
                       {formData.type !== "sonstiges" && (
