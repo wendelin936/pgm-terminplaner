@@ -2742,13 +2742,28 @@ export default function App() {
                   const priceNum = parseFloat(String(adminForm.price || "").replace(/\./g, "").replace(",", ".")) || 0;
                   const partialNum = parseFloat(String(adminForm.partialAmount || "").replace(/\./g, "").replace(",", ".")) || 0;
                   const feeAmount = adminForm.cleaningFee ? CLEANING_FEE : 0;
-                  const restOffen = Math.max(0, priceNum - partialNum + feeAmount);
                   const fmtMoney = (n) => n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                  const paymentStatus = adminForm.paymentStatus || "open";
+                  // "Noch offen" je nach Status: bezahlt → 0, Anzahlung → Rest nach Abzug, offen → voller Betrag
+                  let restOffen;
+                  if (paymentStatus === "paid") restOffen = 0;
+                  else if (paymentStatus === "partial") restOffen = Math.max(0, priceNum - partialNum + feeAmount);
+                  else restOffen = priceNum + feeAmount;
+                  // Farbe für den "Noch offen"-Betrag je nach Status
+                  const restColor = paymentStatus === "paid" ? "#006930" : paymentStatus === "partial" ? BRAND.lila : "#c44444";
                   const statuses = [
-                    { v: "open", l: "Offen", c: "#999", bg: "#fff", bd: "#e0d5df" },
+                    { v: "open", l: "Offen", c: "#c44444", bg: "#c4444415", bd: "#c44444" },
                     { v: "partial", l: "Anzahlung", c: "#8a6a00", bg: "#ffda6f22", bd: "#ffda6f" },
                     { v: "paid", l: "Bezahlt", c: "#006930", bg: "#e6f3ea", bd: "#006930" },
                   ];
+                  // Status-Wechsel: bei Wechsel auf "offen" oder "paid" die Anzahlung löschen
+                  const pickStatus = (v) => {
+                    setAdminForm(f => ({
+                      ...f,
+                      paymentStatus: v,
+                      partialAmount: v === "partial" ? f.partialAmount : "",
+                    }));
+                  };
                   return (
                     <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
                       <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Vereinbarter Preis</div>
@@ -2759,9 +2774,9 @@ export default function App() {
                       </div>
                       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
                         {statuses.map(s => {
-                          const active = adminForm.paymentStatus === s.v;
+                          const active = paymentStatus === s.v;
                           return (
-                            <button key={s.v} onClick={() => setAdminForm(f=>({...f, paymentStatus: s.v}))}
+                            <button key={s.v} onClick={() => pickStatus(s.v)}
                               style={{ padding:"8px 14px", border:`1.5px solid ${active ? s.bd : "#e8d8e4"}`, borderRadius:8, background: active ? s.bg : "#fff", color: active ? s.c : "#999", fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.2, fontFamily:"inherit" }}>
                               {s.l}
                             </button>
@@ -2769,24 +2784,24 @@ export default function App() {
                         })}
                       </div>
                       <label onClick={() => setAdminForm(f=>({...f, cleaningFee: !f.cleaningFee}))}
-                        style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer", marginBottom: adminForm.paymentStatus === "partial" ? 4 : 0 }}>
+                        style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer", marginBottom: paymentStatus === "partial" ? 4 : 0 }}>
                         <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${adminForm.cleaningFee ? BRAND.lila : "#ccc"}`, background: adminForm.cleaningFee ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                           {adminForm.cleaningFee && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
                         <span style={{ fontSize:12, color: BRAND.aubergine }}>Reinigungspauschale <span style={{ color:"#999" }}>(+ 150 €)</span></span>
                       </label>
-                      {adminForm.paymentStatus === "partial" && (
-                        <>
-                          <div style={{ position:"relative", marginTop:8 }}>
-                            <input placeholder="Angezahlter Betrag" value={adminForm.partialAmount} onChange={e => setAdminForm(f=>({...f, partialAmount:e.target.value}))}
-                              style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-                            <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#8a6a00", fontWeight:600, fontSize:13, pointerEvents:"none" }}>€</span>
-                          </div>
-                          <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:6, paddingRight:2 }}>
-                            Noch offen: <span style={{ color: BRAND.lila, fontWeight:700, fontSize:13 }}>€ {fmtMoney(restOffen)}</span>
-                            {adminForm.cleaningFee && <span style={{ color:"#999", fontSize:10, marginLeft:4 }}>inkl. Pauschale</span>}
-                          </div>
-                        </>
+                      {paymentStatus === "partial" && (
+                        <div style={{ position:"relative", marginTop:8 }}>
+                          <input placeholder="Angezahlter Betrag" value={adminForm.partialAmount} onChange={e => setAdminForm(f=>({...f, partialAmount:e.target.value}))}
+                            style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                          <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#8a6a00", fontWeight:600, fontSize:13, pointerEvents:"none" }}>€</span>
+                        </div>
+                      )}
+                      {priceNum > 0 && (
+                        <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:8, paddingRight:2 }}>
+                          Noch offen: <span style={{ color: restColor, fontWeight:700, fontSize:13 }}>€ {fmtMoney(restOffen)}</span>
+                          {adminForm.cleaningFee && paymentStatus !== "paid" && <span style={{ color:"#999", fontSize:10, marginLeft:4 }}>inkl. Pauschale</span>}
+                        </div>
                       )}
                     </div>
                   );
