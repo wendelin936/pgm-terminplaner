@@ -46,7 +46,7 @@ const GROUP_TOUR_NOTIFY_EMAIL = "astridmattuschka@gmail.com";
 // Wird aufgerufen aus:
 //   - handleAdminAction(..., "confirm", ...) wenn der bestätigte Eintrag eine Gruppenführung ist
 //   - handleAdminSave beim Neuanlegen/Bestätigen einer Gruppenführung (type="booked" + eventType="gruppenfuehrung")
-function notifyGroupTour(dateKey, ev) {
+function notifyGroupTour(dateKey, ev, subIndex = -1) {
   try {
     const [yy,mm,dd] = dateKey.split("-").map(Number);
     const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
@@ -67,6 +67,9 @@ function notifyGroupTour(dateKey, ev) {
       tourGuide: !!ev.tourGuide,
       cakeCount: ev.cakeCount || 0,
       coffeeCount: ev.coffeeCount || 0,
+      // Für View-Token: Kontext zum Auffinden des Termins
+      dateKey: dateKey,
+      subIndex: subIndex,
     };
     fetch(EMAIL_WORKER_URL, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -616,6 +619,8 @@ export default function App() {
   const [chipPopup, setChipPopup] = useState(null); // null | "status" | "date" | "time" | "type"
   const [datePopupMonth, setDatePopupMonth] = useState(null);
   const [datePopupYear, setDatePopupYear] = useState(null);
+  // Read-only view (für Astrid: von der Bestätigungsmail verlinkt)
+  const [readOnlyView, setReadOnlyView] = useState(null); // {dateKey, subIndex} | null
   const [toast, setToast] = useState(null);
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
@@ -745,6 +750,7 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wantsAdmin = params.get("admin") === "1";
+    const viewTok = params.get("view");
     const unsub = onAuthChange(user => {
       setLoggedIn(!!user);
       if (user) { setIsAdmin(true); }
@@ -753,6 +759,22 @@ export default function App() {
     if (wantsAdmin) {
       const url = new URL(window.location.href);
       url.searchParams.delete("admin");
+      window.history.replaceState({}, "", url.toString());
+    }
+    // Read-only View-Token vom Worker verifizieren (z.B. Astrid über Bestätigungsmail)
+    if (viewTok) {
+      const EMAIL_VERIFY_URL = EMAIL_WORKER_URL.replace(/\/$/, "") + "/verify";
+      fetch(`${EMAIL_VERIFY_URL}?token=${encodeURIComponent(viewTok)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d && d.ok && d.dateKey) {
+            setReadOnlyView({ dateKey: d.dateKey, subIndex: typeof d.subIndex === "number" ? d.subIndex : -1 });
+          }
+        })
+        .catch(() => {});
+      // URL säubern
+      const url = new URL(window.location.href);
+      url.searchParams.delete("view");
       window.history.replaceState({}, "", url.toString());
     }
     return unsub;
@@ -957,7 +979,7 @@ export default function App() {
         const oldMain = events[selectedDate];
         wasAlreadyBooked = oldMain?.status === "booked" && oldMain?.type === "gruppenfuehrung";
       }
-      if (!wasAlreadyBooked) notifyGroupTour(selectedDate, entry);
+      if (!wasAlreadyBooked) notifyGroupTour(selectedDate, entry, editingSubIndex);
     }
     saveEvents(updated);
     if (isDowngrade) {
@@ -1111,7 +1133,7 @@ export default function App() {
         saveEvents(updated);
         showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, true, BRAND.moosgruen);
         // Extra-Notification bei Gruppenführung
-        if (sub && sub.type === "gruppenfuehrung") notifyGroupTour(key, { ...sub, status: "booked" });
+        if (sub && sub.type === "gruppenfuehrung") notifyGroupTour(key, { ...sub, status: "booked" }, subIndex);
         return;
       }
       const ev = events[key];
@@ -1120,7 +1142,7 @@ export default function App() {
       setModalView(null);
       showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, BRAND.moosgruen);
       // Extra-Notification bei Gruppenführung
-      if (ev && ev.type === "gruppenfuehrung") notifyGroupTour(key, { ...ev, status: "booked" });
+      if (ev && ev.type === "gruppenfuehrung") notifyGroupTour(key, { ...ev, status: "booked" }, -1);
     }
   };
 
@@ -1263,6 +1285,176 @@ export default function App() {
           </div>
         )}
       </header>
+
+      {/* Read-Only View für Astrid (Bestätigungsmail-Link) */}
+      {readOnlyView && (() => {
+        const ev = readOnlyView.subIndex >= 0
+          ? events[readOnlyView.dateKey]?.subEvents?.[readOnlyView.subIndex]
+          : events[readOnlyView.dateKey];
+        if (!ev) {
+          return (
+            <div onClick={() => setReadOnlyView(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", backdropFilter:"blur(4px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, padding:"32px 28px", maxWidth:400, width:"100%", textAlign:"center" }}>
+                <div style={{ fontSize:36, marginBottom:12 }}>🔍</div>
+                <div style={{ fontSize:16, fontWeight:600, color:BRAND.aubergine, marginBottom:6 }}>Termin nicht gefunden</div>
+                <div style={{ fontSize:13, color:"#888", marginBottom:20 }}>Der Termin wurde möglicherweise verschoben oder gelöscht.</div>
+                <button onClick={() => setReadOnlyView(null)}
+                  style={{ padding:"10px 24px", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer" }}>
+                  Schließen
+                </button>
+              </div>
+            </div>
+          );
+        }
+        const et = eventTypes.find(t => t.id === ev.type);
+        const accent = et?.color || BRAND.lila;
+        const [yy,mm,dd] = readOnlyView.dateKey.split("-").map(Number);
+        const dateObj = new Date(yy, mm-1, dd);
+        const wochentag = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][dateObj.getDay()];
+        const monatLang = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][mm-1];
+        const dateLong = `${wochentag}, ${dd}. ${monatLang} ${yy}`;
+        const zeitText = ev.allDay ? "Ganztägig" : `${ev.startTime || ""} – ${ev.endTime || ""}`;
+        const statusMeta = { booked:{label:"Gebucht", color:BRAND.lila}, pending:{label:"Anfrage", color:BRAND.aprikot}, blocked:{label:"Intern", color:"#009a93"} }[ev.status] || {label:"—", color:"#999"};
+        const isGroupEv = ev.type === "gruppenfuehrung";
+        const nP = Number(ev.guests) || 0;
+        const nKaffee = Number(ev.coffeeCount) || 0;
+        const nKuchen = Number(ev.cakeCount) || 0;
+        const cEintritt = nP * (et?.pricePerPerson || 9);
+        const cKaffee = nKaffee * (et?.coffeePrice || 3.10);
+        const cKuchen = nKuchen * (et?.cakePrice || 4.50);
+        const nF = ev.tourGuide && nP > 0 ? Math.ceil(nP / (et?.maxPerTour || 20)) : 0;
+        const cFuehrung = nF * (et?.guideCost || 80);
+        const cGesamt = cEintritt + cKaffee + cKuchen + cFuehrung;
+        return (
+          <div onClick={() => setReadOnlyView(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", backdropFilter:"blur(4px)", zIndex:300, display:"flex", alignItems:"flex-start", justifyContent:"center", padding:16, overflowY:"auto" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, maxWidth:440, width:"100%", boxShadow:"0 24px 80px rgba(88,8,74,0.25)", marginTop:20, marginBottom:20, overflow:"hidden" }}>
+              {/* Read-only Hinweis oben */}
+              <div style={{ background:`${accent}10`, padding:"8px 20px", fontSize:10, color:accent, fontWeight:600, textTransform:"uppercase", letterSpacing:1.2, textAlign:"center", borderBottom:`1px solid ${accent}20` }}>
+                👁 Nur-Lese-Ansicht · Termininfo
+              </div>
+
+              <div style={{ padding:"20px 22px" }}>
+                {/* Header */}
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:14 }}>
+                  <div>
+                    <div style={{ fontSize:13, color:"#888", fontWeight:500 }}>Termin</div>
+                    <h3 style={{ margin:0, color:accent, fontSize:22, fontWeight:700, marginTop:2, lineHeight:1.2 }}>
+                      {et?.label || ev.label || "Termin"}
+                    </h3>
+                  </div>
+                  <button onClick={() => setReadOnlyView(null)}
+                    style={{ background:"none", border:"none", cursor:"pointer", color:"#aaa", padding:4, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                  </button>
+                </div>
+
+                {/* Meta-Chips: Status + Datum + Zeit + Typ */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
+                  <div style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px" }}>
+                    <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Status</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
+                      <div style={{ width:9, height:9, borderRadius:"50%", background:statusMeta.color, flexShrink:0 }} />
+                      <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{statusMeta.label}</span>
+                    </div>
+                  </div>
+                  <div style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px" }}>
+                    <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Datum</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, marginTop:4 }}>{dd}.{mm}.{yy}</div>
+                  </div>
+                  <div style={{ background:"#f3ecf2", borderRadius:10, padding:"10px 14px" }}>
+                    <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Zeit</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, marginTop:4, fontVariantNumeric:"tabular-nums" }}>{zeitText}</div>
+                  </div>
+                  <div style={{ background:`${accent}15`, borderRadius:10, padding:"10px 14px", border:`1px solid ${accent}30` }}>
+                    <div style={{ fontSize:10, color:accent, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Typ</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:accent, marginTop:4 }}>{et?.label || "—"}</div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize:12, color:"#888", marginBottom:12, textAlign:"center" }}>{dateLong}</div>
+
+                {/* Kontakt / Gruppe */}
+                {(ev.groupName || ev.name || ev.email || ev.phone || ev.contactName || ev.contactPhone || ev.guests) && (
+                  <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>{isGroupEv ? "Gruppe & Kontakt" : "Kontakt"}</div>
+                    {(ev.groupName || ev.name) && <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:6 }}>{ev.groupName || ev.name}</div>}
+                    {isGroupEv && ev.contactName && <div style={{ fontSize:13, color:"#666", marginBottom:4 }}>👤 {ev.contactName}</div>}
+                    {ev.email && <div style={{ fontSize:13, color:"#666", marginBottom:4 }}>✉ <a href={`mailto:${ev.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.email}</a></div>}
+                    {(ev.contactPhone || ev.phone) && <div style={{ fontSize:13, color:"#666", marginBottom:4 }}>📞 <a href={`tel:${(ev.contactPhone || ev.phone).replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{ev.contactPhone || ev.phone}</a></div>}
+                    {ev.guests && <div style={{ fontSize:13, color:"#666" }}>👥 {ev.guests} {isGroupEv ? "Teilnehmer" : "Gäste"}</div>}
+                  </div>
+                )}
+
+                {/* Café im Paradiesglashaus (nur Gruppenbesuch) */}
+                {isGroupEv && (ev.tourGuide || nKaffee > 0 || nKuchen > 0 || nP > 0) && (
+                  <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
+                    {nKaffee > 0 && (
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                        <div><div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kaffee</div><div style={{ fontSize:11, color:"#999" }}>à € {(et?.coffeePrice || 3.10).toFixed(2).replace(".",",")}</div></div>
+                        <div style={{ fontSize:16, fontWeight:600, color:BRAND.aubergine }}>{nKaffee}×</div>
+                      </div>
+                    )}
+                    {nKuchen > 0 && (
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                        <div><div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div><div style={{ fontSize:11, color:"#999" }}>à € {(et?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div></div>
+                        <div style={{ fontSize:16, fontWeight:600, color:BRAND.aubergine }}>{nKuchen}×</div>
+                      </div>
+                    )}
+                    {ev.tourGuide && (
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, marginBottom: nP > 0 ? 10 : 0 }}>
+                        <svg width="18" height="18" viewBox="0 0 12 12"><circle cx="6" cy="6" r="6" fill={BRAND.moosgruen}/><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                          <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65 }}>€ {et?.guideCost || 80} pro {et?.maxPerTour || 20} Teilnehmer</div>
+                        </div>
+                      </div>
+                    )}
+                    {nP > 0 && (
+                      <div style={{ background:"#f8f4f8", borderRadius:10, padding:"10px 12px" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:2 }}>
+                          <span>Eintritt ({nP}× à € {(et?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
+                          <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cEintritt.toFixed(2).replace(".",",")}</span>
+                        </div>
+                        <div style={{ fontSize:10, color:BRAND.moosgruen, marginBottom:6, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                        {nKaffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}><span>Kaffee ({nKaffee}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cKaffee.toFixed(2).replace(".",",")}</span></div>}
+                        {nKuchen > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}><span>Kuchen ({nKuchen}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cKuchen.toFixed(2).replace(".",",")}</span></div>}
+                        {ev.tourGuide && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:6 }}><span>Führung{nF > 1 ? ` (${nF}×)` : ""}</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cFuehrung.toFixed(2).replace(".",",")}</span></div>}
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:BRAND.aubergine, fontWeight:600, paddingTop:6, borderTop:"1px solid #ebe4ea" }}>
+                          <span>Geschätzt gesamt</span>
+                          <span style={{ fontVariantNumeric:"tabular-nums", color:BRAND.lila }}>ca. € {cGesamt.toFixed(2).replace(".",",")}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Nachricht */}
+                {ev.message && (
+                  <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>Nachricht</div>
+                    <div style={{ fontSize:13, color:"#666", lineHeight:1.6, fontStyle:"italic" }}>„{ev.message}"</div>
+                  </div>
+                )}
+
+                {/* Interne Notiz */}
+                {ev.adminNote && (
+                  <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ fontSize:11, color:"#999", letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>Interne Notiz</div>
+                    <div style={{ fontSize:13, color:BRAND.aubergine, lineHeight:1.6 }}>{ev.adminNote}</div>
+                  </div>
+                )}
+
+                {/* Schließen-Button */}
+                <button onClick={() => setReadOnlyView(null)}
+                  style={{ width:"100%", padding:"12px", background:accent, color:"#fff", border:"none", borderRadius:10, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5, marginTop:6, fontFamily:"inherit" }}>
+                  Schließen
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {loginModal && (<div onClick={() => setLoginModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.25)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}><div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"32px 24px", maxWidth:360, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.15)" }}><div style={{ textAlign:"center", marginBottom:20 }}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={BRAND.aubergine} strokeWidth="2" strokeLinecap="round" style={{ marginBottom:8 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><div style={{ fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Admin-Login</div><div style={{ fontSize:12, color:"#999", marginTop:2 }}>Paradiesgarten Mattuschka</div></div><input placeholder="E-Mail" type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()} style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} /><input placeholder="Passwort" type="password" value={loginPw} onChange={e => setLoginPw(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()} style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginBottom:8, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />{loginError && <div style={{ fontSize:12, color:"#c44", marginBottom:8, textAlign:"center" }}>{loginError}</div>}<button onClick={handleLogin} style={{ width:"100%", padding:"12px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1 }}>Anmelden</button><button onClick={() => setLoginModal(false)} onMouseEnter={e=>{e.target.style.color="#c44";e.target.style.background="#fdf6f6"}} onMouseLeave={e=>{e.target.style.color="#aaa";e.target.style.background="transparent"}} style={{ width:"100%", padding:10, border:"none", background:"transparent", color:"#aaa", cursor:"pointer", fontSize:13, marginTop:4, borderRadius:8, transition:"all .15s" }}>Abbrechen</button></div></div>)}
 
