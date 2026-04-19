@@ -1760,14 +1760,14 @@ export default function App() {
                   return (
                     <SwipeRow key={rowKey} onSwipeRight={() => handleAdminAction(key,"confirm",subIndex)} onSwipeLeft={() => handleAdminAction(key,"delete",subIndex)} rightLabel="Annehmen" rightColor={BRAND.mintgruen} leftLabel="Ablehnen" leftColor="#e0d5df">
                       <div onClick={() => openEventInAdmin(key, subIndex)} className="admin-card"
-                        style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${BRAND.aprikot}`, cursor:"pointer" }}>
+                        style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "7px 16px" : "6px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${BRAND.aprikot}`, cursor:"pointer" }}>
                         <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
                           <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{dayName}</div>
-                          <div style={{ fontSize:22, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"2px 0 1px" }}>{dd}</div>
+                          <div style={{ fontSize:20, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"1px 0 0" }}>{dd}</div>
                           <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{monthShort}</div>
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize: winW > 900 ? 14 : 13, fontWeight:500, color:BRAND.aubergine, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label || ev.type}</div>
+                          <div style={{ fontSize: winW > 900 ? 14 : 13, fontWeight:500, color:BRAND.aubergine, marginBottom:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label || ev.type}</div>
                           {(ev.slotLabel || ev.name) && (
                             <div style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:8, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
                               {ev.slotLabel && <span style={{ flexShrink:0 }}>{ev.slotLabel}</span>}
@@ -1825,14 +1825,14 @@ export default function App() {
             const accentColor = ev.status === "blocked" ? adminTheme.blockedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.bookedColor;
             return (
               <div key={key+(ev._subIndex!=null?"-s"+ev._subIndex:"")} onClick={() => openEventInAdmin(key, ev._subIndex ?? -1)} className="admin-card"
-                style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "12px 16px" : "11px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${accentColor}`, cursor:"pointer" }}>
+                style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "7px 16px" : "6px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${accentColor}`, cursor:"pointer" }}>
                 <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
                   <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{dayName}</div>
-                  <div style={{ fontSize:22, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"2px 0 1px" }}>{dd}</div>
+                  <div style={{ fontSize:20, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"1px 0 0" }}>{dd}</div>
                   <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{monthShort}</div>
                 </div>
                 <div style={{ flex:1, minWidth:0 }}>
-                  {ev.label && <div style={{ fontSize: winW > 900 ? 14 : 13, fontWeight:500, color:BRAND.aubergine, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label}</div>}
+                  {ev.label && <div style={{ fontSize: winW > 900 ? 14 : 13, fontWeight:500, color:BRAND.aubergine, marginBottom:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label}</div>}
                   {(ev.slotLabel || ev.name) && (
                     <div style={{ fontSize:12, color:"#999", display:"flex", alignItems:"center", gap:8, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>
                       {ev.slotLabel && <span style={{ flexShrink:0 }}>{ev.slotLabel}</span>}
