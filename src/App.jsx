@@ -1873,8 +1873,10 @@ export default function App() {
                     <div style={{ background:"#009a93", color:"#fff", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Intern</div>
                   ))}
                   {Object.entries(seriesGroups).map(([sid, group]) => {
+                    if (!group || !group.first) return null;
                     const isOpen = expandedSeries === sid;
-                    const sortedItems = [...group.items].sort(([a],[b]) => a.localeCompare(b));
+                    const sortedItems = [...(group.items || [])].sort(([a],[b]) => a.localeCompare(b));
+                    const gFirst = group.first;
                     return (
                       <div key={sid}>
                         <div onClick={() => setExpandedSeries(isOpen ? null : sid)} className="admin-card"
@@ -1888,12 +1890,12 @@ export default function App() {
                               <span style={{ fontSize:12, color:`${adminTheme.seriesColor}88`, flexShrink:0 }}>{group.items.length} Termine</span>
                               <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)", flexShrink:0 }}><path d="M2 4l4 4 4-4" stroke={adminTheme.seriesColor} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </div>
-                            {group.first.slotLabel && <div style={{ fontSize:12, color:"#999" }}>{group.first.slotLabel}</div>}
+                            {gFirst.slotLabel && <div style={{ fontSize:12, color:"#999" }}>{gFirst.slotLabel}</div>}
                           </div>
                           <div style={{ display:"flex", gap:6, flexShrink:0, marginLeft:"auto" }}>
                             <button onClick={(e) => { e.stopPropagation();
                               setSelectedDate(group.items[0][0]);
-                              setAdminForm({ type: group.first.status || "blocked", label: group.first.label || "", note: group.first.note || "", startTime: group.first.startTime || "08:00", endTime: group.first.endTime || "22:00", adminNote: group.first.adminNote || "", eventType: group.first.type || "", allDay: group.first.allDay || false, checklist: group.first.checklist || [], contactName: group.first.contactName || "", contactPhone: group.first.contactPhone || "", contactAddress: group.first.contactAddress || "", publicText: group.first.publicText || "", isPublic: group.first.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true, price: group.first.price || "", paymentStatus: group.first.paymentStatus || "open", partialAmount: group.first.partialAmount || "", cleaningFee: !!group.first.cleaningFee });
+                              setAdminForm({ type: gFirst.status || "blocked", label: gFirst.label || "", note: gFirst.note || "", startTime: gFirst.startTime || "08:00", endTime: gFirst.endTime || "22:00", adminNote: gFirst.adminNote || "", eventType: gFirst.type || "", allDay: gFirst.allDay || false, checklist: gFirst.checklist || [], contactName: gFirst.contactName || "", contactPhone: gFirst.contactPhone || "", contactAddress: gFirst.contactAddress || "", publicText: gFirst.publicText || "", isPublic: gFirst.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true, price: gFirst.price || "", paymentStatus: gFirst.paymentStatus || "open", partialAmount: gFirst.partialAmount || "", cleaningFee: !!gFirst.cleaningFee });
                               setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                             }}
                               onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
