@@ -684,7 +684,6 @@ export default function App() {
   const [editingType, setEditingType] = useState(null);
   const [editingTime, setEditingTime] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [hoveredDate, setHoveredDate] = useState(null);
   const [showPrices, setShowPrices] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
   const [showDesignAdmin, setShowDesignAdmin] = useState(false);
@@ -1694,7 +1693,7 @@ export default function App() {
             const holRaw = holidays[key];
             const hol = (isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) ? holRaw : null;
             const isToday = key === todayKey;
-            const isPast = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const isPast = key < todayKey;
             const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && ev.allDay && !ev.isPublic && !ev.isSeries;
             const customerPublic = !isAdmin && ev && ev.isPublic && !ev.isSeries;
             const customerSeries = !isAdmin && ev && ev.isSeries;
@@ -1706,7 +1705,6 @@ export default function App() {
             const isSeriesAdmin = ev && isAdmin && ev.isSeries;
             return (
               <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : (isAdmin && ev && (ev.status === "booked" || ev.status === "blocked" || ev.status === "pending")) ? "day-hasevent" : "day-free"} onClick={() => handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : customerPublic ? (ev.label || "Veranstaltung") : isAdmin && ev?.label ? ev.label : ""}
-                onMouseEnter={() => isAdmin && ev && setHoveredDate(key)} onMouseLeave={() => isAdmin && setHoveredDate(null)}
                 style={{
                   aspectRatio:"1",
                   border: isToday ? `2.5px solid ${adminTheme.todayColor}` : (isPast && ev) ? "1px solid #e8e0e5" : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}60` : isBlockedAdminAllDay ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
