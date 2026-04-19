@@ -1135,10 +1135,14 @@ export default function App() {
       prevEvents.current = { ...events };
       const updated = { ...events };
       if (subIndex >= 0) {
-        // Delete specific subEvent
+        // Delete specific subEvent: als "deleted" markieren (statt rausschneiden) — damit erscheint
+        // es in der Gelöschte-Liste und kann wiederhergestellt werden.
         const day = { ...updated[key] };
         const sub = day.subEvents?.[subIndex];
-        day.subEvents = (day.subEvents || []).filter((_,i) => i !== subIndex);
+        if (!sub) { setDeleteConfirm(null); return; }
+        day.subEvents = (day.subEvents || []).map((s,i) => i === subIndex
+          ? { ...s, status: "deleted", previousStatus: s.status, deletedAt: new Date().toISOString() }
+          : s);
         updated[key] = day;
         saveEvents(updated);
         setDeleteConfirm(null);
@@ -1732,7 +1736,7 @@ export default function App() {
                   if (isPartial) {
                     const bands = [{ color: bandColor(ev) }];
                     (ev.subEvents || []).forEach(s => {
-                      if (s && !s.allDay) bands.push({ color: bandColor(s) });
+                      if (s && !s.allDay && s.status !== "deleted") bands.push({ color: bandColor(s) });
                     });
                     const visible = bands.slice(0, 5);
                     const thickness = winW > 900 ? 4 : 3;
@@ -1813,13 +1817,22 @@ export default function App() {
                             </div>
                           )}
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm",subIndex); }}
-                          onMouseEnter={e => { e.currentTarget.style.background = BRAND.moosgruen; e.currentTarget.style.color = "#fff"; e.currentTarget.querySelector("path").setAttribute("stroke", "#fff"); }}
-                          onMouseLeave={e => { e.currentTarget.style.background = `${BRAND.mintgruen}25`; e.currentTarget.style.color = BRAND.moosgruen; e.currentTarget.querySelector("path").setAttribute("stroke", BRAND.moosgruen); }}
-                          style={{ background:`${BRAND.mintgruen}25`, color:BRAND.moosgruen, border:`1px solid ${BRAND.mintgruen}80`, borderRadius:8, padding:"7px 12px", fontSize:12, fontWeight:500, cursor:"pointer", flexShrink:0, display:"inline-flex", alignItems:"center", gap:6, letterSpacing:0.2, transition:"all .15s" }}>
-                          <svg width="11" height="11" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke={BRAND.moosgruen} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                          Annehmen
-                        </button>
+                        <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                          <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"confirm",subIndex); }}
+                            onMouseEnter={e => { e.currentTarget.style.background = BRAND.moosgruen; e.currentTarget.style.color = "#fff"; e.currentTarget.querySelector("path").setAttribute("stroke", "#fff"); }}
+                            onMouseLeave={e => { e.currentTarget.style.background = `${BRAND.mintgruen}25`; e.currentTarget.style.color = BRAND.moosgruen; e.currentTarget.querySelector("path").setAttribute("stroke", BRAND.moosgruen); }}
+                            style={{ background:`${BRAND.mintgruen}25`, color:BRAND.moosgruen, border:`1px solid ${BRAND.mintgruen}80`, borderRadius:8, padding: winW < 520 ? "5px 9px" : "6px 11px", fontSize: winW < 520 ? 11 : 12, fontWeight:500, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5, letterSpacing:0.2, transition:"all .15s" }}>
+                            <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke={BRAND.moosgruen} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            Annehmen
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); handleAdminAction(key,"delete",subIndex); }}
+                            title="Ablehnen"
+                            onMouseEnter={e => { e.currentTarget.style.background = "#c44"; e.currentTarget.querySelector("path").setAttribute("stroke", "#fff"); }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#fdf6f6"; e.currentTarget.querySelector("path").setAttribute("stroke", "#c44"); }}
+                            style={{ background:"#fdf6f6", border:"1px solid #f0caca", borderRadius:8, padding: winW < 520 ? "5px 7px" : "6px 9px", cursor:"pointer", display:"inline-flex", alignItems:"center", justifyContent:"center", transition:"all .15s" }}>
+                            <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="#c44" strokeWidth="2" strokeLinecap="round"/></svg>
+                          </button>
+                        </div>
                       </div>
                     </SwipeRow>
                   );
@@ -1976,7 +1989,17 @@ export default function App() {
                 </>;
               })()}
               {(() => {
-                const deletedAll = Object.entries(events).filter(([,v]) => v.status === "deleted").sort(([a],[b]) => b.localeCompare(a));
+                // Gelöschte Haupt-Events + gelöschte Sub-Events einsammeln
+                const deletedAll = [];
+                Object.entries(events).forEach(([key, ev]) => {
+                  if (ev.status === "deleted") deletedAll.push([key, ev, -1]);
+                  if (Array.isArray(ev.subEvents)) {
+                    ev.subEvents.forEach((sub, i) => {
+                      if (sub && sub.status === "deleted") deletedAll.push([key, sub, i]);
+                    });
+                  }
+                });
+                deletedAll.sort(([a],[b]) => b.localeCompare(a));
                 if (!deletedAll.length) return null;
                 return (
                   <div style={{ marginTop:20 }}>
@@ -1984,21 +2007,50 @@ export default function App() {
                       Gelöschte Termine ({deletedAll.length})
                       <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: showDeleted ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#c44" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </h3>
-                    {showDeleted && deletedAll.map(([key, ev]) => {
-                      const [yy,mm,dd] = key.split("-").map(Number);
+                    {showDeleted && deletedAll.map(([key, ev, subIdx]) => {
+                      const rowKey = `${key}${subIdx >= 0 ? "-s" + subIdx : ""}`;
                       return (
-                        <div key={key} onClick={() => { setSelectedDate(key); setFromCalendar(false); setModalView("info"); }} style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#fdf6f6", borderRadius:8, marginBottom:4, border:"1px solid #f0e0e0", opacity:0.6, cursor:"pointer", transition:"opacity .15s" }}
+                        <div key={rowKey} onClick={() => { if (subIdx < 0) { setSelectedDate(key); setFromCalendar(false); setModalView("info"); } }}
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"#fdf6f6", borderRadius:8, marginBottom:4, border:"1px solid #f0e0e0", opacity:0.6, cursor: subIdx < 0 ? "pointer" : "default", transition:"opacity .15s" }}
                           onMouseEnter={e => e.currentTarget.style.opacity="0.85"} onMouseLeave={e => e.currentTarget.style.opacity="0.6"}>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontSize:12, fontWeight:600, color:"#888" }}>{fmtDateAT(key)}</div>
                             <div style={{ fontSize:11, color:"#aaa", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{ev.label}{ev.name ? ` · ${ev.name}` : ""}</div>
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); const u = {...events}; u[key] = {...u[key], status: u[key].previousStatus || "booked"}; delete u[key].previousStatus; delete u[key].deletedAt; saveEvents(u); }}
+                          <button onClick={(e) => {
+                            e.stopPropagation();
+                            const u = {...events};
+                            if (subIdx >= 0) {
+                              // Sub-Event wiederherstellen: status auf previousStatus zurücksetzen
+                              const day = { ...u[key] };
+                              day.subEvents = (day.subEvents || []).map((s, i) => i === subIdx
+                                ? { ...s, status: s.previousStatus || "pending", previousStatus: undefined, deletedAt: undefined }
+                                : s);
+                              u[key] = day;
+                            } else {
+                              u[key] = {...u[key], status: u[key].previousStatus || "booked"};
+                              delete u[key].previousStatus;
+                              delete u[key].deletedAt;
+                            }
+                            saveEvents(u);
+                          }}
                             title="Wiederherstellen"
                             style={{ background:"none", border:`1px solid ${BRAND.moosgruen}40`, borderRadius:6, width:28, height:28, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:BRAND.moosgruen }}>
                             <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 7h7a3 3 0 1 1 0 6H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M6 4L3 7l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
-                          <button onClick={() => handleAdminAction(key, "permDelete")}
+                          <button onClick={(e) => {
+                            e.stopPropagation();
+                            if (subIdx >= 0) {
+                              // Sub-Event endgültig entfernen
+                              const u = {...events};
+                              const day = { ...u[key] };
+                              day.subEvents = (day.subEvents || []).filter((_, i) => i !== subIdx);
+                              u[key] = day;
+                              saveEvents(u);
+                            } else {
+                              handleAdminAction(key, "permDelete");
+                            }
+                          }}
                             title="Endgültig löschen"
                             style={{ background:"none", border:"1px solid #e0c0c0", borderRadius:6, width:28, height:28, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, color:"#c44" }}>
                             <svg width="12" height="12" viewBox="0 0 14 14"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
@@ -3666,7 +3718,7 @@ export default function App() {
               const ev = events[selectedDate];
               const et = eventTypes.find(e => e.id === ev.type);
               const hasMultiple = isAdmin && ev.subEvents && ev.subEvents.length > 0;
-              const allRequests = isAdmin ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...(ev.subEvents || []).map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))] : [];
+              const allRequests = isAdmin ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...(ev.subEvents || []).map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))].filter(s => s.status !== "deleted") : [];
               return (
                 <>
                   <div style={{ marginBottom: 16 }}>
