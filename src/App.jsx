@@ -1874,18 +1874,30 @@ export default function App() {
                   ))}
                   {Object.entries(seriesGroups).map(([sid, group]) => {
                     const isOpen = expandedSeries === sid;
+                    // Erstes und letztes Datum der Serie für den Datumsblock
+                    const sortedItems = [...group.items].sort(([a],[b]) => a.localeCompare(b));
+                    const firstKey = sortedItems[0][0];
+                    const [fyy,fmm,fdd] = firstKey.split("-").map(Number);
+                    const fd = new Date(fyy,fmm-1,fdd);
+                    const fDayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][fd.getDay()];
+                    const fMonthShort = MONTHS_SHORT[fmm-1];
                     return (
                       <div key={sid}>
                         <div onClick={() => setExpandedSeries(isOpen ? null : sid)} className="admin-card"
-                          style={{ display:"flex", alignItems:"center", padding: winW > 900 ? "11px 14px" : "10px 12px", background:"#fff", borderRadius:8, border:"0.5px solid #e8e0e5", cursor:"pointer" }}>
+                          style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "7px 16px" : "6px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${adminTheme.seriesColor}`, cursor:"pointer" }}>
+                          <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
+                            <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{fDayName}</div>
+                            <div style={{ fontSize:20, fontWeight:500, color:BRAND.aubergine, lineHeight:1.1, margin:"1px 0 0" }}>{fdd}</div>
+                            <div style={{ fontSize:9, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, lineHeight:1 }}>{fMonthShort}</div>
+                          </div>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                              <span style={{ fontWeight:600, color:"#009a93", fontSize: winW > 900 ? 14 : 13 }}>{group.label}</span>
-                              <span style={{ background:"#fff", color:"#009a93", border:"1.5px solid #009a93", fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:3, boxSizing:"border-box" }}>S</span>
-                              <span style={{ fontSize:12, color:"#009a9388" }}>{group.items.length} Termine</span>
-                              <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)" }}><path d="M2 4l4 4 4-4" stroke="#009a93" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:1 }}>
+                              <span style={{ fontWeight:500, color:adminTheme.seriesColor, fontSize: winW > 900 ? 14 : 13, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{group.label}</span>
+                              <span style={{ background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize:9, fontWeight:700, padding:"1px 5px", borderRadius:3, boxSizing:"border-box", flexShrink:0 }}>S</span>
+                              <span style={{ fontSize:12, color:`${adminTheme.seriesColor}88`, flexShrink:0 }}>{group.items.length} Termine</span>
+                              <svg width="10" height="10" viewBox="0 0 12 12" style={{ transition:"transform .2s", transform: isOpen ? "rotate(180deg)" : "rotate(0)", flexShrink:0 }}><path d="M2 4l4 4 4-4" stroke={adminTheme.seriesColor} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </div>
-                            {group.first.slotLabel && <div style={{ fontSize:12, color:"#999", marginTop:3, display:"flex", alignItems:"center", gap:3 }}><ClockIcon color="#bbb" size={11} />{group.first.slotLabel}</div>}
+                            {group.first.slotLabel && <div style={{ fontSize:12, color:"#999" }}>{group.first.slotLabel}</div>}
                           </div>
                           <div style={{ display:"flex", gap:4, flexShrink:0 }}>
                             <button onClick={(e) => { e.stopPropagation();
@@ -1894,20 +1906,20 @@ export default function App() {
                               setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                             }}
                               onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
-                              style={{ background:"none", border:"1px solid #009a9330", borderRadius:5, padding:"3px 6px", cursor:"pointer", display:"flex", alignItems:"center", transition:"opacity .15s" }}>
-                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="#009a93" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                              style={{ background:"none", border:`1px solid ${adminTheme.seriesColor}30`, borderRadius:5, padding:"3px 6px", cursor:"pointer", display:"flex", alignItems:"center", transition:"opacity .15s" }}>
+                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke={adminTheme.seriesColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type:"series", sid, label: group.label, count: group.items.length, items: group.items }); }}
                               onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
                               style={{ background:"none", border:"1px solid #c4440020", borderRadius:5, padding:"3px 6px", cursor:"pointer", display:"flex", alignItems:"center", transition:"opacity .15s" }}>
                               <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M5.33 4V2.67a1.33 1.33 0 011.34-1.34h2.66a1.33 1.33 0 011.34 1.34V4m2 0v9.33a1.33 1.33 0 01-1.34 1.34H4.67a1.33 1.33 0 01-1.34-1.34V4" stroke="#c44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                             </button>
-                            <div style={{ background:"#009a9318", color:"#009a93", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>Serie</div>
+                            <div style={{ background:`${adminTheme.seriesColor}18`, color:adminTheme.seriesColor, padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>Serie</div>
                           </div>
                         </div>
-                        {isOpen && <div style={{ paddingLeft:12, borderLeft:"2px solid #009a9320", marginLeft:8, marginTop:2 }}>
-                          {group.items.sort(([a],[b]) => a.localeCompare(b)).map(([key,ev]) => renderRow(key, ev, "#009a93",
-                            <div style={{ background:"#009a9318", color:"#009a93", padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Serie</div>
+                        {isOpen && <div style={{ paddingLeft:12, borderLeft:`2px solid ${adminTheme.seriesColor}20`, marginLeft:8, marginTop:2 }}>
+                          {sortedItems.map(([key,ev]) => renderRow(key, ev, adminTheme.seriesColor,
+                            <div style={{ background:`${adminTheme.seriesColor}18`, color:adminTheme.seriesColor, padding:"5px 12px", borderRadius:5, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, flexShrink:0 }}>Serie</div>
                           ))}
                         </div>}
                       </div>
