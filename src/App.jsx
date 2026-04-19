@@ -780,18 +780,36 @@ export default function App() {
     return unsub;
   }, []);
   useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
-  const saveEvents = useCallback(async (updated) => {
+  const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
+    // Mit opts.force=true lässt sich der Schutz bewusst umgehen (z.B. bei "Alle wiederherstellen").
     const prevCount = Object.keys(lastSyncedEvents.current || {}).filter(k => lastSyncedEvents.current[k]?.status !== "deleted").length;
     const newCount = Object.keys(updated || {}).filter(k => updated[k]?.status !== "deleted").length;
-    if (prevCount >= 5 && newCount === 0) {
-      console.warn(`[saveEvents] BLOCKIERT: Versuch ${prevCount} Events auf 0 zu setzen. Abgebrochen.`);
+    if (!opts.force && prevCount >= 5 && newCount === 0) {
+      console.warn(`[saveEvents] BLOCKIERT: Versuch ${prevCount} Events auf 0 zu setzen.`);
+      setToast({ msg: "⚠ Speichern blockiert", detail: `Schutz hat ${prevCount} Termine vor Totalverlust bewahrt. Seite neu laden und Browser-Konsole prüfen.`, color: "#c44" });
       return;
     }
-    if (prevCount >= 10 && newCount < prevCount * 0.3) {
-      console.warn(`[saveEvents] VERDÄCHTIG: ${prevCount} → ${newCount} Events. Abgebrochen.`);
+    if (!opts.force && prevCount >= 10 && newCount < prevCount * 0.3) {
+      console.warn(`[saveEvents] VERDÄCHTIG: ${prevCount} → ${newCount} Events.`);
+      setToast({ msg: "⚠ Speichern blockiert", detail: `Schutz: ${prevCount} → ${newCount} Termine wäre ungewöhnlich viel Verlust.`, color: "#c44" });
       return;
+    }
+    // Bei großen Änderungen (>20% der Events betroffen) einen Pre-Change-Snapshot anlegen
+    if (!opts.noSnapshot && prevCount >= 3) {
+      const changed = Math.abs(prevCount - newCount);
+      if (changed >= Math.max(2, prevCount * 0.2)) {
+        try {
+          const snapKey = `snapshot-${Date.now()}`;
+          saveData(snapKey, JSON.stringify({
+            date: new Date().toISOString(),
+            reason: opts.reason || "large-change",
+            prevCount, newCount,
+            events: lastSyncedEvents.current || {},
+          })).catch(() => {});
+        } catch {}
+      }
     }
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
@@ -851,8 +869,13 @@ export default function App() {
   // aber nur beim Bearbeiten existierender Termine (nicht beim Neu-Anlegen oder addToExisting).
   // Das Modal bleibt offen, der "Speichern"-Button wird nur für den expliziten Abschluss gebraucht.
   useEffect(() => {
+    if (loading) return; // Nie autosaven während Events noch laden
     if (modalView !== "admin" || !selectedDate) return;
     if (adminForm.addToExisting) return; // neuer SubEvent - kein Autosave, weil noch nicht in DB
+    // SICHERHEIT: Wenn der globale Events-State leer oder unplausibel klein ist, NIE autosaven.
+    // Das verhindert, dass eine Race-Condition mit noch nicht geladenen Events die DB überschreibt.
+    const totalEvents = Object.keys(events || {}).filter(k => events[k]?.status !== "deleted").length;
+    if (totalEvents === 0) return;
     const existing = events[selectedDate];
     const mainExists = existing && existing.status !== "deleted";
     const subExists = editingSubIndex >= 0 && existing?.subEvents?.[editingSubIndex];
@@ -860,7 +883,7 @@ export default function App() {
     if (!mainExists && !subExists && !seriesEdit) return; // Neu-Anlage - kein Autosave
     const timer = setTimeout(() => { handleAdminSave(true); }, 1000);
     return () => clearTimeout(timer);
-  }, [adminForm, modalView, selectedDate, editingSubIndex]);
+  }, [adminForm, modalView, selectedDate, editingSubIndex, loading]);
 
 
 
@@ -1896,7 +1919,7 @@ export default function App() {
                         <div onClick={() => setExpandedSeries(isOpen ? null : sid)} className="admin-card"
                           style={{ display:"flex", alignItems:"center", gap:14, padding: winW > 900 ? "7px 16px" : "6px 14px", background:"#fff", borderRadius:10, border:"0.5px solid #e8e0e5", borderLeft:`4px solid ${adminTheme.seriesColor}`, cursor:"pointer" }}>
                           <div style={{ flexShrink:0, width:42, textAlign:"center", paddingRight:12, borderRight:"1px solid #f0ecef" }}>
-                            <div style={{ width:32, height:32, margin:"0 auto", background:"#fff", color:adminTheme.seriesColor, border:`2px solid ${adminTheme.seriesColor}`, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:700, lineHeight:1, boxSizing:"border-box" }}>S</div>
+                            <div style={{ width:26, height:26, margin:"0 auto", background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, borderRadius:5, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:500, lineHeight:1, boxSizing:"border-box" }}>S</div>
                           </div>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:1 }}>
@@ -2346,24 +2369,33 @@ export default function App() {
                         const backupEventsCount = Object.keys(openedBackup.events || {}).filter(k => openedBackup.events[k]?.status !== "deleted").length;
                         if (!confirm(`Backup vom ${openedBackup.date} komplett wiederherstellen?\n\nAlle aktuell vorhandenen Termine werden durch die ${backupEventsCount} Termine aus dem Backup ersetzt. Diese Aktion lässt sich über das aktuelle heutige Backup rückgängig machen.`)) return;
                         prevEvents.current = { ...events };
-                        // Backup komplett zurückschreiben — localIds entfernen damit Google Cal neu synct
+                        // Backup zurückschreiben — vorhandene IDs erhalten (damit Google Calendar keine Duplikate erzeugt)
                         const restored = {};
                         Object.entries(openedBackup.events || {}).forEach(([k, v]) => {
                           if (!v || v.status === "deleted") return;
                           const clean = { ...v };
-                          delete clean.localId;
-                          delete clean.googleEventId;
+                          // Falls am gleichen Tag aktuell schon ein Termin existiert: dessen IDs übernehmen, damit Google Calendar das als Update erkennt, nicht als neues Event
+                          const currentAtKey = events[k];
+                          if (currentAtKey && currentAtKey.localId) clean.localId = currentAtKey.localId;
+                          else delete clean.localId;
+                          if (currentAtKey && currentAtKey.googleEventId) clean.googleEventId = currentAtKey.googleEventId;
+                          else delete clean.googleEventId;
                           if (Array.isArray(clean.subEvents)) {
-                            clean.subEvents = clean.subEvents.map(s => {
+                            const currentSubs = Array.isArray(currentAtKey?.subEvents) ? currentAtKey.subEvents : [];
+                            clean.subEvents = clean.subEvents.map((s, i) => {
                               const cs = { ...s };
-                              delete cs.localId;
-                              delete cs.googleEventId;
+                              // Versuche IDs vom gleichen Sub-Index zu übernehmen (best-effort Match)
+                              const currentSub = currentSubs[i];
+                              if (currentSub && currentSub.localId) cs.localId = currentSub.localId;
+                              else delete cs.localId;
+                              if (currentSub && currentSub.googleEventId) cs.googleEventId = currentSub.googleEventId;
+                              else delete cs.googleEventId;
                               return cs;
                             });
                           }
                           restored[k] = clean;
                         });
-                        saveEvents(restored);
+                        saveEvents(restored, { force: true });
                         setOpenedBackup(null);
                         setShowBackups(false);
                         showToast("Komplett wiederhergestellt", `${Object.keys(restored).length} Termine aus Backup vom ${openedBackup.date}`, true, BRAND.mintgruen);
