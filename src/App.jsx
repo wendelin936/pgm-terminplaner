@@ -781,6 +781,18 @@ export default function App() {
   }, []);
   useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated) => {
+    // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
+    // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
+    const prevCount = Object.keys(lastSyncedEvents.current || {}).filter(k => lastSyncedEvents.current[k]?.status !== "deleted").length;
+    const newCount = Object.keys(updated || {}).filter(k => updated[k]?.status !== "deleted").length;
+    if (prevCount >= 5 && newCount === 0) {
+      console.warn(`[saveEvents] BLOCKIERT: Versuch ${prevCount} Events auf 0 zu setzen. Abgebrochen.`);
+      return;
+    }
+    if (prevCount >= 10 && newCount < prevCount * 0.3) {
+      console.warn(`[saveEvents] VERDÄCHTIG: ${prevCount} → ${newCount} Events. Abgebrochen.`);
+      return;
+    }
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
     try { await saveData("events", JSON.stringify(withIds)); } catch {}
@@ -822,9 +834,11 @@ export default function App() {
   const handleLogout = async () => { await adminLogout(); setIsAdmin(false); setLoggedIn(false); setModalView(null); };
 
   useEffect(() => { setAdminSubmitAttempted(false); }, [modalView, selectedDate]);
-  // Bei jedem Wechsel des Admin-Modals oder Datums: Collapse-State und SubEvent-Edit-Kontext zurücksetzen
-  // So ist beim Öffnen eines Termins die Type-Auswahl immer eingeklappt (wenn ein Typ gewählt ist)
-  useEffect(() => { setEditingSubIndex(-1); setTypeSelectExpanded(false); }, [modalView, selectedDate]);
+  // Bei jedem Wechsel des Admin-Modals oder Datums: Type-Auswahl reset,
+  // ABER editingSubIndex NICHT resetten — das macht openEventInAdmin gezielt
+  useEffect(() => { setTypeSelectExpanded(false); }, [modalView, selectedDate]);
+  // editingSubIndex nur beim Schließen des Modals zurücksetzen (nicht beim Öffnen!)
+  useEffect(() => { if (modalView === null) setEditingSubIndex(-1); }, [modalView]);
   // Beim Öffnen des Admin-Modals: Dashboard-Chips als Übersicht zeigen, Editoren sind initial geschlossen
   useEffect(() => {
     if (modalView !== "admin") return;
@@ -2326,9 +2340,45 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  <button onClick={closeBackups} style={{ background:"#f5f3f4", border:"none", width:32, height:32, borderRadius:8, fontSize:18, color:"#888", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}
-                    onMouseEnter={e => { e.currentTarget.style.background="#ede8ed"; e.currentTarget.style.color=BRAND.aubergine; }}
-                    onMouseLeave={e => { e.currentTarget.style.background="#f5f3f4"; e.currentTarget.style.color="#888"; }}>×</button>
+                  <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                    {openedBackup && (
+                      <button onClick={() => {
+                        const backupEventsCount = Object.keys(openedBackup.events || {}).filter(k => openedBackup.events[k]?.status !== "deleted").length;
+                        if (!confirm(`Backup vom ${openedBackup.date} komplett wiederherstellen?\n\nAlle aktuell vorhandenen Termine werden durch die ${backupEventsCount} Termine aus dem Backup ersetzt. Diese Aktion lässt sich über das aktuelle heutige Backup rückgängig machen.`)) return;
+                        prevEvents.current = { ...events };
+                        // Backup komplett zurückschreiben — localIds entfernen damit Google Cal neu synct
+                        const restored = {};
+                        Object.entries(openedBackup.events || {}).forEach(([k, v]) => {
+                          if (!v || v.status === "deleted") return;
+                          const clean = { ...v };
+                          delete clean.localId;
+                          delete clean.googleEventId;
+                          if (Array.isArray(clean.subEvents)) {
+                            clean.subEvents = clean.subEvents.map(s => {
+                              const cs = { ...s };
+                              delete cs.localId;
+                              delete cs.googleEventId;
+                              return cs;
+                            });
+                          }
+                          restored[k] = clean;
+                        });
+                        saveEvents(restored);
+                        setOpenedBackup(null);
+                        setShowBackups(false);
+                        showToast("Komplett wiederhergestellt", `${Object.keys(restored).length} Termine aus Backup vom ${openedBackup.date}`, true, BRAND.mintgruen);
+                      }}
+                        style={{ padding:"8px 14px", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontSize:12, fontWeight:600, letterSpacing:0.3, display:"flex", alignItems:"center", gap:6 }}
+                        onMouseEnter={e => e.currentTarget.style.opacity="0.85"}
+                        onMouseLeave={e => e.currentTarget.style.opacity="1"}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+                        Alle wiederherstellen
+                      </button>
+                    )}
+                    <button onClick={closeBackups} style={{ background:"#f5f3f4", border:"none", width:32, height:32, borderRadius:8, fontSize:18, color:"#888", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}
+                      onMouseEnter={e => { e.currentTarget.style.background="#ede8ed"; e.currentTarget.style.color=BRAND.aubergine; }}
+                      onMouseLeave={e => { e.currentTarget.style.background="#f5f3f4"; e.currentTarget.style.color="#888"; }}>×</button>
+                  </div>
                 </div>
 
                 {/* Body */}
