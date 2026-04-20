@@ -401,23 +401,23 @@ function SwipeNum({ value, onUp, onDown, color=BRAND.aubergine, size=16, ghost=f
   );
 }
 
-function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onReminderClick=null }) {
+function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onReminderClick=null, onRemoveReminder=null }) {
   if (!items || !items.length) return null;
   const BRAND_MOOS = "#006930";
   return (
     <div>
       {items.map((item, i) => {
-        const itemKey = item.id || `idx-${i}`;
-        const rem = reminders[itemKey];
+        const itemKey = item.id; // nur echte IDs verwenden — openEventInAdmin sorgt dafür, dass alle eine haben
+        const rem = itemKey ? reminders[itemKey] : null;
         const hasRem = !!rem?.enabled;
         return (
-        <div key={itemKey} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0" }}>
+        <div key={itemKey || `row-${i}`} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0" }}>
           <div onClick={editable ? () => { const u=[...items]; u[i]={...u[i],done:!u[i].done}; onChange(u); } : undefined}
             style={{ width:18, height:18, borderRadius:4, border:`1.5px solid ${item.done ? BRAND.lila : "#ccc"}`, background: item.done ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: editable ? "pointer" : "default" }}>
             {item.done && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
           </div>
           <span style={{ fontSize:12, color: item.done ? "#aaa" : "#555", textDecoration: item.done ? "line-through" : "none", flex:1 }}>{item.text}</span>
-          {editable && onReminderClick && (
+          {editable && onReminderClick && itemKey && (
             <button onClick={(e) => { e.stopPropagation(); onReminderClick(itemKey); }}
               title={hasRem ? "Erinnerung aktiv" : "Erinnerung setzen"}
               style={{ background: hasRem ? BRAND_MOOS : "transparent", border: hasRem ? "none" : "1px solid #d5cbd2", borderRadius:"50%", width:20, height:20, padding:0, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -427,7 +427,12 @@ function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onRemi
               </svg>
             </button>
           )}
-          {editable && <button onClick={() => { const u=items.filter((_,j)=>j!==i); onChange(u); }}
+          {editable && <button onClick={() => {
+            const removedKey = items[i]?.id;
+            const u = items.filter((_,j)=>j!==i);
+            onChange(u);
+            if (removedKey && onRemoveReminder) onRemoveReminder(removedKey);
+          }}
             style={{ background:"none", border:"none", color:"#ccc", fontSize:14, cursor:"pointer", padding:"0 4px", flexShrink:0 }}>✕</button>}
         </div>
         );
@@ -873,7 +878,7 @@ export default function App() {
   // ABER editingSubIndex NICHT resetten — das macht openEventInAdmin gezielt
   useEffect(() => { setTypeSelectExpanded(false); }, [modalView, selectedDate]);
   // editingSubIndex nur beim Schließen des Modals zurücksetzen (nicht beim Öffnen!)
-  useEffect(() => { if (modalView === null) setEditingSubIndex(-1); }, [modalView]);
+  useEffect(() => { if (modalView === null) { setEditingSubIndex(-1); setReminderPopup(null); setChipPopup(null); } }, [modalView]);
   // Beim Öffnen des Admin-Modals: Dashboard-Chips als Übersicht zeigen, Editoren sind initial geschlossen
   useEffect(() => {
     if (modalView !== "admin") return;
@@ -1119,7 +1124,8 @@ export default function App() {
       type: src.status || "booked", label: src.label || "", note: src.note || "",
       startTime: src.startTime || "08:00", endTime: src.endTime || "22:00",
       adminNote: src.adminNote || "", eventType: src.type || "",
-      allDay: src.allDay || false, checklist: src.checklist || [],
+      allDay: src.allDay || false,
+      checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })),
       contactName: src.contactName || "", contactPhone: src.contactPhone || "",
       contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "",
       publicText: src.publicText || "", isPublic: src.isPublic || false,
@@ -1962,7 +1968,7 @@ export default function App() {
                           <div style={{ display:"flex", gap:6, flexShrink:0, marginLeft:"auto" }}>
                             <button onClick={(e) => { e.stopPropagation();
                               setSelectedDate(group.items[0][0]);
-                              setAdminForm({ type: gFirst.status || "blocked", label: gFirst.label || "", note: gFirst.note || "", startTime: gFirst.startTime || "08:00", endTime: gFirst.endTime || "22:00", adminNote: gFirst.adminNote || "", eventType: gFirst.type || "", allDay: gFirst.allDay || false, checklist: gFirst.checklist || [], contactName: gFirst.contactName || "", contactPhone: gFirst.contactPhone || "", contactAddress: gFirst.contactAddress || "", publicText: gFirst.publicText || "", isPublic: gFirst.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true, price: gFirst.price || "", paymentStatus: gFirst.paymentStatus || "open", partialAmount: gFirst.partialAmount || "", cleaningFee: !!gFirst.cleaningFee });
+                              setAdminForm({ type: gFirst.status || "blocked", label: gFirst.label || "", note: gFirst.note || "", startTime: gFirst.startTime || "08:00", endTime: gFirst.endTime || "22:00", adminNote: gFirst.adminNote || "", eventType: gFirst.type || "", allDay: gFirst.allDay || false, checklist: (gFirst.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: gFirst.contactName || "", contactPhone: gFirst.contactPhone || "", contactAddress: gFirst.contactAddress || "", publicText: gFirst.publicText || "", isPublic: gFirst.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true, price: gFirst.price || "", paymentStatus: gFirst.paymentStatus || "open", partialAmount: gFirst.partialAmount || "", cleaningFee: !!gFirst.cleaningFee, reminders: gFirst.reminders || { checklist:null, items:{} } });
                               setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                             }}
                               onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
@@ -3092,7 +3098,18 @@ export default function App() {
                       </button>
                     )}
                   </div>
-                  <ChecklistNote items={clList} onChange={(items) => setAdminForm(f=>({...f, checklist:items}))} reminders={adminForm.reminders?.items || {}} onReminderClick={(itemKey) => setReminderPopup({ type:"item", itemKey })} />
+                  <ChecklistNote
+                    items={clList}
+                    onChange={(items) => setAdminForm(f=>({...f, checklist:items}))}
+                    reminders={adminForm.reminders?.items || {}}
+                    onReminderClick={(itemKey) => setReminderPopup({ type:"item", itemKey })}
+                    onRemoveReminder={(itemKey) => setAdminForm(f => {
+                      const r = f.reminders || { checklist:null, items:{} };
+                      const newItems = { ...(r.items||{}) };
+                      delete newItems[itemKey];
+                      return { ...f, reminders: { ...r, items: newItems } };
+                    })}
+                  />
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, cursor:"text" }}
                     onClick={e => { const inp = e.currentTarget.querySelector("input"); if(inp) inp.focus(); }}>
                     <span style={{ color:"#ccc", fontSize:16, fontWeight:300, flexShrink:0, width:18, textAlign:"center" }}>+</span>
@@ -3488,7 +3505,10 @@ export default function App() {
                   const updateReminder = (patch) => {
                     setAdminForm(f => {
                       const r = f.reminders || { checklist:null, items:{} };
-                      const merged = { ...curr, ...patch };
+                      // Bei Änderungen an Timing oder enabled → sentAt zurücksetzen,
+                      // damit der Worker den neu konfigurierten Reminder erneut versendet
+                      const resetSent = ("enabled" in patch) || ("daysBefore" in patch) || ("sendAt" in patch) || ("customValue" in patch) || ("customUnit" in patch) || ("custom" in patch);
+                      const merged = { ...curr, ...patch, ...(resetSent ? { sentAt: undefined } : {}) };
                       if (isChecklist) {
                         return { ...f, reminders: { ...r, checklist: merged } };
                       }
@@ -3962,7 +3982,7 @@ export default function App() {
                         const editSub = () => {
                           const src = sub._isMain ? ev : sub;
                           setEditingSubIndex(sub._isMain ? -1 : subIndex);
-                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: src.checklist || [], contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "", price: src.price || "", paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "", cleaningFee: !!src.cleaningFee });
+                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "", price: src.price || "", paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "", cleaningFee: !!src.cleaningFee, reminders: src.reminders || { checklist:null, items:{} } });
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
                         return (
