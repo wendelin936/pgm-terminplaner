@@ -402,22 +402,69 @@ function SwipeNum({ value, onUp, onDown, color=BRAND.aubergine, size=16, ghost=f
 }
 
 function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onReminderClick=null, onRemoveReminder=null }) {
+  const [editingIdx, setEditingIdx] = useState(-1);
+  const [draft, setDraft] = useState("");
   if (!items || !items.length) return null;
   const BRAND_MOOS = "#006930";
+
+  const startEdit = (i) => {
+    setEditingIdx(i);
+    setDraft(items[i]?.text || "");
+  };
+  const commitEdit = () => {
+    if (editingIdx < 0) return;
+    const text = draft.trim();
+    if (text && text !== items[editingIdx]?.text) {
+      const u = [...items];
+      u[editingIdx] = { ...u[editingIdx], text };
+      onChange(u);
+    }
+    setEditingIdx(-1);
+    setDraft("");
+  };
+  const cancelEdit = () => { setEditingIdx(-1); setDraft(""); };
+
   return (
     <div>
       {items.map((item, i) => {
-        const itemKey = item.id; // nur echte IDs verwenden — openEventInAdmin sorgt dafür, dass alle eine haben
+        const itemKey = item.id;
         const rem = itemKey ? reminders[itemKey] : null;
         const hasRem = !!rem?.enabled;
+        const isEditing = editingIdx === i;
         return (
         <div key={itemKey || `row-${i}`} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0" }}>
-          <div onClick={editable ? () => { const u=[...items]; u[i]={...u[i],done:!u[i].done}; onChange(u); } : undefined}
-            style={{ width:18, height:18, borderRadius:4, border:`1.5px solid ${item.done ? BRAND.lila : "#ccc"}`, background: item.done ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: editable ? "pointer" : "default" }}>
+          <div onClick={editable && !isEditing ? () => { const u=[...items]; u[i]={...u[i],done:!u[i].done}; onChange(u); } : undefined}
+            style={{ width:18, height:18, borderRadius:4, border:`1.5px solid ${item.done ? BRAND.lila : "#ccc"}`, background: item.done ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: editable && !isEditing ? "pointer" : "default" }}>
             {item.done && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
           </div>
-          <span style={{ fontSize:12, color: item.done ? "#aaa" : "#555", textDecoration: item.done ? "line-through" : "none", flex:1 }}>{item.text}</span>
-          {editable && onReminderClick && itemKey && (
+          {isEditing ? (
+            <input
+              autoFocus
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={e => {
+                if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                else if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+              }}
+              style={{ flex:1, fontSize:12, color:"#555", border:`1px solid ${BRAND.lila}40`, borderRadius:4, padding:"3px 6px", outline:"none", fontFamily:"inherit", background:"#fff" }}
+            />
+          ) : (
+            <span
+              onDoubleClick={editable ? () => startEdit(i) : undefined}
+              title={editable ? "Doppelklick zum Bearbeiten" : undefined}
+              style={{ fontSize:12, color: item.done ? "#aaa" : "#555", textDecoration: item.done ? "line-through" : "none", flex:1, cursor: editable ? "text" : "default", userSelect: "none" }}>
+              {item.text}
+            </span>
+          )}
+          {editable && !isEditing && (
+            <button onClick={(e) => { e.stopPropagation(); startEdit(i); }}
+              title="Bearbeiten"
+              style={{ background:"none", border:"none", color:"#ccc", cursor:"pointer", padding:"0 2px", flexShrink:0, display:"flex", alignItems:"center" }}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke="#aaa" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </button>
+          )}
+          {editable && onReminderClick && itemKey && !isEditing && (
             <button onClick={(e) => { e.stopPropagation(); onReminderClick(itemKey); }}
               title={hasRem ? "Erinnerung aktiv" : "Erinnerung setzen"}
               style={{ background: hasRem ? BRAND_MOOS : "transparent", border: hasRem ? "none" : "1px solid #d5cbd2", borderRadius:"50%", width:20, height:20, padding:0, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -427,7 +474,7 @@ function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onRemi
               </svg>
             </button>
           )}
-          {editable && <button onClick={() => {
+          {editable && !isEditing && <button onClick={() => {
             const removedKey = items[i]?.id;
             const u = items.filter((_,j)=>j!==i);
             onChange(u);
