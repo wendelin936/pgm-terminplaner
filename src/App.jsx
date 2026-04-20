@@ -401,21 +401,37 @@ function SwipeNum({ value, onUp, onDown, color=BRAND.aubergine, size=16, ghost=f
   );
 }
 
-function ChecklistNote({ items=[], onChange, editable=true }) {
+function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onReminderClick=null }) {
   if (!items || !items.length) return null;
+  const BRAND_MOOS = "#006930";
   return (
     <div>
-      {items.map((item, i) => (
-        <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0" }}>
+      {items.map((item, i) => {
+        const itemKey = item.id || `idx-${i}`;
+        const rem = reminders[itemKey];
+        const hasRem = !!rem?.enabled;
+        return (
+        <div key={itemKey} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0" }}>
           <div onClick={editable ? () => { const u=[...items]; u[i]={...u[i],done:!u[i].done}; onChange(u); } : undefined}
             style={{ width:18, height:18, borderRadius:4, border:`1.5px solid ${item.done ? BRAND.lila : "#ccc"}`, background: item.done ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: editable ? "pointer" : "default" }}>
             {item.done && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
           </div>
           <span style={{ fontSize:12, color: item.done ? "#aaa" : "#555", textDecoration: item.done ? "line-through" : "none", flex:1 }}>{item.text}</span>
+          {editable && onReminderClick && (
+            <button onClick={(e) => { e.stopPropagation(); onReminderClick(itemKey); }}
+              title={hasRem ? "Erinnerung aktiv" : "Erinnerung setzen"}
+              style={{ background: hasRem ? BRAND_MOOS : "transparent", border: hasRem ? "none" : "1px solid #d5cbd2", borderRadius:"50%", width:20, height:20, padding:0, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6.5" stroke={hasRem ? "#fff" : "#999"} strokeWidth="1.3"/>
+                <path d="M8 4.5V8l2 1.5" stroke={hasRem ? "#fff" : "#999"} strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
           {editable && <button onClick={() => { const u=items.filter((_,j)=>j!==i); onChange(u); }}
             style={{ background:"none", border:"none", color:"#ccc", fontSize:14, cursor:"pointer", padding:"0 4px", flexShrink:0 }}>✕</button>}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -611,7 +627,9 @@ export default function App() {
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0, contactName:"" });
-  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
+  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false, reminders:{ checklist:null, items:{} } });
+  // reminderPopup: { type: "checklist" | "item", itemKey?: string (item-id) }
+  const [reminderPopup, setReminderPopup] = useState(null);
   const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
   const [typeSelectExpanded, setTypeSelectExpanded] = useState(false); // Event-Typ-Auswahl im Admin-Modal auf-/zuklappbar
   const [statusCollapsed, setStatusCollapsed] = useState(true); // Status-Buttons (Gebucht/Anfrage/Intern) eingeklappt?
@@ -969,7 +987,7 @@ export default function App() {
     const displayName = adminForm.type === "blocked"
       ? (adminForm.contactName || adminForm.groupName || "")
       : (adminForm.groupName || adminForm.contactName || "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -1113,6 +1131,7 @@ export default function App() {
       customerMessage: src.message || "", price: src.price || "",
       paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "",
       cleaningFee: !!src.cleaningFee,
+      reminders: src.reminders || { checklist:null, items:{} },
     });
     setEditingTime(null); setSeriesMonth(null); setSeriesYear(null);
     setModalView("admin");
@@ -3051,17 +3070,52 @@ export default function App() {
                 })()}
 
                 {/* Checkliste - D-Stil */}
+                {(() => {
+                  const clList = adminForm.checklist || [];
+                  const reminderActive = !!adminForm.reminders?.checklist?.enabled;
+                  const hasItemReminders = Object.values(adminForm.reminders?.items || {}).some(r => r?.enabled);
+                  return (
                 <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
-                  <div style={{ fontSize:11, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Checkliste</div>
-                  <ChecklistNote items={adminForm.checklist||[]} onChange={(items) => setAdminForm(f=>({...f, checklist:items}))} />
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                    <div style={{ fontSize:11, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Checkliste</div>
+                    {clList.length > 0 && (
+                      <button onClick={() => setReminderPopup({ type:"checklist" })}
+                        title={reminderActive ? `Erinnerung aktiv: ${adminForm.reminders.checklist.daysBefore || 3} Tage vorher um ${adminForm.reminders.checklist.sendAt || "09:00"}` : "Erinnerung einrichten"}
+                        style={{ background: reminderActive ? BRAND.moosgruen : "transparent", border: reminderActive ? "none" : "1px solid #d5cbd2", borderRadius:"50%", width:26, height:26, padding:0, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", position:"relative", transition:"all .15s" }}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                          <circle cx="8" cy="8" r="6.5" stroke={reminderActive ? "#fff" : "#888"} strokeWidth="1.5"/>
+                          <path d="M8 4.5V8l2 1.5" stroke={reminderActive ? "#fff" : "#888"} strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                        {reminderActive && hasItemReminders && (
+                          <div style={{ position:"absolute", top:-3, right:-3, width:10, height:10, borderRadius:"50%", background: BRAND.sonnengelb, border:"1.5px solid #fff" }} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <ChecklistNote items={clList} onChange={(items) => setAdminForm(f=>({...f, checklist:items}))} reminders={adminForm.reminders?.items || {}} onReminderClick={(itemKey) => setReminderPopup({ type:"item", itemKey })} />
                   <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, cursor:"text" }}
                     onClick={e => { const inp = e.currentTarget.querySelector("input"); if(inp) inp.focus(); }}>
                     <span style={{ color:"#ccc", fontSize:16, fontWeight:300, flexShrink:0, width:18, textAlign:"center" }}>+</span>
                     <input placeholder="Hinzufügen…" value={adminForm.newCheckText||""} onChange={e => setAdminForm(f=>({...f, newCheckText:e.target.value}))}
-                      onKeyDown={e => { if (e.key==="Enter" && adminForm.newCheckText?.trim()) { setAdminForm(f=>({...f, checklist:[...(f.checklist||[]),{text:f.newCheckText.trim(),done:false}], newCheckText:""})); }}}
+                      onKeyDown={e => { if (e.key==="Enter" && adminForm.newCheckText?.trim()) {
+                        setAdminForm(f => {
+                          const text = (f.newCheckText||"").trim();
+                          if (!text) return f;
+                          const newItem = { id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}`, text, done:false };
+                          const newList = [...(f.checklist||[]), newItem];
+                          // Auto-Default-Reminder aktivieren beim ersten Eintrag
+                          const currReminders = f.reminders || { checklist:null, items:{} };
+                          const updatedReminders = (!currReminders.checklist && newList.length === 1)
+                            ? { ...currReminders, checklist: { enabled:true, daysBefore:3, sendAt:"09:00", recipients:["wendelin"] } }
+                            : currReminders;
+                          return { ...f, checklist: newList, newCheckText:"", reminders: updatedReminders };
+                        });
+                      }}}
                       style={{ border:"none", outline:"none", background:"transparent", fontSize:13, color:BRAND.aubergine, flex:1, padding:"4px 0", fontFamily:"inherit" }} />
                   </div>
                 </div>
+                );
+                })()}
 
                 {/* Interne Notiz - D-Stil */}
                 <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
@@ -3422,6 +3476,166 @@ export default function App() {
                     </div>
                   );
                 })()}
+
+                {/* ===== Reminder-Popup ===== */}
+                {reminderPopup && (() => {
+                  const isChecklist = reminderPopup.type === "checklist";
+                  const itemKey = reminderPopup.itemKey;
+                  const curr = isChecklist
+                    ? (adminForm.reminders?.checklist || { enabled:false, daysBefore:3, sendAt:"09:00", recipients:["wendelin"], customUnit:"days" })
+                    : (adminForm.reminders?.items?.[itemKey] || { enabled:false, daysBefore:3, sendAt:"09:00", recipients:["wendelin"], customUnit:"days" });
+                  const close = () => setReminderPopup(null);
+                  const updateReminder = (patch) => {
+                    setAdminForm(f => {
+                      const r = f.reminders || { checklist:null, items:{} };
+                      const merged = { ...curr, ...patch };
+                      if (isChecklist) {
+                        return { ...f, reminders: { ...r, checklist: merged } };
+                      }
+                      return { ...f, reminders: { ...r, items: { ...(r.items||{}), [itemKey]: merged } } };
+                    });
+                  };
+                  const presetValues = [
+                    { k:"3d", label:"3 Tage vorher", daysBefore:3, custom:false },
+                    { k:"1d", label:"1 Tag vorher", daysBefore:1, custom:false },
+                    { k:"1w", label:"1 Woche vorher", daysBefore:7, custom:false },
+                  ];
+                  const isCustom = !presetValues.some(p => p.daysBefore === curr.daysBefore && !curr.custom) || curr.custom;
+                  const itemText = !isChecklist ? (adminForm.checklist || []).find(it => (it.id || `idx-${(adminForm.checklist||[]).indexOf(it)}`) === itemKey)?.text : null;
+                  const toggleRecipient = (r) => {
+                    const list = curr.recipients || [];
+                    const next = list.includes(r) ? list.filter(x => x !== r) : [...list, r];
+                    // Mindestens einer muss aktiv bleiben
+                    updateReminder({ recipients: next.length ? next : [r] });
+                  };
+                  return (
+                    <div onClick={close} style={{ position:"fixed", inset:0, zIndex:2000, background:"rgba(0,0,0,0.3)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                      <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"18px 20px", width:"100%", maxWidth:340, boxShadow:"0 16px 40px rgba(0,0,0,0.18)", maxHeight:"85vh", overflowY:"auto" }}>
+                        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:14 }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Erinnerung</div>
+                            <div style={{ fontSize:15, fontWeight:500, color:BRAND.aubergine, marginTop:2, lineHeight:1.3 }}>
+                              {isChecklist ? "Gesamte Checkliste" : <>„{itemText || "Eintrag"}"</>}
+                            </div>
+                          </div>
+                          <button onClick={close} style={{ background:"none", border:"none", color:"#bbb", padding:0, cursor:"pointer", display:"flex", marginLeft:8 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                          </button>
+                        </div>
+
+                        <label onClick={() => updateReminder({ enabled: !curr.enabled })}
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background: curr.enabled ? BRAND.moosgruen : "#f5f3f4", color: curr.enabled ? "#fff" : "#666", borderRadius:10, marginBottom:14, cursor:"pointer", transition:"all .15s" }}>
+                          <div style={{ width:18, height:18, borderRadius:4, background: curr.enabled ? "#fff" : "transparent", border: curr.enabled ? "none" : "1.5px solid #ccc", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                            {curr.enabled && <svg width="11" height="11" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke={BRAND.moosgruen} strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </div>
+                          <span style={{ fontSize:13, fontWeight:500 }}>E-Mail-Erinnerung aktiv</span>
+                        </label>
+
+                        {curr.enabled && <>
+                          <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, marginBottom:8 }}>Wann?</div>
+                          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginBottom:10 }}>
+                            {presetValues.map(p => {
+                              const active = !isCustom && curr.daysBefore === p.daysBefore;
+                              return (
+                                <button key={p.k} onClick={() => updateReminder({ daysBefore: p.daysBefore, custom:false })}
+                                  style={{ padding:"8px", border: active ? `1.5px solid ${BRAND.moosgruen}` : "1px solid #e8d8e4", background: active ? `${BRAND.moosgruen}15` : "#fff", color: active ? BRAND.moosgruen : "#666", borderRadius:8, fontSize:12, fontWeight: active ? 500 : 400, cursor:"pointer", fontFamily:"inherit" }}>
+                                  {p.label}
+                                </button>
+                              );
+                            })}
+                            <button onClick={() => updateReminder({ custom:true, customUnit: curr.customUnit || "days", customValue: curr.customValue || 6 })}
+                              style={{ padding:"8px", border: isCustom ? `1.5px solid ${BRAND.moosgruen}` : "1px solid #e8d8e4", background: isCustom ? `${BRAND.moosgruen}15` : "#fff", color: isCustom ? BRAND.moosgruen : "#666", borderRadius:8, fontSize:12, fontWeight: isCustom ? 500 : 400, cursor:"pointer", fontFamily:"inherit" }}>
+                              Eigener
+                            </button>
+                          </div>
+
+                          {isCustom && (() => {
+                            const val = Number(curr.customValue) || 6;
+                            const unit = curr.customUnit || "days";
+                            const setVal = (v) => {
+                              const clean = Math.max(1, Math.min(999, Math.floor(v)));
+                              const db = unit === "weeks" ? clean * 7 : clean;
+                              updateReminder({ customValue: clean, customUnit: unit, custom:true, daysBefore: db });
+                            };
+                            const setUnit = (u) => {
+                              const db = u === "weeks" ? val * 7 : val;
+                              updateReminder({ customUnit: u, custom:true, daysBefore: db });
+                            };
+                            return (
+                              <div style={{ padding:12, background:`${BRAND.moosgruen}10`, borderRadius:10, marginBottom:10, border:`1px solid ${BRAND.moosgruen}40` }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                  <div style={{ display:"flex", alignItems:"center", background:"#fff", borderRadius:6, border:`1px solid ${BRAND.moosgruen}40` }}>
+                                    <button onClick={() => setVal(val - 1)} style={{ padding:"6px 10px", background:"none", border:"none", color:BRAND.moosgruen, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>−</button>
+                                    <input type="number" min="1" max="999" value={val}
+                                      onChange={e => setVal(Number(e.target.value)||1)}
+                                      style={{ width:40, padding:"5px 0", border:"none", textAlign:"center", fontSize:14, fontWeight:500, color:BRAND.aubergine, background:"none", outline:"none", fontFamily:"inherit", MozAppearance:"textfield" }} />
+                                    <button onClick={() => setVal(val + 1)} style={{ padding:"6px 10px", background:"none", border:"none", color:BRAND.moosgruen, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>+</button>
+                                  </div>
+                                  <div style={{ display:"flex", gap:4, flex:1 }}>
+                                    <button onClick={() => setUnit("days")}
+                                      style={{ flex:1, padding:6, border: unit === "days" ? `1.5px solid ${BRAND.moosgruen}` : `1px solid ${BRAND.moosgruen}40`, background: unit === "days" ? BRAND.moosgruen : "#fff", color: unit === "days" ? "#fff" : BRAND.moosgruen, borderRadius:6, fontSize:12, fontWeight: unit === "days" ? 500 : 400, cursor:"pointer", fontFamily:"inherit" }}>Tage</button>
+                                    <button onClick={() => setUnit("weeks")}
+                                      style={{ flex:1, padding:6, border: unit === "weeks" ? `1.5px solid ${BRAND.moosgruen}` : `1px solid ${BRAND.moosgruen}40`, background: unit === "weeks" ? BRAND.moosgruen : "#fff", color: unit === "weeks" ? "#fff" : BRAND.moosgruen, borderRadius:6, fontSize:12, fontWeight: unit === "weeks" ? 500 : 400, cursor:"pointer", fontFamily:"inherit" }}>Wochen</button>
+                                  </div>
+                                </div>
+                                <div style={{ fontSize:10, color:BRAND.moosgruen, marginTop:6, textAlign:"center", opacity:0.75 }}>
+                                  → {val} {unit === "weeks" ? (val === 1 ? "Woche" : "Wochen") : (val === 1 ? "Tag" : "Tage")} vor der Veranstaltung
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:8, marginBottom:14 }}>
+                            <span style={{ fontSize:11, color:"#888" }}>Uhrzeit</span>
+                            <input type="text" value={curr.sendAt || "09:00"}
+                              onChange={e => {
+                                const v = e.target.value.replace(/[^0-9:]/g, "").slice(0, 5);
+                                updateReminder({ sendAt: v });
+                              }}
+                              onBlur={e => {
+                                // Normalisieren: HH:MM
+                                let v = e.target.value.trim();
+                                if (/^\d{1,2}$/.test(v)) v = v.padStart(2,"0") + ":00";
+                                else if (/^\d{1,2}:\d{1,2}$/.test(v)) {
+                                  const [h,m] = v.split(":");
+                                  v = h.padStart(2,"0") + ":" + m.padStart(2,"0");
+                                }
+                                else v = "09:00";
+                                updateReminder({ sendAt: v });
+                              }}
+                              style={{ width:60, padding:"4px 8px", border:"1px solid #e0d5df", borderRadius:5, fontSize:12, color:BRAND.aubergine, textAlign:"center", background:"#fff", fontFamily:"inherit" }} />
+                          </div>
+
+                          <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600, marginBottom:8 }}>Empfänger</div>
+                          {[["wendelin","Wendelin"], ["astrid","Astrid"]].map(([k, name]) => {
+                            const active = (curr.recipients || []).includes(k);
+                            return (
+                              <label key={k} onClick={() => toggleRecipient(k)}
+                                style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", border: active ? `1.5px solid ${BRAND.moosgruen}` : "1px solid #e8d8e4", background: active ? `${BRAND.moosgruen}15` : "#fff", borderRadius:8, marginBottom:6, cursor:"pointer" }}>
+                                <div style={{ width:16, height:16, borderRadius:4, border: active ? "none" : "1.5px solid #ccc", background: active ? BRAND.moosgruen : "#fff", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                  {active && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </div>
+                                <span style={{ fontSize:13, color: active ? BRAND.moosgruen : "#888", fontWeight: active ? 500 : 400 }}>{name}</span>
+                              </label>
+                            );
+                          })}
+                        </>}
+
+                        <div style={{ display:"flex", gap:8, marginTop:14 }}>
+                          <button onClick={close} style={{ flex:1, padding:10, background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:500, cursor:"pointer", fontFamily:"inherit" }}>
+                            Übernehmen
+                          </button>
+                          {curr.enabled && !isChecklist && (
+                            <button onClick={() => { updateReminder({ enabled:false }); close(); }}
+                              style={{ padding:"10px 14px", background:"transparent", color:"#c44", border:"1px solid #f0caca", borderRadius:8, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                              Entfernen
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
               );
             })()}
@@ -3470,9 +3684,9 @@ export default function App() {
                   {isGroup ? (
                     <>
                       {/* 1. Teilnehmer-Leiste (grün transparent) */}
-                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:6, marginTop:8 }}>
+                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:6, marginTop:8 }}>
                         <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                           <button onClick={() => setFormData(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
                             style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
                           <input type="number" min="0" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))}
