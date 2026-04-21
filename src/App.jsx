@@ -37,6 +37,7 @@ const DEFAULT_ADMIN_THEME = {
   todayColor: "#8ec89a",    // Heute-Markierung (mintgrün)
   showHolidaysAdmin: true,     // Feiertage im Admin-Kalender anzeigen
   showHolidaysCustomer: true,  // Feiertage im Kunden-Kalender anzeigen
+  showAllDayVeranstaltungenAdmin: true, // Ganztägige Veranstaltungen im Admin-Kalender anzeigen
 };
 
 // Design-Theme für die Veranstaltungs-Übersicht (öffentliche Termine)
@@ -1021,7 +1022,14 @@ export default function App() {
     });
     return map;
   }, [veranstaltungen]);
-  const hasVeranstaltungAtDate = (dKey) => !!veranstaltungDateMap[dKey]?.length;
+  const hasVeranstaltungAtDate = (dKey) => {
+    const list = veranstaltungDateMap[dKey] || [];
+    if (!list.length) return false;
+    if (isAdmin && !adminTheme.showAllDayVeranstaltungenAdmin) {
+      return list.some(x => !x.dateEntry.allDay);
+    }
+    return true;
+  };
 
   const handleDateClick = (day) => {
     if (!day) return;
@@ -1646,6 +1654,8 @@ export default function App() {
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:7, height:7, borderRadius:"50%", background:adminTheme.pendingColor, display:"inline-block" }} /> Anfrage</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, ${adminTheme.blockedColor}25 2px, ${adminTheme.blockedColor}25 3.5px)`, border:`1px solid ${adminTheme.blockedColor}30`, display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>V</span> {winW < 520 ? "Veranst." : "Veranstaltung"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:2, background:"#fff", border:"1px solid #e0d8de", position:"relative", display:"inline-block", boxSizing:"border-box", overflow:"hidden" }}><span style={{ position:"absolute", top:0, right:0, width:7, height:7, background:BRAND.lila, clipPath:"polygon(100% 0, 0 0, 100% 100%)" }} /></span> {winW < 520 ? "Ganztags" : "Ganztägige Veranstaltung"}</span>
         </div>
       )}
 
@@ -1692,12 +1702,9 @@ export default function App() {
             {!isDesk && (
               <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3, display:"flex", gap:8, alignItems:"center" }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding:"10px 14px", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6, letterSpacing:0.3, boxShadow:"0 4px 12px rgba(0,0,0,0.2)" }}>
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#fff" strokeWidth="1.6"/>
-                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
-                  </svg>
-                  Veranstaltungen
+                  title="Veranstaltungen"
+                  style={{ background:"#fff", color:BRAND.lila, border:`2px solid ${BRAND.lila}`, borderRadius:10, width:44, height:44, padding:0, fontSize:20, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.2)", lineHeight:1, flexShrink:0 }}>
+                  V
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                   style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
@@ -1860,13 +1867,18 @@ export default function App() {
             const customerPartial = !isAdmin && ev && !ev.allDay && !ev.isSeries && (ev.status === "booked" || ev.status === "blocked");
             const customerSeries = !isAdmin && ev && ev.isSeries;
             const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries || !ev.allDay);
-            const hasVeranst = hasVeranstaltungAtDate(key);
+            // Veranstaltungs-Termine dieses Tages; im Admin optional ausgeblendet für ganztägige
+            const rawVeranst = veranstaltungDateMap[key] || [];
+            const visibleVeranst = isAdmin && !adminTheme.showAllDayVeranstaltungenAdmin ? rawVeranst.filter(x => !x.dateEntry.allDay) : rawVeranst;
+            const hasVeranst = visibleVeranst.length > 0;
+            const hasAllDayVeranst = visibleVeranst.some(x => x.dateEntry.allDay);
+            const hasTimedVeranst = visibleVeranst.some(x => !x.dateEntry.allDay);
             const statusColor = ev ? (ev.status === "booked" ? adminTheme.bookedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.blockedColor) : null;
             const isPending = ev?.status === "pending" && isAdmin;
             const isBlockedAdmin = ev && isAdmin && ev.status === "blocked" && !ev.isSeries;
             const isBlockedAdminAllDay = isBlockedAdmin && ev.allDay; // strichlierter Hatch nur bei ganztägig
             const isSeriesAdmin = ev && isAdmin && ev.isSeries;
-            const veranstTitle = hasVeranst ? veranstaltungDateMap[key].map(x => x.veranstaltung.title).filter(Boolean).join(" · ") : "";
+            const veranstTitle = hasVeranst ? visibleVeranst.map(x => x.veranstaltung.title).filter(Boolean).join(" · ") : "";
             return (
               <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : (isAdmin && ev && (ev.status === "booked" || ev.status === "blocked" || ev.status === "pending")) ? "day-hasevent" : "day-free"} onClick={() => handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : hasVeranst ? veranstTitle : isAdmin && ev?.label ? ev.label : ""}
                 style={{
@@ -1878,10 +1890,12 @@ export default function App() {
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
                 }}>
+                {/* Ganztaegige Veranstaltung: violette Ecke oben rechts */}
+                {hasAllDayVeranst && <div style={{ position:"absolute", top:0, right:0, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, background: BRAND.lila, clipPath:"polygon(100% 0, 0 0, 100% 100%)", borderTopRightRadius: winW > 900 ? 10 : 8, pointerEvents:"none", zIndex:1 }} />}
                 {/* Series indicator for admin - S badge */}
-                {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>S</div>}
-                {/* Public indicator - V badge (unter dem S-Badge, violett auf weiss) */}
-                {hasVeranst && <div style={{ position:"absolute", top: winW > 900 ? (isSeriesAdmin ? 26 : 4) : (isSeriesAdmin ? 20 : 4), right:4, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>V</div>}
+                {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box", zIndex:2 }}>S</div>}
+                {/* Zeittermin-Veranstaltung: V-Badge (unter S-Badge falls Serie, sonst oben rechts, violett auf weiss) */}
+                {hasTimedVeranst && <div style={{ position:"absolute", top: winW > 900 ? (isSeriesAdmin ? 26 : 4) : (isSeriesAdmin ? 20 : 4), right:4, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box", zIndex:2 }}>V</div>}
                 {/* Pending indicator for admin */}
                 {isPending && !isPast && ev.allDay && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
@@ -2457,6 +2471,10 @@ export default function App() {
               patchDraft({ dates: (veranstaltungDraft?.dates||[]).filter(d => d.id !== dateEntry.id) });
             }
           };
+          // Einzelnes Datum aus Serie löschen (ohne die ganze Serie zu entfernen)
+          const removeSingleSeriesDate = (dateId) => {
+            patchDraft({ dates: (veranstaltungDraft?.dates||[]).filter(d => d.id !== dateId) });
+          };
 
           const draft = veranstaltungDraft;
 
@@ -2493,13 +2511,10 @@ export default function App() {
                             onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; }}
                             onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
                             style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
-                            {v.imageKey ? (
-                              <div style={{ height:100, backgroundImage: `url(/assets/${v.imageKey})`, backgroundSize:"cover", backgroundPosition:"center" }} />
-                            ) : (
-                              <div style={{ background: pat.gradient, height:100, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                {iconSvg[pat.id]}
-                              </div>
-                            )}
+                            <div style={{ position:"relative", background: pat.gradient, height:100, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                              {iconSvg[pat.id]}
+                              {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                            </div>
                             <div style={{ padding:"12px 14px" }}>
                               <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:4, lineHeight:1.3 }}>{v.title || "Ohne Titel"}</div>
                               <div style={{ fontSize:11, color:"#888" }}>{futureDates.length} zukünftige{futureDates.length === 1 ? "r" : ""} Termin{futureDates.length === 1 ? "" : "e"}</div>
@@ -2533,13 +2548,10 @@ export default function App() {
 
                     {/* Icon + Titel-Vorschau */}
                     <div style={{ display:"flex", gap:14, marginBottom:18, alignItems:"center" }}>
-                      {draft.imageKey ? (
-                        <div style={{ width:72, height:72, borderRadius:10, flexShrink:0, backgroundImage: `url(/assets/${draft.imageKey})`, backgroundSize:"cover", backgroundPosition:"center" }} />
-                      ) : (
-                        <div style={{ width:72, height:72, borderRadius:10, background: patOf(draft).gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                          {iconSvg[patOf(draft).id]}
-                        </div>
-                      )}
+                      <div style={{ width:72, height:72, borderRadius:10, flexShrink:0, background: patOf(draft).gradient, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                        {iconSvg[patOf(draft).id]}
+                        {draft.imageKey && <img src={`/assets/${draft.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                      </div>
                       <input placeholder="Titel der Veranstaltung" value={draft.title} onChange={e => patchDraft({ title: e.target.value })}
                         style={{ flex:1, padding:"12px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:16, fontWeight:600, fontFamily:"inherit", boxSizing:"border-box", color: BRAND.aubergine }} />
                     </div>
@@ -2577,8 +2589,14 @@ export default function App() {
                         );
                       })}
                     </div>
-                    <input placeholder="Oder Bild-Dateiname (optional, folgt später)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
-                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e8e0e5", borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom:16, color:"#888", background:"#fafafa" }} />
+                    <input placeholder="Bild-Dateiname, z.B. veranstaltung.png (liegt in /assets/)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
+                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${draft.imageKey ? BRAND.tuerkis+"50" : "#e8e0e5"}`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom: draft.imageKey ? 4 : 16, color: draft.imageKey ? BRAND.aubergine : "#888", background: draft.imageKey ? "#fff" : "#fafafa" }} />
+                    {draft.imageKey && (
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:16, fontSize:11, color: BRAND.tuerkis, fontWeight:500 }}>
+                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke={BRAND.tuerkis} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Bild verknüpft — wird aus <code style={{ background:`${BRAND.tuerkis}12`, padding:"1px 5px", borderRadius:3, fontFamily:"monospace", fontSize:10 }}>/assets/{draft.imageKey}</code> geladen
+                      </div>
+                    )}
 
                     {/* Termine */}
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
@@ -2664,7 +2682,17 @@ export default function App() {
                                         const [yy,mm,dd] = e.date.split("-").map(Number);
                                         const wd = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
                                         const isPast = e.date < todayKey;
-                                        return <div key={e.id} style={{ fontSize:11, padding:"3px 7px", background:isPast ? "#f5f3f4" : `${BRAND.tuerkis}08`, color: isPast ? "#aaa" : BRAND.aubergine, borderRadius:4, fontWeight:500 }}>{wd} {dd}.{mm}.{yy}</div>;
+                                        return (
+                                          <div key={e.id} style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, padding:"3px 4px 3px 7px", background:isPast ? "#f5f3f4" : `${BRAND.tuerkis}08`, color: isPast ? "#aaa" : BRAND.aubergine, borderRadius:4, fontWeight:500 }}>
+                                            <span>{wd} {dd}.{mm}.{yy}</span>
+                                            <button onClick={() => removeSingleSeriesDate(e.id)} title="Diesen Termin entfernen"
+                                              onMouseEnter={ev => { ev.currentTarget.style.background = "#fdeaea"; ev.currentTarget.style.color = "#c44"; }}
+                                              onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = "#aaa"; }}
+                                              style={{ background:"transparent", border:"none", color:"#aaa", cursor:"pointer", padding:"1px 3px", display:"flex", alignItems:"center", borderRadius:3, transition:"all .1s" }}>
+                                              <svg width="8" height="8" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                            </button>
+                                          </div>
+                                        );
                                       })}
                                     </div>
                                   </div>
@@ -3061,10 +3089,11 @@ export default function App() {
                 )}
 
                 {isAdminMode && (
-                  <Section title="Feiertage">
+                  <Section title="Feiertage & Veranstaltungen">
                     {[
                       ["showHolidaysAdmin", "Feiertage in Adminansicht anzeigen"],
                       ["showHolidaysCustomer", "Feiertage in Kundenansicht anzeigen"],
+                      ["showAllDayVeranstaltungenAdmin", "Ganztägige Veranstaltungen im Adminkalender anzeigen"],
                     ].map(([k, lbl]) => (
                       <ToggleRow key={k} label={lbl} value={!!draftAdmin[k]} defaultValue={!!DEFAULT_ADMIN_THEME[k]}
                         dirty={isDirtyAdmin(k)}
@@ -4656,7 +4685,7 @@ export default function App() {
               const et = ev ? eventTypes.find(e => e.id === ev.type) : null;
               const hasMultiple = ev && isAdmin && ev.subEvents && ev.subEvents.length > 0;
               const allRequests = ev && isAdmin ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...(ev.subEvents || []).map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))].filter(s => s.status !== "deleted") : [];
-              const veranstAtDay = veranstaltungDateMap[selectedDate] || [];
+              const veranstAtDay = (veranstaltungDateMap[selectedDate] || []).filter(x => isAdmin && !adminTheme.showAllDayVeranstaltungenAdmin ? !x.dateEntry.allDay : true);
               return (
                 <>
                   <div style={{ marginBottom: 16 }}>
@@ -4825,6 +4854,17 @@ export default function App() {
                       onMouseEnter={e => { e.currentTarget.style.background=`${BRAND.moosgruen}20`; }} onMouseLeave={e => { e.currentTarget.style.background=`${BRAND.moosgruen}10`; }}>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.moosgruen} strokeWidth="1.5" strokeLinecap="round"/></svg>
                       Zusätzliche Buchung hinzufügen
+                    </button>
+                  )}
+                  {isAdmin && !ev && veranstAtDay.length > 0 && (
+                    <button onClick={() => {
+                      setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
+                      setEditingSubIndex(-1); setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.background=`${BRAND.lila}20`; }} onMouseLeave={e => { e.currentTarget.style.background=`${BRAND.lila}10`; }}
+                      style={{ width:"100%", padding:"13px 0", background:`${BRAND.lila}10`, color: BRAND.lila, border:`1.5px solid ${BRAND.lila}30`, borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all .15s" }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.lila} strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      Termin an diesem Tag anlegen
                     </button>
                   )}
                 </>
@@ -5022,13 +5062,10 @@ export default function App() {
                       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
                       style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
-                      {v.imageKey ? (
-                        <div style={{ height:120, backgroundImage: `url(/assets/${v.imageKey})`, backgroundSize:"cover", backgroundPosition:"center" }} />
-                      ) : (
-                        <div style={{ background: pat.gradient, height:120, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          {iconSVG[pat.id]}
-                        </div>
-                      )}
+                      <div style={{ position:"relative", background: pat.gradient, height:120, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                        {iconSVG[pat.id]}
+                        {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                      </div>
                       <div style={{ padding:"12px 14px" }}>
                         {nxt ? (
                           <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>{wd} · {dd}. {monShort[mm-1]}{nxt.allDay ? "" : (nxt.startTime ? ` · ${nxt.startTime}` : "")}{futureCount > 1 ? ` · +${futureCount-1} weitere` : ""}</div>
@@ -5070,13 +5107,10 @@ export default function App() {
                             onMouseEnter={e => e.currentTarget.style.background = "#faf7fa"}
                             onMouseLeave={e => e.currentTarget.style.background = "#fff"}
                             style={{ display:"flex", alignItems:"center", gap:12, padding:"10px", border:"1px solid #eee4ed", borderRadius:10, cursor:"pointer", transition:"background .15s" }}>
-                            {v.imageKey ? (
-                              <div style={{ width:50, height:50, borderRadius:8, flexShrink:0, backgroundImage: `url(/assets/${v.imageKey})`, backgroundSize:"cover", backgroundPosition:"center" }} />
-                            ) : (
-                              <div style={{ width:50, height:50, borderRadius:8, background: pat.gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                                {React.cloneElement(iconSVG[pat.id], { width:26, height:26 })}
-                              </div>
-                            )}
+                            <div style={{ width:50, height:50, borderRadius:8, flexShrink:0, background: pat.gradient, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                              {React.cloneElement(iconSVG[pat.id], { width:26, height:26 })}
+                              {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                            </div>
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginBottom:2 }}>{v.title || "Veranstaltung"}</div>
                               <div style={{ fontSize:11, color:"#888" }}>{entry?.allDay ? "ganztägig" : (entry ? `${entry.startTime} – ${entry.endTime} Uhr` : "")}</div>
@@ -5103,22 +5137,14 @@ export default function App() {
               return (
                 <div onClick={() => setPublicEventDetail(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", overflowY:"auto" }}>
-                    {v.imageKey ? (
-                      <div style={{ height:180, position:"relative", backgroundImage: `url(/assets/${v.imageKey})`, backgroundSize:"cover", backgroundPosition:"center" }}>
-                        <button onClick={() => setPublicEventDetail(null)}
-                          style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ background: pat.gradient, height:180, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
-                        <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
-                        <button onClick={() => setPublicEventDetail(null)}
-                          style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
-                        </button>
-                      </div>
-                    )}
+                    <div style={{ background: pat.gradient, height:180, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                      <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
+                      {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                      <button onClick={() => setPublicEventDetail(null)}
+                        style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine, zIndex:2 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                      </button>
+                    </div>
                     <div style={{ padding:"20px 24px 24px" }}>
                       <h3 style={{ margin:"0 0 10px", fontSize:20, fontWeight:700, color:BRAND.aubergine }}>{v.title || "Veranstaltung"}</h3>
                       {v.description ? (
