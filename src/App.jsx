@@ -49,6 +49,18 @@ const DEFAULT_PUBLIC_THEME = {
   emptyMessage: "Aktuell sind keine öffentlichen Veranstaltungen geplant. Schauen Sie bald wieder vorbei!",
 };
 
+// Default-Veranstaltungen — werden beim ersten Laden persistiert falls Firestore noch leer ist.
+// Jede Veranstaltung hat eine ID, Metadaten (für Kunden sichtbar) und eine dates[]-Liste.
+// Termine blockieren den Kalender NICHT, sondern ergänzen ihn nur mit dem V-Marker.
+// Ein Date-Eintrag mit gleicher seriesId gehört zu einer Serie und wird gemeinsam bearbeitet/gelöscht.
+const DEFAULT_VERANSTALTUNGEN = [
+  { id: "yoga-julia",          title: "Yoga mit Julia S.",              description: "", contactName: "", contactPhone: "", imageKey: "", iconPattern: "yoga",   dates: [] },
+  { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau", description: "", contactName: "", contactPhone: "", imageKey: "", iconPattern: "flower", dates: [] },
+  { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", description: "", contactName: "", contactPhone: "", imageKey: "", iconPattern: "flower", dates: [] },
+  { id: "herbstbluetenzauber", title: "Herbstblütenzauber",             description: "", contactName: "", contactPhone: "", imageKey: "", iconPattern: "leaf",   dates: [] },
+  { id: "lebenskunst",         title: 'Workshop "Lebenskunst"',         description: "", contactName: "", contactPhone: "", imageKey: "", iconPattern: "sound",  dates: [] },
+];
+
 
 const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
 const GROUP_TOUR_NOTIFY_EMAIL = "astridmattuschka@gmail.com";
@@ -775,9 +787,15 @@ export default function App() {
   const [adminTheme, setAdminTheme] = useState(DEFAULT_ADMIN_THEME);
   const [publicTheme, setPublicTheme] = useState(DEFAULT_PUBLIC_THEME);
   const [showDesignPublic, setShowDesignPublic] = useState(false);
-  const [publicEventDetail, setPublicEventDetail] = useState(null); // { dateKey, ev, subIndex }
+  const [publicEventDetail, setPublicEventDetail] = useState(null); // { dateKey, ev, subIndex } - alt; fuer neue API: { veranstaltung }
   const [publicMonth, setPublicMonth] = useState(new Date().getMonth());
   const [publicYear, setPublicYear] = useState(new Date().getFullYear());
+  // Veranstaltungen — eigenständige Entität mit eigenen Terminen, blockieren keine Tage
+  const [veranstaltungen, setVeranstaltungen] = useState(DEFAULT_VERANSTALTUNGEN);
+  const [showVeranstaltungenAdmin, setShowVeranstaltungenAdmin] = useState(false);
+  const [editingVeranstaltungId, setEditingVeranstaltungId] = useState(null); // null | id-string ("new" fuer neu anlegen)
+  const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
+  const [veranstaltungDatePicker, setVeranstaltungDatePicker] = useState(null); // null | { mode: "single" | "series", data }
   const [designDraftTypes, setDesignDraftTypes] = useState(null);
   const [designDraftTheme, setDesignDraftTheme] = useState(null);
   const [designDraftAdmin, setDesignDraftAdmin] = useState(null);
@@ -864,7 +882,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); setPublicTheme({ ...DEFAULT_PUBLIC_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); setPublicTheme({ ...DEFAULT_PUBLIC_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) setVeranstaltungen(saved); } else { try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
@@ -915,6 +933,7 @@ export default function App() {
   const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
   const saveAdminTheme = useCallback(async (updated) => { setAdminTheme(updated); try { await saveData("adminTheme", JSON.stringify(updated)); } catch {} }, []);
   const savePublicTheme = useCallback(async (updated) => { setPublicTheme(updated); try { await saveData("publicTheme", JSON.stringify(updated)); } catch {} }, []);
+  const saveVeranstaltungen = useCallback(async (updated) => { setVeranstaltungen(updated); try { await saveData("veranstaltungen", JSON.stringify(updated)); } catch {} }, []);
 
   // Auto-Backup: beim Admin-Login prüfen, ob heute schon ein Backup existiert.
   // Falls nicht → Snapshot der Events in Firebase speichern (backup-YYYY-MM-DD).
@@ -976,6 +995,21 @@ export default function App() {
   const today = new Date();
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
+  // Map: dateKey → Array von Veranstaltungs-Objekten { veranstaltung, dateEntry } die an diesem Tag Termine haben.
+  // Wird für den V-Badge im Kalender und die Kunden-Übersicht genutzt.
+  const veranstaltungDateMap = React.useMemo(() => {
+    const map = {};
+    (veranstaltungen || []).forEach(v => {
+      (v.dates || []).forEach(d => {
+        if (!d?.date) return;
+        if (!map[d.date]) map[d.date] = [];
+        map[d.date].push({ veranstaltung: v, dateEntry: d });
+      });
+    });
+    return map;
+  }, [veranstaltungen]);
+  const hasVeranstaltungAtDate = (dKey) => !!veranstaltungDateMap[dKey]?.length;
+
   const handleDateClick = (day) => {
     if (!day) return;
     const key = dateKey(year, month, day);
@@ -986,7 +1020,7 @@ export default function App() {
         setFromCalendar(true);
         setModalView("info");
       } else {
-        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
+        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
         setEditingSubIndex(-1);
         setModalView("admin");
       }
@@ -1385,7 +1419,7 @@ export default function App() {
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                 },
                 ...(winW < 520 ? [] : [{
-                  label:"Veranstaltungen", full:"Design Veranstaltungs-Seite", color:"#5dd4cd", onClick:() => setShowDesignPublic(true),
+                  label:"Veranstaltungen", full:"Veranstaltungen verwalten", color:"#5dd4cd", onClick:() => setShowVeranstaltungenAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="2.5" y="3.5" width="11" height="10" rx="1.4"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg>
                 }]),
                 ...(winW < 520 ? [] : [{
@@ -1643,10 +1677,10 @@ export default function App() {
             {!isDesk && (
               <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3, display:"flex", gap:8, alignItems:"center" }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  style={{ background:"transparent", color:"#fff", border:"1.5px solid #5dd4cd", borderRadius:10, padding:"9px 12px", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6, letterSpacing:0.3, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
+                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding:"10px 14px", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6, letterSpacing:0.3, boxShadow:"0 4px 12px rgba(0,0,0,0.2)" }}>
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#5dd4cd" strokeWidth="1.5"/>
-                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#5dd4cd" strokeWidth="1.5" strokeLinecap="round"/>
+                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#fff" strokeWidth="1.6"/>
+                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
                   </svg>
                   Veranstaltungen
                 </button>
@@ -1689,12 +1723,12 @@ export default function App() {
               </div>
               <div style={{ display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,154,147,0.15)"; e.currentTarget.style.borderColor = "#5dd4cd"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#5dd4cd"; }}
-                  style={{ background:"transparent", color:"#fff", border:"1.5px solid #5dd4cd", borderRadius:10, padding: big ? "14px 24px" : "12px 20px", fontSize: big ? 16 : 14, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:8, letterSpacing:0.4, transition:"all .2s ease", pointerEvents:"auto", textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
+                  onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.15)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
+                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding: big ? "14px 24px" : "12px 20px", fontSize: big ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.4, transition:"all .2s ease", pointerEvents:"auto" }}>
                   <svg width={big ? 16 : 14} height={big ? 16 : 14} viewBox="0 0 16 16" fill="none">
-                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#5dd4cd" strokeWidth="1.5"/>
-                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#5dd4cd" strokeWidth="1.5" strokeLinecap="round"/>
+                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#fff" strokeWidth="1.6"/>
+                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
                   </svg>
                   Veranstaltungen
                 </button>
@@ -1807,28 +1841,31 @@ export default function App() {
             const hol = (isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) ? holRaw : null;
             const isToday = key === todayKey;
             const isPast = key < todayKey;
-            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && ev.allDay && !ev.isPublic && !ev.isSeries;
-            const customerPublic = !isAdmin && ev && ev.isPublic && !ev.isSeries;
+            const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && ev.allDay && !ev.isSeries;
             const customerSeries = !isAdmin && ev && ev.isSeries;
             const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries || !ev.allDay);
+            const hasVeranst = hasVeranstaltungAtDate(key);
             const statusColor = ev ? (ev.status === "booked" ? adminTheme.bookedColor : ev.status === "pending" ? adminTheme.pendingColor : adminTheme.blockedColor) : null;
             const isPending = ev?.status === "pending" && isAdmin;
             const isBlockedAdmin = ev && isAdmin && ev.status === "blocked" && !ev.isSeries;
             const isBlockedAdminAllDay = isBlockedAdmin && ev.allDay; // strichlierter Hatch nur bei ganztägig
             const isSeriesAdmin = ev && isAdmin && ev.isSeries;
+            const veranstTitle = hasVeranst ? veranstaltungDateMap[key].map(x => x.veranstaltung.title).filter(Boolean).join(" · ") : "";
             return (
-              <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : (isAdmin && ev && (ev.status === "booked" || ev.status === "blocked" || ev.status === "pending")) ? "day-hasevent" : "day-free"} onClick={() => handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : customerPublic ? (ev.label || "Veranstaltung") : isAdmin && ev?.label ? ev.label : ""}
+              <button key={key} className={isPast ? "" : customerBooked ? "day-booked" : (isAdmin && ev && (ev.status === "booked" || ev.status === "blocked" || ev.status === "pending")) ? "day-hasevent" : "day-free"} onClick={() => handleDateClick(day)} title={customerBooked ? "nicht verfügbar" : hasVeranst ? veranstTitle : isAdmin && ev?.label ? ev.label : ""}
                 style={{
                   aspectRatio:"1",
-                  border: isToday ? `2.5px solid ${adminTheme.todayColor}` : (isPast && ev) ? "1px solid #e8e0e5" : customerPublic ? `1.5px solid ${BRAND.moosgruen}50` : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}90` : isBlockedAdminAllDay ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
+                  border: isToday ? `2.5px solid ${adminTheme.todayColor}` : (isPast && ev) ? "1px solid #e8e0e5" : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}90` : isBlockedAdminAllDay ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : customerPublic ? `${BRAND.moosgruen}10` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : "#fff") : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : "#fff") : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
                 }}>
                 {/* Series indicator for admin - S badge */}
                 {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>S</div>}
+                {/* Public indicator - V badge (oben links, analog zum S-Badge, violett auf weiss) */}
+                {hasVeranst && <div style={{ position:"absolute", top:4, left:4, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>V</div>}
                 {/* Pending indicator for admin */}
                 {isPending && !isPast && ev.allDay && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
@@ -1837,8 +1874,6 @@ export default function App() {
                 )}
                 <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin && !ev.isSeries) || customerBooked ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? adminTheme.todayColor : customerBooked ? BRAND.lila : ev && isAdmin && !ev.isSeries && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ display:"flex", gap:2, marginTop:2 }}><div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.lila }} /></div>}
-                {customerPublic && <div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2 }} />}
-                {customerSeries && ev.isPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: BRAND.moosgruen, marginTop:2, opacity:0.6 }} />}
                 {ev && isAdmin && !ev.isSeries && (() => {
                   // Bänder-Darstellung: bei teilverbuchten Events (nicht ganztägig) — egal ob gebucht, Anfrage oder intern
                   // Jeder Termin (Haupt + SubEvents) bekommt einen eigenen Balken unten, Farbe je Einzelstatus
@@ -2285,9 +2320,9 @@ export default function App() {
                 </div>
 
                 <div style={{ marginTop:24, padding:"14px 16px", background:"#f9f7fa", borderRadius:10, border:"1px solid #ebe4ea" }}>
-                  <div style={{ fontSize:11, color:"#888", marginBottom:8, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Wie werden Veranstaltungen öffentlich?</div>
+                  <div style={{ fontSize:11, color:"#888", marginBottom:8, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Veranstaltungen anlegen & bearbeiten</div>
                   <div style={{ fontSize:12, color:"#666", lineHeight:1.55 }}>
-                    Beim Anlegen oder Bearbeiten eines Termins im Adminbereich aktivieren Sie die Option <strong style={{ color: publicTheme.accentColor }}>„Öffentlich sichtbar"</strong>. Dort können Sie auch eine Beschreibung für Ihre Gäste eintragen und ein Symbol auswählen, das auf der Veranstaltungs-Seite gezeigt wird.
+                    Die eigentlichen Veranstaltungen verwalten Sie über den Button <strong style={{ color: publicTheme.accentColor }}>„Veranstaltungen"</strong> in der oberen Leiste. Hier passen Sie nur das Erscheinungsbild der öffentlichen Veranstaltungs-Seite an.
                   </div>
                 </div>
 
@@ -2303,6 +2338,411 @@ export default function App() {
                 </div>
 
               </div>
+            </div>
+          );
+        })()}
+
+        {/* Veranstaltungen verwalten - Kachelübersicht + Editor */}
+        {showVeranstaltungenAdmin && (() => {
+          const iconPatterns = [
+            { id:"yoga",   label:"Yoga",   gradient:"linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)" },
+            { id:"flower", label:"Blume",  gradient:"linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)" },
+            { id:"sound",  label:"Klang",  gradient:"linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)" },
+            { id:"leaf",   label:"Blatt",  gradient:"linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)" },
+            { id:"circle", label:"Kreis",  gradient:"linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)" },
+          ];
+          const iconSvg = {
+            yoga:   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>,
+            flower: <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2v6m0 0c-1.5 0-3 .5-4 1.5C7 10.5 6.5 12 6.5 13.5S7 16.5 8 17.5s2.5 1.5 4 1.5 3-.5 4-1.5 1.5-2.5 1.5-4-.5-3-1.5-4S13.5 8 12 8z"/></svg>,
+            sound:  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg>,
+            leaf:   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg>,
+            circle: <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>,
+          };
+          const patOf = (v) => iconPatterns.find(p => p.id === (v.iconPattern || "yoga")) || iconPatterns[0];
+
+          const startEdit = (v) => { setEditingVeranstaltungId(v.id); setVeranstaltungDraft(JSON.parse(JSON.stringify(v))); };
+          const startNew = () => {
+            setEditingVeranstaltungId("new");
+            setVeranstaltungDraft({ id:"", title:"", description:"", contactName:"", contactPhone:"", imageKey:"", iconPattern:"yoga", dates:[] });
+          };
+          const cancelEdit = () => { setEditingVeranstaltungId(null); setVeranstaltungDraft(null); setVeranstaltungDatePicker(null); };
+          const closeAll = () => { setShowVeranstaltungenAdmin(false); cancelEdit(); };
+
+          const commitDraft = () => {
+            if (!veranstaltungDraft) return;
+            let next;
+            if (editingVeranstaltungId === "new") {
+              const slug = (veranstaltungDraft.title || "neu").toLowerCase().replace(/[äöüß]/g, c => ({ä:"ae",ö:"oe",ü:"ue",ß:"ss"}[c])).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "neu";
+              let id = slug, n = 2;
+              while (veranstaltungen.some(v => v.id === id)) { id = `${slug}-${n++}`; }
+              next = [...veranstaltungen, { ...veranstaltungDraft, id }];
+            } else {
+              next = veranstaltungen.map(v => v.id === editingVeranstaltungId ? { ...veranstaltungDraft, id: v.id } : v);
+            }
+            saveVeranstaltungen(next);
+            cancelEdit();
+          };
+
+          const deleteCurrent = () => {
+            if (editingVeranstaltungId === "new") { cancelEdit(); return; }
+            if (!window.confirm(`Veranstaltung "${veranstaltungDraft?.title || ""}" wirklich löschen?`)) return;
+            saveVeranstaltungen(veranstaltungen.filter(v => v.id !== editingVeranstaltungId));
+            cancelEdit();
+          };
+
+          const patchDraft = (patch) => setVeranstaltungDraft(d => ({ ...d, ...patch }));
+
+          const genDateId = () => "vd_" + Math.random().toString(36).slice(2, 10);
+
+          const addSingleDate = () => {
+            const d = new Date();
+            const pad = (n) => String(n).padStart(2, "0");
+            const tomorrow = new Date(d.getTime() + 86400000);
+            const newDate = { id: genDateId(), date: `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth()+1)}-${pad(tomorrow.getDate())}`, startTime:"18:00", endTime:"20:00", allDay:false, seriesId:null };
+            patchDraft({ dates: [...(veranstaltungDraft?.dates||[]), newDate] });
+          };
+          const startSeriesPicker = () => setVeranstaltungDatePicker({ mode:"series", dates:[], startTime:"18:00", endTime:"20:00", allDay:false });
+          const commitSeries = (pickerData) => {
+            if (!pickerData.dates.length) return;
+            const sid = "s_" + Math.random().toString(36).slice(2, 10);
+            const newDates = pickerData.dates.map(dt => ({ id: genDateId(), date: dt, startTime: pickerData.startTime, endTime: pickerData.endTime, allDay: pickerData.allDay, seriesId: sid }));
+            patchDraft({ dates: [...(veranstaltungDraft?.dates||[]), ...newDates] });
+            setVeranstaltungDatePicker(null);
+          };
+          const updateDateField = (dateId, patch) => patchDraft({ dates: (veranstaltungDraft?.dates||[]).map(d => d.id === dateId ? { ...d, ...patch } : d) });
+          const removeDateOrSeries = (dateEntry) => {
+            if (dateEntry.seriesId) {
+              // Ganze Serie entfernen
+              const seriesDates = (veranstaltungDraft?.dates||[]).filter(d => d.seriesId === dateEntry.seriesId);
+              if (seriesDates.length > 1) {
+                if (!window.confirm(`Ganze Serie (${seriesDates.length} Termine) entfernen?`)) return;
+              }
+              patchDraft({ dates: (veranstaltungDraft?.dates||[]).filter(d => d.seriesId !== dateEntry.seriesId) });
+            } else {
+              patchDraft({ dates: (veranstaltungDraft?.dates||[]).filter(d => d.id !== dateEntry.id) });
+            }
+          };
+
+          const draft = veranstaltungDraft;
+
+          return (
+            <div onClick={closeAll} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW > 600 ? 18 : 0, width:"100%", maxWidth:780, padding: winW > 600 ? "24px 28px" : "20px 16px", boxShadow:"0 24px 60px rgba(0,0,0,0.18)", minHeight: winW > 600 ? "auto" : "100vh" }}>
+
+                {!draft ? (
+                  /* LIST VIEW — Kachelübersicht */
+                  <>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+                      <button onClick={closeAll}
+                        style={{ background:"#f5f3f4", border:"none", color:"#888", borderRadius:"50%", width:36, height:36, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                      </button>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <h2 style={{ margin:0, fontSize: winW > 600 ? 22 : 18, fontWeight:700, color: BRAND.aubergine, letterSpacing:0.5, lineHeight:1.2 }}>Veranstaltungen</h2>
+                        <div style={{ fontSize:12, color:"#888", marginTop:3 }}>{veranstaltungen.length} Kachel{veranstaltungen.length === 1 ? "" : "n"}</div>
+                      </div>
+                      <button onClick={() => { setShowVeranstaltungenAdmin(false); setShowDesignPublic(true); }}
+                        title="Design der Veranstaltungs-Seite anpassen"
+                        style={{ background:"#f9f7fa", border:"1px solid #ebe4ea", color:"#888", borderRadius:8, padding:"8px 12px", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6, fontWeight:500 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.4 0 2.3-.7 2.3-1.8 0-1-.9-1.5-.9-2.5 0-1 .9-1.7 1.9-1.7H17c2.8 0 5-2.2 5-5 0-4.4-4.5-9-10-9z"/></svg>
+                        Design
+                      </button>
+                    </div>
+
+                    <div style={{ display:"grid", gridTemplateColumns: winW > 560 ? "repeat(2, 1fr)" : "1fr", gap:12 }}>
+                      {veranstaltungen.map(v => {
+                        const pat = patOf(v);
+                        const futureDates = (v.dates||[]).filter(d => d.date >= todayKey);
+                        return (
+                          <div key={v.id} onClick={() => startEdit(v)}
+                            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                            style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
+                            <div style={{ background: pat.gradient, height:100, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              {iconSvg[pat.id]}
+                            </div>
+                            <div style={{ padding:"12px 14px" }}>
+                              <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:4, lineHeight:1.3 }}>{v.title || "Ohne Titel"}</div>
+                              <div style={{ fontSize:11, color:"#888" }}>{futureDates.length} zukünftige{futureDates.length === 1 ? "r" : ""} Termin{futureDates.length === 1 ? "" : "e"}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Neue Kachel */}
+                      <div onClick={startNew}
+                        style={{ border:"2px dashed #d0c4cc", borderRadius:12, minHeight:170, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#888", fontSize:13, gap:6, transition:"all .15s" }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = BRAND.lila; e.currentTarget.style.color = BRAND.lila; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = "#d0c4cc"; e.currentTarget.style.color = "#888"; }}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                        Neue Veranstaltung
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* EDIT VIEW */
+                  <>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+                      <button onClick={cancelEdit}
+                        style={{ background:"#f5f3f4", border:"none", color:"#888", borderRadius:"50%", width:36, height:36, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+                      </button>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <h2 style={{ margin:0, fontSize: winW > 600 ? 20 : 17, fontWeight:700, color: BRAND.aubergine, letterSpacing:0.3, lineHeight:1.2 }}>{editingVeranstaltungId === "new" ? "Neue Veranstaltung" : "Veranstaltung bearbeiten"}</h2>
+                      </div>
+                    </div>
+
+                    {/* Icon + Titel-Vorschau */}
+                    <div style={{ display:"flex", gap:14, marginBottom:18, alignItems:"center" }}>
+                      <div style={{ width:72, height:72, borderRadius:10, background: patOf(draft).gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {iconSvg[patOf(draft).id]}
+                      </div>
+                      <input placeholder="Titel der Veranstaltung" value={draft.title} onChange={e => patchDraft({ title: e.target.value })}
+                        style={{ flex:1, padding:"12px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:16, fontWeight:600, fontFamily:"inherit", boxSizing:"border-box", color: BRAND.aubergine }} />
+                    </div>
+
+                    {/* Beschreibung */}
+                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Kurzbeschreibung</label>
+                    <textarea placeholder="Text für Kunden…" value={draft.description || ""} onChange={e => patchDraft({ description: e.target.value })}
+                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", minHeight:70, resize:"vertical", marginBottom:14 }} />
+
+                    {/* Ansprechpartner */}
+                    <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:14, border:"1px solid #ede8ed" }}>
+                      <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
+                        Ansprechpartner <span style={{ color:"#009a93", fontWeight:500 }}>· für Kunden sichtbar</span>
+                      </div>
+                      <input placeholder="Name" value={draft.contactName || ""} onChange={e => patchDraft({ contactName: e.target.value })}
+                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
+                      <input placeholder="Telefon" value={draft.contactPhone || ""} onChange={e => patchDraft({ contactPhone: e.target.value })}
+                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
+                    </div>
+
+                    {/* Titelbild / Icon */}
+                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Titelbild-Symbol</label>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:6, marginBottom:8 }}>
+                      {iconPatterns.map(opt => {
+                        const active = (draft.iconPattern || "yoga") === opt.id;
+                        return (
+                          <button key={opt.id} type="button" onClick={() => patchDraft({ iconPattern: opt.id })}
+                            title={opt.label}
+                            style={{ padding:0, border: active ? `2px solid ${BRAND.lila}` : "1px solid #e0d8de", borderRadius:8, background:"#fff", cursor:"pointer", overflow:"hidden", transition:"all .15s", boxShadow: active ? `0 2px 8px ${BRAND.lila}25` : "none" }}>
+                            <div style={{ background: opt.gradient, height:46, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              {React.cloneElement(iconSvg[opt.id], { width:22, height:22 })}
+                            </div>
+                            <div style={{ fontSize:10, padding:"4px 2px", color: active ? BRAND.lila : "#888", fontWeight: active ? 600 : 400 }}>{opt.label}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <input placeholder="Oder Bild-Dateiname (optional, folgt später)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
+                      style={{ width:"100%", padding:"8px 10px", border:"1.5px solid #e8e0e5", borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom:16, color:"#888", background:"#fafafa" }} />
+
+                    {/* Termine */}
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                      <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Termine</div>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button onClick={addSingleDate}
+                          style={{ padding:"6px 10px", background:`${BRAND.lila}12`, color:BRAND.lila, border:`1px solid ${BRAND.lila}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.lila} strokeWidth="1.8" strokeLinecap="round"/></svg>
+                          Einzeltermin
+                        </button>
+                        <button onClick={startSeriesPicker}
+                          style={{ padding:"6px 10px", background:`${BRAND.tuerkis}12`, color:BRAND.tuerkis, border:`1px solid ${BRAND.tuerkis}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.tuerkis} strokeWidth="1.8" strokeLinecap="round"/></svg>
+                          Serie
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom:18 }}>
+                      {(draft.dates || []).length === 0 ? (
+                        <div style={{ padding:"18px 14px", background:"#faf7fa", borderRadius:8, textAlign:"center", color:"#aaa", fontSize:12, fontStyle:"italic" }}>
+                          Noch keine Termine — legen Sie oben einen Einzel- oder Serientermin an.
+                        </div>
+                      ) : (() => {
+                        // Nach seriesId gruppieren; Einzelne bekommen jeweils eigenen Block
+                        const sorted = [...(draft.dates||[])].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+                        const groups = [];
+                        const seenSeries = new Set();
+                        for (const d of sorted) {
+                          if (d.seriesId) {
+                            if (seenSeries.has(d.seriesId)) continue;
+                            seenSeries.add(d.seriesId);
+                            groups.push({ type:"series", seriesId: d.seriesId, entries: sorted.filter(x => x.seriesId === d.seriesId) });
+                          } else {
+                            groups.push({ type:"single", entry: d });
+                          }
+                        }
+                        return (
+                          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                            {groups.map((g, gi) => {
+                              if (g.type === "single") {
+                                const d = g.entry;
+                                const isPast = d.date < todayKey;
+                                return (
+                                  <div key={d.id} style={{ padding:"10px 12px", background:"#fff", border:`1px solid ${BRAND.lila}30`, borderRadius:8, opacity: isPast ? 0.5 : 1 }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                      <input type="date" value={d.date} onChange={e => updateDateField(d.id, { date: e.target.value })}
+                                        style={{ padding:"6px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontFamily:"inherit" }} />
+                                      {!d.allDay && <>
+                                        <input type="time" value={d.startTime} onChange={e => updateDateField(d.id, { startTime: e.target.value })} step="900"
+                                          style={{ padding:"6px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontFamily:"inherit", width:85 }} />
+                                        <span style={{ color:"#888" }}>–</span>
+                                        <input type="time" value={d.endTime} onChange={e => updateDateField(d.id, { endTime: e.target.value })} step="900"
+                                          style={{ padding:"6px 8px", border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontFamily:"inherit", width:85 }} />
+                                      </>}
+                                      <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:"#666", cursor:"pointer" }}>
+                                        <input type="checkbox" checked={!!d.allDay} onChange={e => updateDateField(d.id, { allDay: e.target.checked })} />
+                                        ganztägig
+                                      </label>
+                                      <button onClick={() => removeDateOrSeries(d)} title="Löschen"
+                                        style={{ marginLeft:"auto", background:"none", border:"none", color:"#c44", cursor:"pointer", padding:4, display:"flex", alignItems:"center" }}>
+                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              } else {
+                                // Serie
+                                const entries = g.entries;
+                                const first = entries[0];
+                                return (
+                                  <div key={g.seriesId} style={{ padding:"10px 12px", background:"#fff", border:`1px solid ${BRAND.tuerkis}30`, borderRadius:8 }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                                      <div style={{ fontSize:10, color:BRAND.tuerkis, fontWeight:700, textTransform:"uppercase", letterSpacing:1, background:`${BRAND.tuerkis}12`, padding:"2px 6px", borderRadius:4 }}>Serie · {entries.length} Termine</div>
+                                      {!first.allDay && <div style={{ fontSize:12, color:"#666" }}>{first.startTime} – {first.endTime} Uhr</div>}
+                                      {first.allDay && <div style={{ fontSize:12, color:"#666" }}>ganztägig</div>}
+                                      <button onClick={() => removeDateOrSeries(first)} title="Serie löschen"
+                                        style={{ marginLeft:"auto", background:"none", border:"none", color:"#c44", cursor:"pointer", padding:4, display:"flex", alignItems:"center" }}>
+                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                                      </button>
+                                    </div>
+                                    <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                                      {entries.map(e => {
+                                        const [yy,mm,dd] = e.date.split("-").map(Number);
+                                        const wd = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
+                                        const isPast = e.date < todayKey;
+                                        return <div key={e.id} style={{ fontSize:11, padding:"3px 7px", background:isPast ? "#f5f3f4" : `${BRAND.tuerkis}08`, color: isPast ? "#aaa" : BRAND.aubergine, borderRadius:4, fontWeight:500 }}>{wd} {dd}.{mm}.{yy}</div>;
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Footer Buttons */}
+                    <div style={{ display:"flex", gap:10, marginTop:20 }}>
+                      {editingVeranstaltungId !== "new" && (
+                        <button onClick={deleteCurrent}
+                          style={{ padding:"12px 16px", background:"transparent", color:"#c44", border:"1px solid #e8c8c8", borderRadius:8, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                          Löschen
+                        </button>
+                      )}
+                      <button onClick={cancelEdit}
+                        style={{ flex:1, padding:"12px", background:"transparent", color:"#888", border:"1px solid #e0d8de", borderRadius:8, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                        Abbrechen
+                      </button>
+                      <button onClick={commitDraft}
+                        style={{ flex:1, padding:"12px", background:BRAND.lila, color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                        Speichern
+                      </button>
+                    </div>
+                  </>
+                )}
+
+              </div>
+
+              {/* Serien-Picker Overlay */}
+              {veranstaltungDatePicker && veranstaltungDatePicker.mode === "series" && (() => {
+                const pd = veranstaltungDatePicker;
+                const updP = (patch) => setVeranstaltungDatePicker(p => ({ ...p, ...patch }));
+                const toggleDate = (dKey) => {
+                  const set = new Set(pd.dates);
+                  if (set.has(dKey)) set.delete(dKey); else set.add(dKey);
+                  updP({ dates: Array.from(set).sort() });
+                };
+                const pDays = getMonthDays(publicYear, publicMonth);
+                const monthName = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][publicMonth];
+                const prevPM = () => { if (publicMonth === 0) { setPublicMonth(11); setPublicYear(y=>y-1); } else setPublicMonth(m=>m-1); };
+                const nextPM = () => { if (publicMonth === 11) { setPublicMonth(0); setPublicYear(y=>y+1); } else setPublicMonth(m=>m+1); };
+                return (
+                  <div onClick={e => { e.stopPropagation(); setVeranstaltungDatePicker(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                    <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:14, width:"100%", maxWidth:440, padding:"20px 22px", boxShadow:"0 24px 60px rgba(0,0,0,0.3)" }}>
+                      <div style={{ display:"flex", alignItems:"center", marginBottom:14 }}>
+                        <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:BRAND.aubergine }}>Serientermine wählen</h3>
+                        <button onClick={() => setVeranstaltungDatePicker(null)} style={{ marginLeft:"auto", background:"#f5f3f4", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888" }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                        </button>
+                      </div>
+
+                      {/* Mini-Kalender */}
+                      <div style={{ background:"#faf7fa", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                          <button onClick={prevPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"2px 8px", lineHeight:1 }}>‹</button>
+                          <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine }}>{monthName} {publicYear}</div>
+                          <button onClick={nextPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"2px 8px", lineHeight:1 }}>›</button>
+                        </div>
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:3, marginBottom:3 }}>
+                          {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+                            <div key={d} style={{ textAlign:"center", fontSize:9, color:BRAND.aubergine, fontWeight:600, letterSpacing:1, textTransform:"uppercase", padding:"2px 0" }}>{d}</div>
+                          ))}
+                        </div>
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:3 }}>
+                          {pDays.map((day, i) => {
+                            if (!day) return <div key={`spe${i}`} />;
+                            const dKey = dateKey(publicYear, publicMonth, day);
+                            const isSel = pd.dates.includes(dKey);
+                            const isPast = dKey < todayKey;
+                            return (
+                              <button key={dKey} onClick={() => { if (!isPast) toggleDate(dKey); }}
+                                disabled={isPast}
+                                style={{ aspectRatio:"1", background: isSel ? BRAND.tuerkis : "#fff", border: isSel ? `1.5px solid ${BRAND.tuerkis}` : "1px solid #e8e0e5", borderRadius:6, color: isSel ? "#fff" : isPast ? "#ccc" : BRAND.aubergine, fontSize:11, fontWeight: isSel ? 600 : 400, cursor: isPast ? "default" : "pointer", padding:0 }}>
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Zeit */}
+                      <div style={{ marginBottom:14 }}>
+                        <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Zeit (gleich für alle Termine)</label>
+                        {!pd.allDay && (
+                          <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:6 }}>
+                            <input type="time" value={pd.startTime} onChange={e => updP({ startTime: e.target.value })} step="900"
+                              style={{ flex:1, padding:"8px 10px", border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontFamily:"inherit" }} />
+                            <span style={{ color:"#888" }}>–</span>
+                            <input type="time" value={pd.endTime} onChange={e => updP({ endTime: e.target.value })} step="900"
+                              style={{ flex:1, padding:"8px 10px", border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontFamily:"inherit" }} />
+                          </div>
+                        )}
+                        <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#666", cursor:"pointer" }}>
+                          <input type="checkbox" checked={!!pd.allDay} onChange={e => updP({ allDay: e.target.checked })} />
+                          ganztägig
+                        </label>
+                      </div>
+
+                      <div style={{ fontSize:12, color:"#888", marginBottom:12 }}>
+                        {pd.dates.length} Termin{pd.dates.length === 1 ? "" : "e"} ausgewählt
+                      </div>
+
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button onClick={() => setVeranstaltungDatePicker(null)}
+                          style={{ flex:1, padding:"11px", background:"transparent", color:"#888", border:"1px solid #e0d8de", borderRadius:7, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                          Abbrechen
+                        </button>
+                        <button onClick={() => commitSeries(pd)} disabled={!pd.dates.length}
+                          style={{ flex:1, padding:"11px", background: pd.dates.length ? BRAND.tuerkis : "#ddd", color:"#fff", border:"none", borderRadius:7, fontSize:13, fontWeight:600, cursor: pd.dates.length ? "pointer" : "not-allowed", fontFamily:"inherit" }}>
+                          Übernehmen
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
@@ -3401,56 +3841,13 @@ export default function App() {
                 })()}
 
                 {/* Public toggle - only for internal events, directly above Serientermin */}
-                {adminForm.type === "blocked" && (
-                <label onClick={() => setAdminForm(f=>({...f, isPublic:!f.isPublic, contactAddress: !f.isPublic && !f.contactAddress ? "Emmersdorfer Straße 86, 9061 Klagenfurt" : f.contactAddress}))}
-                  style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background: adminForm.isPublic ? "#009a9310" : "#fff", border:`1.5px solid ${adminForm.isPublic ? "#009a93" : "#e0d8de"}`, borderRadius:10, cursor:"pointer", marginBottom:10, transition:"all .15s" }}>
-                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${adminForm.isPublic ? "#009a93" : "#ccc"}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background: adminForm.isPublic ? "#009a93" : "#fff", transition:"all .15s" }}>
-                    {adminForm.isPublic && <svg width="12" height="12" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                  </div>
-                  <div>
-                    <span style={{ fontWeight:600, fontSize:15, color: BRAND.aubergine }}>Öffentlich sichtbar</span>
-                    <div style={{ fontSize:9, color:"#aaa" }}>Bezeichnung, Beschreibung, Kontakt & Adresse werden für Kunden sichtbar</div>
-                  </div>
-                </label>
-                )}
-
-                {/* PUBLIC SECTION - expanded description when isPublic checked (Kontakt kommt separat unten) */}
-                {adminForm.type === "blocked" && adminForm.isPublic && (
-                  <div style={{ background:"#009a9306", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #009a9320" }}>
-                    <div style={{ fontSize:11, color:"#009a93", fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Für Kunden sichtbar</div>
-                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Beschreibung</label>
-                    <textarea placeholder="Text für Kunden…" value={adminForm.publicText} onChange={e => setAdminForm(f=>({...f, publicText:e.target.value}))} style={{ ...inputStyle, height:50, resize:"vertical", fontSize:13, marginBottom:6 }} />
-                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Veranstaltungsort</label>
-                    <input placeholder="Adresse" value={adminForm.contactAddress} onChange={e => setAdminForm(f=>({...f, contactAddress:e.target.value}))}
-                      style={{ ...inputStyle, marginBottom:10, fontSize:13, padding:"8px 10px" }} />
-                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Symbol für die Kachel</label>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:6 }}>
-                      {[
-                        { id:"yoga", label:"Yoga", gradient:"linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg> },
-                        { id:"flower", label:"Blume", gradient:"linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><path d="M12 2v6m0 0c-1.5 0-3 .5-4 1.5C7 10.5 6.5 12 6.5 13.5S7 16.5 8 17.5s2.5 1.5 4 1.5 3-.5 4-1.5 1.5-2.5 1.5-4-.5-3-1.5-4S13.5 8 12 8z"/></svg> },
-                        { id:"sound", label:"Klang", gradient:"linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg> },
-                        { id:"leaf", label:"Blatt", gradient:"linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg> },
-                        { id:"circle", label:"Kreis", gradient:"linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg> },
-                      ].map(opt => {
-                        const active = (adminForm.publicIcon || "yoga") === opt.id;
-                        return (
-                          <button key={opt.id} type="button" onClick={() => setAdminForm(f => ({ ...f, publicIcon: opt.id }))}
-                            title={opt.label}
-                            style={{ padding:0, border: active ? "2px solid #009a93" : "1px solid #e0d8de", borderRadius:8, background:"#fff", cursor:"pointer", overflow:"hidden", transition:"all .15s", boxShadow: active ? "0 2px 8px rgba(0,154,147,0.25)" : "none" }}>
-                            <div style={{ background: opt.gradient, height:46, display:"flex", alignItems:"center", justifyContent:"center" }}>{opt.svg}</div>
-                            <div style={{ fontSize:10, padding:"4px 2px", color: active ? "#009a93" : "#888", fontWeight: active ? 600 : 400 }}>{opt.label}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                {/* ENTFERNT: Veranstaltungen werden jetzt über die Kachelverwaltung verwaltet (Top-Bar → Veranstaltungen) */}
 
                 {/* CONTACT PERSON - sichtbar für alle blocked Events (intern oder öffentlich), alle Felder optional */}
                 {adminForm.type === "blocked" && (
                   <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:10, border:"1px solid #ede8ed" }}>
                     <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
-                      Ansprechperson {adminForm.isPublic && <span style={{ color:"#009a93", fontWeight:500 }}>· für Kunden sichtbar</span>}
+                      Ansprechperson
                     </div>
                     <input placeholder="Name" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
                       style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:15, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
@@ -4306,7 +4703,7 @@ export default function App() {
 
                   {isAdmin && fromCalendar && !ev.allDay && (
                     <button onClick={() => {
-                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, groupName:"", customerEmail:"", customerPhone:"", price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
+                      setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, groupName:"", customerEmail:"", customerPhone:"", price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                     }}
                       style={{ width:"100%", padding:"13px 0", background:`${BRAND.moosgruen}10`, color: BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all .15s" }}
@@ -4372,59 +4769,53 @@ export default function App() {
 
       {/* ============== ÖFFENTLICHE VERANSTALTUNGEN MODAL ============== */}
       {modalView === "publicEvents" && (() => {
-        // Alle öffentlichen Events sammeln (Haupt + Sub) ab heute
-        const publicList = [];
-        Object.entries(events).forEach(([key, ev]) => {
-          if (key < todayKey) return;
-          if (!ev || ev.status === "deleted") return;
-          if (ev.isPublic) publicList.push({ key, ev, subIndex: -1 });
-          (ev.subEvents || []).forEach((sub, i) => {
-            if (sub && sub.status !== "deleted" && sub.isPublic) {
-              publicList.push({ key, ev: sub, subIndex: i });
-            }
-          });
-        });
-        publicList.sort((a,b) => {
-          if (a.key !== b.key) return a.key.localeCompare(b.key);
-          return (a.ev.startTime || "").localeCompare(b.ev.startTime || "");
+        // Nur Veranstaltungen mit mindestens einem zukünftigen Termin anzeigen
+        const visibleVeranstaltungen = (veranstaltungen || []).filter(v => (v.dates || []).some(d => d.date >= todayKey));
+        const nextDateOf = (v) => {
+          const future = (v.dates || []).filter(d => d.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date));
+          return future[0] || null;
+        };
+        // Nach frühestem zukünftigen Termin sortieren
+        const sortedVeranstaltungen = [...visibleVeranstaltungen].sort((a,b) => {
+          const na = nextDateOf(a)?.date || "9999";
+          const nb = nextDateOf(b)?.date || "9999";
+          return na.localeCompare(nb);
         });
 
-        // Welche Tage haben öffentliche Events?
-        const publicDayKeys = new Set(publicList.map(p => p.key));
+        // Welche Tage haben öffentliche Veranstaltungen?
+        const publicDayKeys = new Set();
+        sortedVeranstaltungen.forEach(v => (v.dates || []).forEach(d => { if (d.date >= todayKey) publicDayKeys.add(d.date); }));
 
-        // Mini-Kalender-Daten für aktuellen Monat
+        // Mini-Kalender-Daten
         const pDays = getMonthDays(publicYear, publicMonth);
         const monthName = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][publicMonth];
         const prevPM = () => { if (publicMonth === 0) { setPublicMonth(11); setPublicYear(y=>y-1); } else setPublicMonth(m=>m-1); };
         const nextPM = () => { if (publicMonth === 11) { setPublicMonth(0); setPublicYear(y=>y+1); } else setPublicMonth(m=>m+1); };
 
-        // Hintergrund-Pattern für Kacheln (rotierende Farbverläufe basierend auf Eventtyp/Index)
         const tilePatterns = [
-          { gradient: "linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)", icon: "yoga" },
-          { gradient: "linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)", icon: "flower" },
-          { gradient: "linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)", icon: "sound" },
-          { gradient: "linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)", icon: "leaf" },
-          { gradient: "linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)", icon: "circle" },
+          { id:"yoga",   gradient: "linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)" },
+          { id:"flower", gradient: "linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)" },
+          { id:"sound",  gradient: "linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)" },
+          { id:"leaf",   gradient: "linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)" },
+          { id:"circle", gradient: "linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)" },
         ];
         const iconSVG = {
-          yoga: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>,
+          yoga:   <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>,
           flower: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2v6m0 0c-1.5 0-3 .5-4 1.5C7 10.5 6.5 12 6.5 13.5S7 16.5 8 17.5s2.5 1.5 4 1.5 3-.5 4-1.5 1.5-2.5 1.5-4-.5-3-1.5-4S13.5 8 12 8z"/></svg>,
-          sound: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg>,
-          leaf: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg>,
+          sound:  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg>,
+          leaf:   <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg>,
           circle: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>,
         };
-        // Pattern auswählen: bevorzugt aus ev.publicIcon, sonst rotiert per Index
-        const patternFor = (item, idx) => {
-          if (item.ev.publicIcon) {
-            const found = tilePatterns.find(p => p.icon === item.ev.publicIcon);
-            if (found) return found;
-          }
-          return tilePatterns[idx % tilePatterns.length];
-        };
+        const patternFor = (v) => tilePatterns.find(p => p.id === (v.iconPattern || "yoga")) || tilePatterns[0];
 
-        // Wochentag-Abkürzungen
         const wdShort = ["So","Mo","Di","Mi","Do","Fr","Sa"];
         const monShort = ["Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+        const monthFullArr = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+
+        const openByDay = (dKey) => {
+          const hit = sortedVeranstaltungen.find(v => (v.dates || []).some(d => d.date === dKey));
+          if (hit) setPublicEventDetail({ veranstaltung: hit });
+        };
 
         return (
         <div onClick={() => { setModalView(null); setPublicEventDetail(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
@@ -4468,12 +4859,7 @@ export default function App() {
                   const hasPublic = publicDayKeys.has(dKey);
                   const isPast = dKey < todayKey;
                   return (
-                    <button key={dKey} onClick={() => {
-                      if (!hasPublic) return;
-                      // Erstes öffentliches Event an diesem Tag öffnen
-                      const found = publicList.find(p => p.key === dKey);
-                      if (found) setPublicEventDetail(found);
-                    }}
+                    <button key={dKey} onClick={() => { if (hasPublic) openByDay(dKey); }}
                       disabled={!hasPublic}
                       style={{ aspectRatio:"1", background: hasPublic ? publicTheme.accentSoft : "#fff", border: hasPublic ? `1.5px solid ${publicTheme.accentColor}` : "1px solid #e8e0e5", borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: hasPublic ? "pointer" : "default", padding:0, opacity: isPast ? 0.4 : 1, transition:"all .15s" }}>
                       <span style={{ fontSize:11, fontWeight: hasPublic ? 600 : 400, color: hasPublic ? publicTheme.accentColor : BRAND.aubergine, lineHeight:1 }}>{day}</span>
@@ -4486,30 +4872,31 @@ export default function App() {
             </div>
 
             {/* Kachel-Übersicht */}
-            <h3 style={{ margin:"0 0 12px", fontSize:14, fontWeight:600, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5 }}>Kommende Termine</h3>
-            {publicList.length === 0 ? (
+            <h3 style={{ margin:"0 0 12px", fontSize:14, fontWeight:600, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5 }}>Unsere Veranstaltungen</h3>
+            {sortedVeranstaltungen.length === 0 ? (
               <div style={{ padding:"32px 20px", background:"#faf7fa", borderRadius:12, textAlign:"center", color:"#999", fontSize:13, fontStyle:"italic" }}>
                 {publicTheme.emptyMessage}
               </div>
             ) : (
               <div style={{ display:"grid", gridTemplateColumns: winW > 560 ? "repeat(2, 1fr)" : "1fr", gap:12 }}>
-                {publicList.map((item, idx) => {
-                  const { ev, key } = item;
-                  const pat = patternFor(item, idx);
-                  const [yy,mm,dd] = key.split("-").map(Number);
-                  const wd = wdShort[new Date(yy,mm-1,dd).getDay()];
+                {sortedVeranstaltungen.map(v => {
+                  const pat = patternFor(v);
+                  const nxt = nextDateOf(v);
+                  const futureCount = (v.dates||[]).filter(d => d.date >= todayKey).length;
+                  const [yy,mm,dd] = nxt ? nxt.date.split("-").map(Number) : [0,0,0];
+                  const wd = nxt ? wdShort[new Date(yy,mm-1,dd).getDay()] : "";
                   return (
-                    <div key={`${key}-${item.subIndex}`} onClick={() => setPublicEventDetail(item)}
+                    <div key={v.id} onClick={() => setPublicEventDetail({ veranstaltung: v })}
                       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
                       style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
                       <div style={{ background: pat.gradient, height:120, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        {iconSVG[pat.icon]}
+                        {iconSVG[pat.id]}
                       </div>
                       <div style={{ padding:"12px 14px" }}>
-                        <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>{wd} · {dd}. {monShort[mm-1]}{ev.startTime ? ` · ${ev.startTime}` : ""}</div>
-                        <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginTop:3 }}>{ev.label || "Veranstaltung"}</div>
-                        {ev.publicText && <div style={{ fontSize:11, color:"#888", marginTop:5, lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{ev.publicText}</div>}
+                        {nxt && <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>{wd} · {dd}. {monShort[mm-1]}{nxt.allDay ? "" : (nxt.startTime ? ` · ${nxt.startTime}` : "")}{futureCount > 1 ? ` · +${futureCount-1} weitere` : ""}</div>}
+                        <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginTop:3 }}>{v.title || "Veranstaltung"}</div>
+                        {v.description && <div style={{ fontSize:11, color:"#888", marginTop:5, lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{v.description}</div>}
                       </div>
                     </div>
                   );
@@ -4518,35 +4905,53 @@ export default function App() {
             )}
 
             {/* Detail-Overlay */}
-            {publicEventDetail && (() => {
-              const { ev, key, subIndex } = publicEventDetail;
-              const idx = publicList.findIndex(p => p.key === key && p.subIndex === subIndex);
-              const pat = patternFor(publicEventDetail, idx >= 0 ? idx : 0);
-              const [yy,mm,dd] = key.split("-").map(Number);
-              const wd = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
-              const monthFull = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][mm-1];
+            {publicEventDetail && publicEventDetail.veranstaltung && (() => {
+              const v = publicEventDetail.veranstaltung;
+              const pat = patternFor(v);
+              const futureDates = (v.dates || []).filter(d => d.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date));
               return (
                 <div onClick={() => setPublicEventDetail(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", overflowY:"auto" }}>
                     <div style={{ background: pat.gradient, height:180, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
-                      <div style={{ width:64, height:64 }}>{iconSVG[pat.icon]}</div>
+                      <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       <button onClick={() => setPublicEventDetail(null)}
                         style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
                       </button>
                     </div>
                     <div style={{ padding:"20px 24px 24px" }}>
-                      <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:6 }}>{wd}, {dd}. {monthFull} {yy}{ev.startTime ? ` · ${ev.startTime}${ev.endTime ? ` – ${ev.endTime}` : ""} Uhr` : ""}</div>
-                      <h3 style={{ margin:"0 0 10px", fontSize:20, fontWeight:700, color:BRAND.aubergine }}>{ev.label || "Veranstaltung"}</h3>
-                      {ev.publicText ? (
-                        <div style={{ fontSize:14, color:"#555", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{ev.publicText}</div>
+                      <h3 style={{ margin:"0 0 10px", fontSize:20, fontWeight:700, color:BRAND.aubergine }}>{v.title || "Veranstaltung"}</h3>
+                      {v.description ? (
+                        <div style={{ fontSize:14, color:"#555", lineHeight:1.6, whiteSpace:"pre-wrap", marginBottom:16 }}>{v.description}</div>
                       ) : (
-                        <div style={{ fontSize:13, color:"#999", fontStyle:"italic" }}>Weitere Informationen auf Anfrage.</div>
+                        <div style={{ fontSize:13, color:"#999", fontStyle:"italic", marginBottom:16 }}>Weitere Informationen auf Anfrage.</div>
                       )}
-                      {ev.contactAddress && (
-                        <div style={{ fontSize:12, color:"#888", marginTop:14, paddingTop:14, borderTop:"1px solid #f0e8ee", display:"flex", alignItems:"flex-start", gap:8 }}>
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
-                          <span>{ev.contactAddress}</span>
+
+                      {/* Termine-Liste */}
+                      {futureDates.length > 0 && (
+                        <div style={{ marginBottom:16 }}>
+                          <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Kommende Termine</div>
+                          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                            {futureDates.map(d => {
+                              const [yy2,mm2,dd2] = d.date.split("-").map(Number);
+                              const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
+                              return (
+                                <div key={d.id} style={{ padding:"8px 12px", background:"#faf7fa", borderRadius:8, fontSize:13, color:BRAND.aubergine, display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+                                  <span style={{ fontWeight:500 }}>{wdLong}, {dd2}. {monthFullArr[mm2-1]} {yy2}</span>
+                                  <span style={{ fontSize:12, color:"#666", flexShrink:0 }}>{d.allDay ? "ganztägig" : `${d.startTime} – ${d.endTime} Uhr`}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Ansprechpartner */}
+                      {(v.contactName || v.contactPhone) && (
+                        <div style={{ paddingTop:14, borderTop:"1px solid #f0e8ee", display:"flex", flexDirection:"column", gap:6 }}>
+                          <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Kontakt</div>
+                          {v.contactName && <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>{v.contactName}</div>}
+                          {v.contactPhone && <a href={`tel:${v.contactPhone.replace(/\s/g,"")}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
                         </div>
                       )}
                     </div>
