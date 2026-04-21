@@ -67,12 +67,18 @@ const DEFAULT_OPENING_HOURS = {
 // Ein Date-Eintrag mit gleicher seriesId gehört zu einer Serie und wird gemeinsam bearbeitet/gelöscht.
 // imageKey wird aus /assets/<filename> geladen; wenn leer, fallback auf Gradient+Icon.
 const DEFAULT_VERANSTALTUNGEN = [
-  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga_mit_Julia.png", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau",  title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "iris_cover.png",       iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "taglilie_cover.png",   iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "herbstbluetenzauber", title: "Herbstblütenzauber",               title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "herbst_cover.png",     iconPattern: "leaf",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "lebenskunst",         title: 'Workshop "Lebenskunst"',           title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "",                     iconPattern: "sound",  openingHours: DEFAULT_OPENING_HOURS, dates: [] },
+  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga-mit_julia.jpeg", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
+  { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau",  title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "iris_cover.jpg",      iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
+  { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "taglilie_cover.jpg",  iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
+  { id: "herbstbluetenzauber", title: "Herbstblütenzauber",               title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "herbst_cover.png",    iconPattern: "leaf",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
+  { id: "lebenskunst",         title: 'Workshop "Lebenskunst"',           title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "",                    iconPattern: "sound",  openingHours: DEFAULT_OPENING_HOURS, dates: [] },
 ];
+// Korrekturen für früher gespeicherte, falsche Bildnamen (werden beim Laden automatisch migriert)
+const VERANSTALTUNG_IMAGE_CORRECTIONS = {
+  "Yoga_mit_Julia.png": "Yoga-mit_julia.jpeg",
+  "iris_cover.png":     "iris_cover.jpg",
+  "taglilie_cover.png": "taglilie_cover.jpg",
+};
 
 
 const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
@@ -809,6 +815,7 @@ export default function App() {
   const [showVeranstaltungenAdmin, setShowVeranstaltungenAdmin] = useState(false);
   const [editingVeranstaltungId, setEditingVeranstaltungId] = useState(null); // null | id-string ("new" fuer neu anlegen)
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
+  useEffect(() => { setVeranstImageError(false); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
   const [veranstaltungDatePicker, setVeranstaltungDatePicker] = useState(null); // null | { mode: "single" | "series", data }
   const [designDraftTypes, setDesignDraftTypes] = useState(null);
   const [designDraftTheme, setDesignDraftTheme] = useState(null);
@@ -828,6 +835,7 @@ export default function App() {
   const [seriesMonth, setSeriesMonth] = useState(null);
   const [seriesYear, setSeriesYear] = useState(null);
   const [heroIdx, setHeroIdx] = useState(0);
+  const [veranstImageError, setVeranstImageError] = useState(false);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
   useEffect(() => { const img = new Image(); img.src = "/assets/garten-Anfrage-gesendet.jpg"; }, []);
   useEffect(() => { if (isAdmin) return; const t = setInterval(() => setHeroIdx(i => (i+1) % 7), 10000); return () => clearInterval(t); }, [isAdmin]);
@@ -896,7 +904,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); setPublicTheme({ ...DEFAULT_PUBLIC_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); if (!d) return sv; return { ...sv, imageKey: (sv.imageKey && sv.imageKey.trim()) ? sv.imageKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); setPublicTheme({ ...DEFAULT_PUBLIC_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; if (!d) return { ...sv, imageKey: correctedKey }; return { ...sv, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
@@ -2550,7 +2558,10 @@ export default function App() {
                     <div style={{ display:"flex", gap:14, marginBottom:18, alignItems:"center" }}>
                       <div style={{ width:72, height:72, borderRadius:10, flexShrink:0, background: patOf(draft).gradient, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                         {iconSvg[patOf(draft).id]}
-                        {draft.imageKey && <img src={`/assets/${draft.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                        {draft.imageKey && <img src={`/assets/${draft.imageKey}`} alt=""
+                          onLoad={() => setVeranstImageError(false)}
+                          onError={ev => { ev.currentTarget.style.display = "none"; setVeranstImageError(true); }}
+                          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
                       </div>
                       <input placeholder="Titel der Veranstaltung" value={draft.title} onChange={e => patchDraft({ title: e.target.value })}
                         style={{ flex:1, padding:"12px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:16, fontWeight:600, fontFamily:"inherit", boxSizing:"border-box", color: BRAND.aubergine }} />
@@ -2590,11 +2601,20 @@ export default function App() {
                       })}
                     </div>
                     <input placeholder="Bild-Dateiname, z.B. veranstaltung.png (liegt in /assets/)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
-                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${draft.imageKey ? BRAND.tuerkis+"50" : "#e8e0e5"}`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom: draft.imageKey ? 4 : 16, color: draft.imageKey ? BRAND.aubergine : "#888", background: draft.imageKey ? "#fff" : "#fafafa" }} />
-                    {draft.imageKey && (
+                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${draft.imageKey ? (veranstImageError ? "#c44" : BRAND.tuerkis)+"50" : "#e8e0e5"}`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom: draft.imageKey ? 4 : 16, color: draft.imageKey ? BRAND.aubergine : "#888", background: draft.imageKey ? "#fff" : "#fafafa" }} />
+                    {draft.imageKey && !veranstImageError && (
                       <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:16, fontSize:11, color: BRAND.tuerkis, fontWeight:500 }}>
                         <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke={BRAND.tuerkis} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         Bild verknüpft — wird aus <code style={{ background:`${BRAND.tuerkis}12`, padding:"1px 5px", borderRadius:3, fontFamily:"monospace", fontSize:10 }}>/assets/{draft.imageKey}</code> geladen
+                      </div>
+                    )}
+                    {draft.imageKey && veranstImageError && (
+                      <div style={{ display:"flex", alignItems:"flex-start", gap:6, marginBottom:16, fontSize:11, color:"#c44", fontWeight:500, background:"#fdf3f3", border:"1px solid #f3c8c8", borderRadius:6, padding:"8px 10px" }}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:1 }}><circle cx="8" cy="8" r="6.5" stroke="#c44" strokeWidth="1.5"/><path d="M8 5v3.5" stroke="#c44" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="10.8" r="0.8" fill="#c44"/></svg>
+                        <div>
+                          <div style={{ fontWeight:600, marginBottom:2 }}>Bild nicht gefunden</div>
+                          <div style={{ color:"#a33", fontWeight:400 }}>Die Datei <code style={{ background:"#fff", padding:"1px 5px", borderRadius:3, fontFamily:"monospace", fontSize:10, border:"1px solid #f0d0d0" }}>/assets/{draft.imageKey}</code> konnte nicht geladen werden. Prüfe Dateiname (Groß-/Kleinschreibung!) und ob die Datei wirklich im assets-Ordner liegt.</div>
+                        </div>
                       </div>
                     )}
 
@@ -4924,15 +4944,18 @@ export default function App() {
 
       {/* ============== ÖFFENTLICHE VERANSTALTUNGEN MODAL ============== */}
       {modalView === "publicEvents" && (() => {
-        // Alle Veranstaltungen mit mindestens einem Termin im aktuell angezeigten Kalenderjahr
+        // Alle Veranstaltungen anzeigen — auch wenn sie keine Termine (noch nicht) haben
         const yearStr = String(publicYear);
-        const visibleVeranstaltungen = (veranstaltungen || []).filter(v => (v.dates || []).some(d => d.date?.slice(0,4) === yearStr));
+        const visibleVeranstaltungen = (veranstaltungen || []);
         const nextDateOf = (v) => {
           const future = (v.dates || []).filter(d => d.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date));
           return future[0] || null;
         };
-        // Nach frühestem zukünftigen Termin sortieren (oder nach erstem Termin im Jahr falls keine zukünftigen)
+        // Sortierung: erst nach frühestem zukünftigen Termin; Veranstaltungen ohne Termine im Jahr → ganz unten
         const sortedVeranstaltungen = [...visibleVeranstaltungen].sort((a,b) => {
+          const hasDatesA = (a.dates || []).some(d => d.date?.slice(0,4) === yearStr);
+          const hasDatesB = (b.dates || []).some(d => d.date?.slice(0,4) === yearStr);
+          if (hasDatesA !== hasDatesB) return hasDatesA ? -1 : 1;
           const na = nextDateOf(a)?.date || ((a.dates||[]).filter(d => d.date?.slice(0,4) === yearStr).sort((x,y) => x.date.localeCompare(y.date))[0]?.date) || "9999";
           const nb = nextDateOf(b)?.date || ((b.dates||[]).filter(d => d.date?.slice(0,4) === yearStr).sort((x,y) => x.date.localeCompare(y.date))[0]?.date) || "9999";
           return na.localeCompare(nb);
@@ -5070,7 +5093,7 @@ export default function App() {
                         {nxt ? (
                           <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>{wd} · {dd}. {monShort[mm-1]}{nxt.allDay ? "" : (nxt.startTime ? ` · ${nxt.startTime}` : "")}{futureCount > 1 ? ` · +${futureCount-1} weitere` : ""}</div>
                         ) : (
-                          <div style={{ fontSize:10, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Termine in {publicYear}</div>
+                          <div style={{ fontSize:10, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Termine folgen</div>
                         )}
                         <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginTop:3 }}>{v.title || "Veranstaltung"}</div>
                         {v.description && <div style={{ fontSize:11, color:"#888", marginTop:5, lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{v.description}</div>}
@@ -5166,7 +5189,7 @@ export default function App() {
                             </div>
                           </div>
                         );
-                      })() : futureDates.length > 0 && (
+                      })() : futureDates.length > 0 ? (
                         <div style={{ marginBottom:16 }}>
                           <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Kommende Termine</div>
                           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -5188,6 +5211,11 @@ export default function App() {
                               );
                             })}
                           </div>
+                        </div>
+                      ) : (
+                        <div style={{ marginBottom:16, padding:"18px 16px", background:"#faf7fa", border:"1px dashed #d8cfd5", borderRadius:10, textAlign:"center" }}>
+                          <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:4 }}>Termine folgen</div>
+                          <div style={{ fontSize:13, color:"#888", fontStyle:"italic" }}>Neue Termine für diese Veranstaltung werden bald hier bekanntgegeben.</div>
                         </div>
                       )}
 
