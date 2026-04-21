@@ -44,7 +44,7 @@ const DEFAULT_ADMIN_THEME = {
 const DEFAULT_PUBLIC_THEME = {
   accentColor: "#009a93",                    // Hauptfarbe (Türkis)
   accentSoft: "#e6f3ea",                     // Helle Variante für markierte Tage
-  pageTitle: "Was tut sich im Garten",       // Titel oben
+  pageTitle: "Was tut sich im Paradiesgarten",       // Titel oben
   pageSubtitle: "Yoga, Klangreisen, Blütenhöhepunkte und mehr",
   introText: "Entdecken Sie unsere kommenden Veranstaltungen im Paradiesgarten – inspirierende Erlebnisse zwischen Pflanzen, Pavillon und Glashaus.",
   emptyMessage: "Aktuell sind keine öffentlichen Veranstaltungen geplant. Schauen Sie bald wieder vorbei!",
@@ -67,7 +67,7 @@ const DEFAULT_OPENING_HOURS = {
 // Ein Date-Eintrag mit gleicher seriesId gehört zu einer Serie und wird gemeinsam bearbeitet/gelöscht.
 // imageKey wird aus /assets/<filename> geladen; wenn leer, fallback auf Gradient+Icon.
 const DEFAULT_VERANSTALTUNGEN = [
-  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga-mit_julia.jpeg", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
+  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga_mit_julia.jpeg", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
   { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau",  title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "iris_cover.jpg",      iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
   { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "taglilie_cover.jpg",  iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
   { id: "herbstbluetenzauber", title: "Herbstblütenzauber",               title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "herbst_cover.png",    iconPattern: "leaf",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
@@ -75,9 +75,10 @@ const DEFAULT_VERANSTALTUNGEN = [
 ];
 // Korrekturen für früher gespeicherte, falsche Bildnamen (werden beim Laden automatisch migriert)
 const VERANSTALTUNG_IMAGE_CORRECTIONS = {
-  "Yoga_mit_Julia.png": "Yoga-mit_julia.jpeg",
-  "iris_cover.png":     "iris_cover.jpg",
-  "taglilie_cover.png": "taglilie_cover.jpg",
+  "Yoga_mit_Julia.png":   "Yoga_mit_julia.jpeg",
+  "Yoga-mit_julia.jpeg":  "Yoga_mit_julia.jpeg",
+  "iris_cover.png":       "iris_cover.jpg",
+  "taglilie_cover.png":   "taglilie_cover.jpg",
 };
 
 
@@ -807,6 +808,8 @@ export default function App() {
   const [publicTheme, setPublicTheme] = useState(DEFAULT_PUBLIC_THEME);
   const [showDesignPublic, setShowDesignPublic] = useState(false);
   const [publicEventDetail, setPublicEventDetail] = useState(null); // { veranstaltung } | { veranstaltung, focusDate }
+  const [publicEventsPullY, setPublicEventsPullY] = useState(0);
+  const [publicDetailPullY, setPublicDetailPullY] = useState(0);
   const [publicDayPicker, setPublicDayPicker] = useState(null); // { dateKey, candidates: [veranstaltung, ...] } - Auswahl bei mehreren
   const [publicMonth, setPublicMonth] = useState(new Date().getMonth());
   const [publicYear, setPublicYear] = useState(new Date().getFullYear());
@@ -904,7 +907,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); setPublicTheme({ ...DEFAULT_PUBLIC_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; if (!d) return { ...sv, imageKey: correctedKey }; return { ...sv, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; if (!d) return { ...sv, imageKey: correctedKey }; return { ...sv, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
@@ -1449,10 +1452,10 @@ export default function App() {
                   label:"Design Admin", full:"Design Adminansicht", color:BRAND.tuerkis, onClick:() => setShowDesignAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                 },
-                ...(winW < 520 ? [] : [{
+                {
                   label:"Veranstaltungen", full:"Veranstaltungen verwalten", color:"#5dd4cd", onClick:() => setShowVeranstaltungenAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="2.5" y="3.5" width="11" height="10" rx="1.4"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg>
-                }]),
+                },
                 ...(winW < 520 ? [] : [{
                   label:"Backups", full:"Backups anzeigen", color:BRAND.mintgruen, onClick:() => setShowBackups(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
@@ -1708,7 +1711,7 @@ export default function App() {
               </div>
             )}
             {!isDesk && (
-              <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3, display:"flex", gap:8, alignItems:"center" }}>
+              <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3, display:"flex", flexDirection:"column", gap:8, alignItems:"flex-end" }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
                   title="Veranstaltungen"
                   style={{ background:"#fff", color:BRAND.lila, border:`2px solid ${BRAND.lila}`, borderRadius:10, width:44, height:44, padding:0, fontSize:20, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.2)", lineHeight:1, flexShrink:0 }}>
@@ -5005,8 +5008,20 @@ export default function App() {
         };
 
         return (
-        <div onClick={() => { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW > 600 ? 18 : 0, width:"100%", maxWidth:760, padding: winW > 600 ? "24px 28px" : "20px 16px", boxShadow:"0 24px 60px rgba(0,0,0,0.18)", minHeight: winW > 600 ? "auto" : "100vh" }}>
+        <div onClick={() => { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); setPublicEventsPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:"#fff", borderRadius: winW > 600 ? 18 : 0, width:"100%", maxWidth:760, padding: winW > 600 ? "24px 28px" : "20px 16px", boxShadow:"0 24px 60px rgba(0,0,0,0.18)", minHeight: winW > 600 ? "auto" : "100vh", transform: publicEventsPullY ? `translateY(${publicEventsPullY}px)` : "none", transition: publicEventsPullY ? "none" : "transform .2s ease", opacity: publicEventsPullY ? Math.max(0.3, 1 - publicEventsPullY/400) : 1 }}>
+
+            {/* Drag-Handle / Touch-Zone für Swipe-to-close (nur Mobile) */}
+            {winW <= 600 && (
+              <div
+                onTouchStart={e => { e.currentTarget._sy = e.touches[0].clientY; }}
+                onTouchMove={e => { const dy = e.touches[0].clientY - (e.currentTarget._sy||0); if (dy > 0) setPublicEventsPullY(dy); }}
+                onTouchEnd={e => { const dy = e.changedTouches[0].clientY - (e.currentTarget._sy||0); if (dy > 100) { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); } setPublicEventsPullY(0); }}
+                style={{ display:"flex", justifyContent:"center", padding:"4px 0 8px", cursor:"grab", touchAction:"none", marginTop:-10 }}>
+                <div style={{ width:40, height:4, borderRadius:2, background:"#d8d0d5" }} />
+              </div>
+            )}
 
             {/* Header */}
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
@@ -5030,7 +5045,10 @@ export default function App() {
             {/* Mini-Kalender */}
             <div style={{ background:"#faf7fa", borderRadius:12, padding:"12px 14px", marginBottom:20 }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-                <button onClick={prevPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>‹</button>
+                <button onClick={prevPM}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${publicTheme.accentColor}22`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = `${publicTheme.accentColor}10`; }}
+                  style={{ background:`${publicTheme.accentColor}10`, border:`1px solid ${publicTheme.accentColor}35`, color: publicTheme.accentColor, fontSize:20, cursor:"pointer", padding:0, lineHeight:1, width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:600, transition:"all .15s" }}>‹</button>
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
                   <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{monthName} {publicYear}</div>
                   {!isCurrentMonth && (
@@ -5040,7 +5058,10 @@ export default function App() {
                     </button>
                   )}
                 </div>
-                <button onClick={nextPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>›</button>
+                <button onClick={nextPM}
+                  onMouseEnter={e => { e.currentTarget.style.background = `${publicTheme.accentColor}22`; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = `${publicTheme.accentColor}10`; }}
+                  style={{ background:`${publicTheme.accentColor}10`, border:`1px solid ${publicTheme.accentColor}35`, color: publicTheme.accentColor, fontSize:20, cursor:"pointer", padding:0, lineHeight:1, width:32, height:32, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:600, transition:"all .15s" }}>›</button>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:4, marginBottom:4 }}>
                 {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
@@ -5158,13 +5179,23 @@ export default function App() {
               const telPlain = v.contactPhone ? v.contactPhone.replace(/\s/g,"") : "";
               const address = "Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee";
               return (
-                <div onClick={() => setPublicEventDetail(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-                  <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", overflowY:"auto" }}>
+                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                  <div onClick={e => e.stopPropagation()}
+                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", overflowY:"auto", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
+                    {/* Touch-Zone fuer Swipe-to-close (nur Mobile), liegt ueber dem Headerbild */}
+                    {winW <= 600 && (
+                      <div
+                        onTouchStart={e => { e.currentTarget._sy = e.touches[0].clientY; }}
+                        onTouchMove={e => { const dy = e.touches[0].clientY - (e.currentTarget._sy||0); if (dy > 0) setPublicDetailPullY(dy); }}
+                        onTouchEnd={e => { const dy = e.changedTouches[0].clientY - (e.currentTarget._sy||0); if (dy > 100) { setPublicEventDetail(null); } setPublicDetailPullY(0); }}
+                        style={{ position:"absolute", top:0, left:0, right:60, height:48, zIndex:3, touchAction:"none" }} />
+                    )}
                     <div style={{ background: pat.gradient, height:180, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                      {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
                       <button onClick={() => setPublicEventDetail(null)}
-                        style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine, zIndex:2 }}>
+                        style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine, zIndex:4 }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
                       </button>
                     </div>
@@ -5189,30 +5220,80 @@ export default function App() {
                             </div>
                           </div>
                         );
-                      })() : futureDates.length > 0 ? (
-                        <div style={{ marginBottom:16 }}>
-                          <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Kommende Termine</div>
-                          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                            {futureDates.map(d => {
-                              const [yy2,mm2,dd2] = d.date.split("-").map(Number);
-                              const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
-                              return (
-                                <div key={d.id}
-                                  onClick={() => setPublicEventDetail({ veranstaltung: v, focusDate: d.date })}
-                                  onMouseEnter={e => { e.currentTarget.style.background = publicTheme.accentSoft; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 3px 10px rgba(0,0,0,0.06)"; }}
-                                  onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
-                                  style={{ background:"#fff", borderRadius:8, padding:"12px 14px", border:`1px solid ${publicTheme.accentColor}25`, borderLeft:`3px solid ${publicTheme.accentColor}`, cursor:"pointer", transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
-                                  <div style={{ minWidth:0, flex:1 }}>
-                                    <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:0.8, fontWeight:700 }}>{wdLong}, {dd2}. {monthFullArr[mm2-1]} {yy2}</div>
-                                    <div style={{ fontSize:13, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>{d.allDay ? "Ganztägig geöffnet" : `${d.startTime} – ${d.endTime} Uhr`}</div>
+                      })() : futureDates.length > 0 ? (() => {
+                        // Ganztägige Termine zusammenfassen, Zeit-Termine einzeln als Cards
+                        const allDayDates = futureDates.filter(d => d.allDay);
+                        const timedDates = futureDates.filter(d => !d.allDay);
+                        // Oeffnungszeiten-Kompaktdarstellung
+                        const formatOpeningHours = (oh) => {
+                          const dk = ["mon","tue","wed","thu","fri","sat","sun"];
+                          const lbl = { mon:"Mo", tue:"Di", wed:"Mi", thu:"Do", fri:"Fr", sat:"Sa", sun:"So" };
+                          const segs = [];
+                          let i = 0;
+                          while (i < 7) {
+                            const d = oh[dk[i]] || { closed:true };
+                            let j = i;
+                            while (j+1 < 7) {
+                              const n = oh[dk[j+1]] || { closed:true };
+                              if (d.closed === n.closed && d.open === n.open && d.close === n.close) j++;
+                              else break;
+                            }
+                            const rng = i === j ? lbl[dk[i]] : `${lbl[dk[i]]}–${lbl[dk[j]]}`;
+                            segs.push({ range: rng, text: d.closed ? "geschlossen" : `${d.open} – ${d.close} Uhr`, closed: !!d.closed });
+                            i = j + 1;
+                          }
+                          return segs;
+                        };
+                        const allDayStart = allDayDates[0];
+                        const allDayEnd = allDayDates[allDayDates.length - 1];
+                        const fmtDate = (d) => { const [y,m,day] = d.split("-").map(Number); return `${day}. ${monthFullArr[m-1]} ${y}`; };
+                        const fmtDateShort = (d) => { const [y,m,day] = d.split("-").map(Number); return `${day}. ${monthFullArr[m-1]}`; };
+                        const sameYear = allDayStart && allDayEnd && allDayStart.date.slice(0,4) === allDayEnd.date.slice(0,4);
+                        const ohSegs = allDayDates.length > 0 ? formatOpeningHours(v.openingHours || DEFAULT_OPENING_HOURS) : [];
+                        return (
+                          <div style={{ marginBottom:16 }}>
+                            <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Kommende Termine</div>
+                            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                              {/* Zeitraum-Box für ganztägige */}
+                              {allDayDates.length > 0 && (
+                                <div style={{ background: publicTheme.accentSoft, borderRadius:10, padding:"14px 16px", border:`1px solid ${publicTheme.accentColor}30`, borderLeft:`3px solid ${publicTheme.accentColor}` }}>
+                                  <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>Geöffneter Zeitraum</div>
+                                  <div style={{ fontSize:15, color: BRAND.aubergine, fontWeight:600, marginBottom:10 }}>
+                                    {allDayDates.length === 1 ? fmtDate(allDayStart.date) : (sameYear ? `${fmtDateShort(allDayStart.date)} – ${fmtDate(allDayEnd.date)}` : `${fmtDate(allDayStart.date)} – ${fmtDate(allDayEnd.date)}`)}
                                   </div>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M9 5l7 7-7 7"/></svg>
+                                  <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>Öffnungszeiten</div>
+                                  <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                                    {ohSegs.map((s, i) => (
+                                      <div key={i} style={{ fontSize:13, color: s.closed ? "#999" : BRAND.aubergine, display:"flex", gap:10 }}>
+                                        <span style={{ fontWeight:600, minWidth:52 }}>{s.range}</span>
+                                        <span style={{ fontWeight: s.closed ? 400 : 500, fontStyle: s.closed ? "italic" : "normal" }}>{s.text}</span>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
-                              );
-                            })}
+                              )}
+                              {/* Zeit-Termine weiterhin als klickbare Cards */}
+                              {timedDates.map(d => {
+                                const [yy2,mm2,dd2] = d.date.split("-").map(Number);
+                                const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
+                                return (
+                                  <div key={d.id}
+                                    onClick={() => setPublicEventDetail({ veranstaltung: v, focusDate: d.date })}
+                                    onMouseEnter={e => { e.currentTarget.style.background = publicTheme.accentSoft; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 3px 10px rgba(0,0,0,0.06)"; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
+                                    style={{ background:"#fff", borderRadius:8, padding:"12px 14px", border:`1px solid ${publicTheme.accentColor}25`, borderLeft:`3px solid ${publicTheme.accentColor}`, cursor:"pointer", transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                                    <div style={{ minWidth:0, flex:1 }}>
+                                      <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:0.8, fontWeight:700 }}>{wdLong}, {dd2}. {monthFullArr[mm2-1]} {yy2}</div>
+                                      <div style={{ fontSize:13, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>{d.startTime} – {d.endTime} Uhr</div>
+                                    </div>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M9 5l7 7-7 7"/></svg>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ) : (
+                        );
+                      })() : (
                         <div style={{ marginBottom:16, padding:"18px 16px", background:"#faf7fa", border:"1px dashed #d8cfd5", borderRadius:10, textAlign:"center" }}>
                           <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:4 }}>Termine folgen</div>
                           <div style={{ fontSize:13, color:"#888", fontStyle:"italic" }}>Neue Termine für diese Veranstaltung werden bald hier bekanntgegeben.</div>
