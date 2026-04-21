@@ -39,6 +39,17 @@ const DEFAULT_ADMIN_THEME = {
   showHolidaysCustomer: true,  // Feiertage im Kunden-Kalender anzeigen
 };
 
+// Design-Theme für die Veranstaltungs-Übersicht (öffentliche Termine)
+const DEFAULT_PUBLIC_THEME = {
+  accentColor: "#009a93",                    // Hauptfarbe (Türkis)
+  accentSoft: "#e6f3ea",                     // Helle Variante für markierte Tage
+  pageTitle: "Was tut sich im Garten",       // Titel oben
+  pageSubtitle: "Yoga, Klangreisen, Blütenhöhepunkte und mehr",
+  introText: "Entdecken Sie unsere kommenden Veranstaltungen im Paradiesgarten – inspirierende Erlebnisse zwischen Pflanzen, Pavillon und Glashaus.",
+  emptyMessage: "Aktuell sind keine öffentlichen Veranstaltungen geplant. Schauen Sie bald wieder vorbei!",
+};
+
+
 const EMAIL_WORKER_URL = "https://pgm-email.wendelin936.workers.dev";
 const GROUP_TOUR_NOTIFY_EMAIL = "astridmattuschka@gmail.com";
 
@@ -762,6 +773,11 @@ export default function App() {
   const [openedBackup, setOpenedBackup] = useState(null); // { date, events }
   const [siteTheme, setSiteTheme] = useState(DEFAULT_THEME);
   const [adminTheme, setAdminTheme] = useState(DEFAULT_ADMIN_THEME);
+  const [publicTheme, setPublicTheme] = useState(DEFAULT_PUBLIC_THEME);
+  const [showDesignPublic, setShowDesignPublic] = useState(false);
+  const [publicEventDetail, setPublicEventDetail] = useState(null); // { dateKey, ev, subIndex }
+  const [publicMonth, setPublicMonth] = useState(new Date().getMonth());
+  const [publicYear, setPublicYear] = useState(new Date().getFullYear());
   const [designDraftTypes, setDesignDraftTypes] = useState(null);
   const [designDraftTheme, setDesignDraftTheme] = useState(null);
   const [designDraftAdmin, setDesignDraftAdmin] = useState(null);
@@ -848,7 +864,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); setPublicTheme({ ...DEFAULT_PUBLIC_THEME, ...saved }); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
@@ -898,6 +914,7 @@ export default function App() {
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
   const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
   const saveAdminTheme = useCallback(async (updated) => { setAdminTheme(updated); try { await saveData("adminTheme", JSON.stringify(updated)); } catch {} }, []);
+  const savePublicTheme = useCallback(async (updated) => { setPublicTheme(updated); try { await saveData("publicTheme", JSON.stringify(updated)); } catch {} }, []);
 
   // Auto-Backup: beim Admin-Login prüfen, ob heute schon ein Backup existiert.
   // Falls nicht → Snapshot der Events in Firebase speichern (backup-YYYY-MM-DD).
@@ -1039,7 +1056,7 @@ export default function App() {
     const displayName = adminForm.type === "blocked"
       ? (adminForm.contactName || adminForm.groupName || "")
       : (adminForm.groupName || adminForm.contactName || "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, publicIcon: adminForm.publicIcon || "", isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -1175,7 +1192,7 @@ export default function App() {
       checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })),
       contactName: src.contactName || "", contactPhone: src.contactPhone || "",
       contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "",
-      publicText: src.publicText || "", isPublic: src.isPublic || false,
+      publicText: src.publicText || "", isPublic: src.isPublic || false, publicIcon: src.publicIcon || "yoga",
       isSeries: false, seriesDates: [],
       guests: src.guests || "", tourGuide: src.tourGuide || false,
       cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0,
@@ -1367,6 +1384,10 @@ export default function App() {
                   label:"Design Admin", full:"Design Adminansicht", color:BRAND.tuerkis, onClick:() => setShowDesignAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                 },
+                ...(winW < 520 ? [] : [{
+                  label:"Veranstaltungen", full:"Design Veranstaltungs-Seite", color:"#5dd4cd", onClick:() => setShowDesignPublic(true),
+                  icon:<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="2.5" y="3.5" width="11" height="10" rx="1.4"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg>
+                }]),
                 ...(winW < 520 ? [] : [{
                   label:"Backups", full:"Backups anzeigen", color:BRAND.mintgruen, onClick:() => setShowBackups(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
@@ -1620,7 +1641,15 @@ export default function App() {
               </div>
             )}
             {!isDesk && (
-              <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3 }}>
+              <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3, display:"flex", gap:8, alignItems:"center" }}>
+                <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
+                  style={{ background:"transparent", color:"#fff", border:"1.5px solid #5dd4cd", borderRadius:10, padding:"9px 12px", fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6, letterSpacing:0.3, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#5dd4cd" strokeWidth="1.5"/>
+                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#5dd4cd" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  Veranstaltungen
+                </button>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                   style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
                   Location buchen
@@ -1658,13 +1687,25 @@ export default function App() {
                 <div style={{ fontSize: big ? 36 : 28, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
                 <div style={{ fontSize: big ? 16 : 14, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
-                style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding: big ? "16px 32px" : "14px 28px", fontSize: big ? 18 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", flexShrink:0, display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
-                Location buchen
-                <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-              </button>
+              <div style={{ display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
+                <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,154,147,0.15)"; e.currentTarget.style.borderColor = "#5dd4cd"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#5dd4cd"; }}
+                  style={{ background:"transparent", color:"#fff", border:"1.5px solid #5dd4cd", borderRadius:10, padding: big ? "14px 24px" : "12px 20px", fontSize: big ? 16 : 14, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:8, letterSpacing:0.4, transition:"all .2s ease", pointerEvents:"auto", textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>
+                  <svg width={big ? 16 : 14} height={big ? 16 : 14} viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#5dd4cd" strokeWidth="1.5"/>
+                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#5dd4cd" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  Veranstaltungen
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
+                  onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
+                  style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding: big ? "16px 32px" : "14px 28px", fontSize: big ? 18 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
+                  Location buchen
+                  <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                </button>
+              </div>
             </div>}
           </div>
 
@@ -2015,7 +2056,7 @@ export default function App() {
                           <div style={{ display:"flex", gap:6, flexShrink:0, marginLeft:"auto" }}>
                             <button onClick={(e) => { e.stopPropagation();
                               setSelectedDate(group.items[0][0]);
-                              setAdminForm({ type: gFirst.status || "blocked", label: gFirst.label || "", note: gFirst.note || "", startTime: gFirst.startTime || "08:00", endTime: gFirst.endTime || "22:00", adminNote: gFirst.adminNote || "", eventType: gFirst.type || "", allDay: gFirst.allDay || false, checklist: (gFirst.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: gFirst.contactName || "", contactPhone: gFirst.contactPhone || "", contactAddress: gFirst.contactAddress || "", publicText: gFirst.publicText || "", isPublic: gFirst.isPublic || false, isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true, price: gFirst.price || "", paymentStatus: gFirst.paymentStatus || "open", partialAmount: gFirst.partialAmount || "", cleaningFee: !!gFirst.cleaningFee, reminders: gFirst.reminders || { checklist:null, items:{} } });
+                              setAdminForm({ type: gFirst.status || "blocked", label: gFirst.label || "", note: gFirst.note || "", startTime: gFirst.startTime || "08:00", endTime: gFirst.endTime || "22:00", adminNote: gFirst.adminNote || "", eventType: gFirst.type || "", allDay: gFirst.allDay || false, checklist: (gFirst.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: gFirst.contactName || "", contactPhone: gFirst.contactPhone || "", contactAddress: gFirst.contactAddress || "", publicText: gFirst.publicText || "", isPublic: gFirst.isPublic || false, publicIcon: gFirst.publicIcon || "yoga", isSeries: false, seriesDates: [], seriesId: sid, editAllSeries: true, price: gFirst.price || "", paymentStatus: gFirst.paymentStatus || "open", partialAmount: gFirst.partialAmount || "", cleaningFee: !!gFirst.cleaningFee, reminders: gFirst.reminders || { checklist:null, items:{} } });
                               setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                             }}
                               onMouseEnter={e => e.currentTarget.style.opacity="0.7"} onMouseLeave={e => e.currentTarget.style.opacity="1"}
@@ -2165,6 +2206,106 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* Design Veranstaltungs-Seite */}
+        {showDesignPublic && (() => {
+          const close = () => setShowDesignPublic(false);
+          const update = (patch) => savePublicTheme({ ...publicTheme, ...patch });
+          // Vorschau-Daten: alle öffentlichen Termine
+          const publicCount = (() => {
+            let c = 0;
+            Object.entries(events).forEach(([key, ev]) => {
+              if (key < todayKey) return;
+              if (!ev || ev.status === "deleted") return;
+              if (ev.isPublic) c++;
+              (ev.subEvents || []).forEach(sub => { if (sub && sub.status !== "deleted" && sub.isPublic) c++; });
+            });
+            return c;
+          })();
+          return (
+            <div onClick={close} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
+              <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW > 600 ? 16 : 0, width:"100%", maxWidth:560, padding: winW > 600 ? "24px 28px" : "20px 16px", boxShadow:"0 24px 60px rgba(0,0,0,0.18)", minHeight: winW > 600 ? "auto" : "100vh" }}>
+
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                  <div>
+                    <div style={{ fontSize:11, color:"#999", textTransform:"uppercase", letterSpacing:1.5, fontWeight:600 }}>Design</div>
+                    <h2 style={{ margin:"2px 0 0", fontSize:18, fontWeight:700, color:BRAND.aubergine }}>Veranstaltungs-Seite</h2>
+                  </div>
+                  <button onClick={close} style={{ background:"none", border:"none", color:"#bbb", padding:0, cursor:"pointer", display:"flex", fontSize:24, lineHeight:1 }}>×</button>
+                </div>
+
+                <div style={{ background:"#faf7fa", borderRadius:10, padding:"10px 14px", marginBottom:18, fontSize:12, color:"#666", display:"flex", alignItems:"center", gap:10 }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={publicTheme.accentColor} strokeWidth="1.5" strokeLinecap="round"><rect x="2.5" y="3.5" width="11" height="10" rx="1.4"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg>
+                  <span>Aktuell <strong style={{ color: publicTheme.accentColor }}>{publicCount}</strong> öffentliche Veranstaltung{publicCount === 1 ? "" : "en"} sichtbar.</span>
+                </div>
+
+                <div style={{ marginBottom:18 }}>
+                  <label style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Titel der Seite</label>
+                  <input type="text" value={publicTheme.pageTitle} onChange={e => update({ pageTitle: e.target.value })}
+                    style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginTop:6, outline:"none", fontFamily:"inherit", color:BRAND.aubergine, boxSizing:"border-box" }} />
+                </div>
+
+                <div style={{ marginBottom:18 }}>
+                  <label style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Untertitel</label>
+                  <input type="text" value={publicTheme.pageSubtitle} onChange={e => update({ pageSubtitle: e.target.value })}
+                    style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, marginTop:6, outline:"none", fontFamily:"inherit", color:BRAND.aubergine, boxSizing:"border-box" }} />
+                </div>
+
+                <div style={{ marginBottom:18 }}>
+                  <label style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Einleitungstext</label>
+                  <textarea value={publicTheme.introText} onChange={e => update({ introText: e.target.value })}
+                    style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, marginTop:6, outline:"none", fontFamily:"inherit", color:BRAND.aubergine, boxSizing:"border-box", height:80, resize:"vertical", lineHeight:1.5 }} />
+                </div>
+
+                <div style={{ marginBottom:18 }}>
+                  <label style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Hinweis bei leerer Liste</label>
+                  <textarea value={publicTheme.emptyMessage} onChange={e => update({ emptyMessage: e.target.value })}
+                    style={{ width:"100%", padding:"10px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:13, marginTop:6, outline:"none", fontFamily:"inherit", color:BRAND.aubergine, boxSizing:"border-box", height:60, resize:"vertical", lineHeight:1.5 }} />
+                </div>
+
+                <div style={{ marginBottom:18, display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                  <div>
+                    <label style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1, display:"block", marginBottom:6 }}>Hauptfarbe</label>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", border:"1.5px solid #e0d8de", borderRadius:8 }}>
+                      <input type="color" value={publicTheme.accentColor} onChange={e => update({ accentColor: e.target.value })}
+                        style={{ width:32, height:32, border:"none", cursor:"pointer", background:"none", padding:0 }} />
+                      <input type="text" value={publicTheme.accentColor} onChange={e => update({ accentColor: e.target.value })}
+                        style={{ flex:1, border:"none", outline:"none", fontSize:13, color:BRAND.aubergine, fontFamily:"monospace" }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1, display:"block", marginBottom:6 }}>Helle Variante (markierte Tage)</label>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 8px", border:"1.5px solid #e0d8de", borderRadius:8 }}>
+                      <input type="color" value={publicTheme.accentSoft} onChange={e => update({ accentSoft: e.target.value })}
+                        style={{ width:32, height:32, border:"none", cursor:"pointer", background:"none", padding:0 }} />
+                      <input type="text" value={publicTheme.accentSoft} onChange={e => update({ accentSoft: e.target.value })}
+                        style={{ flex:1, border:"none", outline:"none", fontSize:13, color:BRAND.aubergine, fontFamily:"monospace" }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop:24, padding:"14px 16px", background:"#f9f7fa", borderRadius:10, border:"1px solid #ebe4ea" }}>
+                  <div style={{ fontSize:11, color:"#888", marginBottom:8, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Wie werden Veranstaltungen öffentlich?</div>
+                  <div style={{ fontSize:12, color:"#666", lineHeight:1.55 }}>
+                    Beim Anlegen oder Bearbeiten eines Termins im Adminbereich aktivieren Sie die Option <strong style={{ color: publicTheme.accentColor }}>„Öffentlich sichtbar"</strong>. Dort können Sie auch eine Beschreibung für Ihre Gäste eintragen und ein Symbol auswählen, das auf der Veranstaltungs-Seite gezeigt wird.
+                  </div>
+                </div>
+
+                <div style={{ display:"flex", gap:10, marginTop:24 }}>
+                  <button onClick={() => savePublicTheme(DEFAULT_PUBLIC_THEME)}
+                    style={{ flex:1, padding:"12px", background:"transparent", color:"#888", border:"1px solid #e0d8de", borderRadius:8, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                    Auf Standard zurücksetzen
+                  </button>
+                  <button onClick={close}
+                    style={{ flex:1, padding:"12px", background:publicTheme.accentColor, color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                    Schließen
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Design Modals (Kunden- + Admin-Ansicht) */}
         {(showDesign || showDesignAdmin) && (() => {
@@ -3281,7 +3422,27 @@ export default function App() {
                     <textarea placeholder="Text für Kunden…" value={adminForm.publicText} onChange={e => setAdminForm(f=>({...f, publicText:e.target.value}))} style={{ ...inputStyle, height:50, resize:"vertical", fontSize:13, marginBottom:6 }} />
                     <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Veranstaltungsort</label>
                     <input placeholder="Adresse" value={adminForm.contactAddress} onChange={e => setAdminForm(f=>({...f, contactAddress:e.target.value}))}
-                      style={{ ...inputStyle, marginBottom:0, fontSize:13, padding:"8px 10px" }} />
+                      style={{ ...inputStyle, marginBottom:10, fontSize:13, padding:"8px 10px" }} />
+                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Symbol für die Kachel</label>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:6 }}>
+                      {[
+                        { id:"yoga", label:"Yoga", gradient:"linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg> },
+                        { id:"flower", label:"Blume", gradient:"linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><path d="M12 2v6m0 0c-1.5 0-3 .5-4 1.5C7 10.5 6.5 12 6.5 13.5S7 16.5 8 17.5s2.5 1.5 4 1.5 3-.5 4-1.5 1.5-2.5 1.5-4-.5-3-1.5-4S13.5 8 12 8z"/></svg> },
+                        { id:"sound", label:"Klang", gradient:"linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg> },
+                        { id:"leaf", label:"Blatt", gradient:"linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg> },
+                        { id:"circle", label:"Kreis", gradient:"linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)", svg:<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg> },
+                      ].map(opt => {
+                        const active = (adminForm.publicIcon || "yoga") === opt.id;
+                        return (
+                          <button key={opt.id} type="button" onClick={() => setAdminForm(f => ({ ...f, publicIcon: opt.id }))}
+                            title={opt.label}
+                            style={{ padding:0, border: active ? "2px solid #009a93" : "1px solid #e0d8de", borderRadius:8, background:"#fff", cursor:"pointer", overflow:"hidden", transition:"all .15s", boxShadow: active ? "0 2px 8px rgba(0,154,147,0.25)" : "none" }}>
+                            <div style={{ background: opt.gradient, height:46, display:"flex", alignItems:"center", justifyContent:"center" }}>{opt.svg}</div>
+                            <div style={{ fontSize:10, padding:"4px 2px", color: active ? "#009a93" : "#888", fontWeight: active ? 600 : 400 }}>{opt.label}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -4029,7 +4190,7 @@ export default function App() {
                         const editSub = () => {
                           const src = sub._isMain ? ev : sub;
                           setEditingSubIndex(sub._isMain ? -1 : subIndex);
-                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "", price: src.price || "", paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "", cleaningFee: !!src.cleaningFee, reminders: src.reminders || { checklist:null, items:{} } });
+                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, publicIcon: src.publicIcon || "yoga", isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "", price: src.price || "", paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "", cleaningFee: !!src.cleaningFee, reminders: src.reminders || { checklist:null, items:{} } });
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
                         return (
@@ -4208,6 +4369,196 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* ============== ÖFFENTLICHE VERANSTALTUNGEN MODAL ============== */}
+      {modalView === "publicEvents" && (() => {
+        // Alle öffentlichen Events sammeln (Haupt + Sub) ab heute
+        const publicList = [];
+        Object.entries(events).forEach(([key, ev]) => {
+          if (key < todayKey) return;
+          if (!ev || ev.status === "deleted") return;
+          if (ev.isPublic) publicList.push({ key, ev, subIndex: -1 });
+          (ev.subEvents || []).forEach((sub, i) => {
+            if (sub && sub.status !== "deleted" && sub.isPublic) {
+              publicList.push({ key, ev: sub, subIndex: i });
+            }
+          });
+        });
+        publicList.sort((a,b) => {
+          if (a.key !== b.key) return a.key.localeCompare(b.key);
+          return (a.ev.startTime || "").localeCompare(b.ev.startTime || "");
+        });
+
+        // Welche Tage haben öffentliche Events?
+        const publicDayKeys = new Set(publicList.map(p => p.key));
+
+        // Mini-Kalender-Daten für aktuellen Monat
+        const pDays = getMonthDays(publicYear, publicMonth);
+        const monthName = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][publicMonth];
+        const prevPM = () => { if (publicMonth === 0) { setPublicMonth(11); setPublicYear(y=>y-1); } else setPublicMonth(m=>m-1); };
+        const nextPM = () => { if (publicMonth === 11) { setPublicMonth(0); setPublicYear(y=>y+1); } else setPublicMonth(m=>m+1); };
+
+        // Hintergrund-Pattern für Kacheln (rotierende Farbverläufe basierend auf Eventtyp/Index)
+        const tilePatterns = [
+          { gradient: "linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)", icon: "yoga" },
+          { gradient: "linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)", icon: "flower" },
+          { gradient: "linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)", icon: "sound" },
+          { gradient: "linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)", icon: "leaf" },
+          { gradient: "linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)", icon: "circle" },
+        ];
+        const iconSVG = {
+          yoga: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>,
+          flower: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2v6m0 0c-1.5 0-3 .5-4 1.5C7 10.5 6.5 12 6.5 13.5S7 16.5 8 17.5s2.5 1.5 4 1.5 3-.5 4-1.5 1.5-2.5 1.5-4-.5-3-1.5-4S13.5 8 12 8z"/></svg>,
+          sound: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg>,
+          leaf: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg>,
+          circle: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>,
+        };
+        // Pattern auswählen: bevorzugt aus ev.publicIcon, sonst rotiert per Index
+        const patternFor = (item, idx) => {
+          if (item.ev.publicIcon) {
+            const found = tilePatterns.find(p => p.icon === item.ev.publicIcon);
+            if (found) return found;
+          }
+          return tilePatterns[idx % tilePatterns.length];
+        };
+
+        // Wochentag-Abkürzungen
+        const wdShort = ["So","Mo","Di","Mi","Do","Fr","Sa"];
+        const monShort = ["Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+
+        return (
+        <div onClick={() => { setModalView(null); setPublicEventDetail(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW > 600 ? 18 : 0, width:"100%", maxWidth:760, padding: winW > 600 ? "24px 28px" : "20px 16px", boxShadow:"0 24px 60px rgba(0,0,0,0.18)", minHeight: winW > 600 ? "auto" : "100vh" }}>
+
+            {/* Header */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+              <button onClick={() => { setModalView(null); setPublicEventDetail(null); }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#ede8ed"; e.currentTarget.style.color = publicTheme.accentColor; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#f5f3f4"; e.currentTarget.style.color = "#888"; }}
+                style={{ background:"#f5f3f4", border:"none", color:"#888", borderRadius:"50%", width:36, height:36, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 5l-7 7 7 7"/></svg>
+              </button>
+              <div style={{ flex:1, minWidth:0 }}>
+                <h2 style={{ margin:0, fontSize: winW > 600 ? 22 : 18, fontWeight:700, color: publicTheme.accentColor, letterSpacing:0.5, lineHeight:1.2 }}>{publicTheme.pageTitle}</h2>
+                <div style={{ fontSize:12, color:"#888", marginTop:3 }}>{publicTheme.pageSubtitle}</div>
+              </div>
+            </div>
+
+            {/* Intro */}
+            {publicTheme.introText && (
+              <div style={{ fontSize:13, color:"#666", lineHeight:1.55, marginBottom:18, padding:"0 4px" }}>{publicTheme.introText}</div>
+            )}
+
+            {/* Mini-Kalender */}
+            <div style={{ background:"#faf7fa", borderRadius:12, padding:"12px 14px", marginBottom:20 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                <button onClick={prevPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>‹</button>
+                <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{monthName} {publicYear}</div>
+                <button onClick={nextPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>›</button>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:4, marginBottom:4 }}>
+                {["Mo","Di","Mi","Do","Fr","Sa","So"].map(d => (
+                  <div key={d} style={{ textAlign:"center", fontSize:9, color:BRAND.aubergine, fontWeight:600, letterSpacing:1, textTransform:"uppercase", padding:"3px 0" }}>{d}</div>
+                ))}
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:4 }}>
+                {pDays.map((day, i) => {
+                  if (!day) return <div key={`pe${i}`} />;
+                  const dKey = dateKey(publicYear, publicMonth, day);
+                  const hasPublic = publicDayKeys.has(dKey);
+                  const isPast = dKey < todayKey;
+                  return (
+                    <button key={dKey} onClick={() => {
+                      if (!hasPublic) return;
+                      // Erstes öffentliches Event an diesem Tag öffnen
+                      const found = publicList.find(p => p.key === dKey);
+                      if (found) setPublicEventDetail(found);
+                    }}
+                      disabled={!hasPublic}
+                      style={{ aspectRatio:"1", background: hasPublic ? publicTheme.accentSoft : "#fff", border: hasPublic ? `1.5px solid ${publicTheme.accentColor}` : "1px solid #e8e0e5", borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: hasPublic ? "pointer" : "default", padding:0, opacity: isPast ? 0.4 : 1, transition:"all .15s" }}>
+                      <span style={{ fontSize:11, fontWeight: hasPublic ? 600 : 400, color: hasPublic ? publicTheme.accentColor : BRAND.aubergine, lineHeight:1 }}>{day}</span>
+                      {hasPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: publicTheme.accentColor, marginTop:2 }} />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ textAlign:"center", fontSize:11, color:"#aaa", marginTop:8, fontStyle:"italic" }}>Tippen Sie auf einen Tag mit Punkt für Details</div>
+            </div>
+
+            {/* Kachel-Übersicht */}
+            <h3 style={{ margin:"0 0 12px", fontSize:14, fontWeight:600, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5 }}>Kommende Termine</h3>
+            {publicList.length === 0 ? (
+              <div style={{ padding:"32px 20px", background:"#faf7fa", borderRadius:12, textAlign:"center", color:"#999", fontSize:13, fontStyle:"italic" }}>
+                {publicTheme.emptyMessage}
+              </div>
+            ) : (
+              <div style={{ display:"grid", gridTemplateColumns: winW > 560 ? "repeat(2, 1fr)" : "1fr", gap:12 }}>
+                {publicList.map((item, idx) => {
+                  const { ev, key } = item;
+                  const pat = patternFor(item, idx);
+                  const [yy,mm,dd] = key.split("-").map(Number);
+                  const wd = wdShort[new Date(yy,mm-1,dd).getDay()];
+                  return (
+                    <div key={`${key}-${item.subIndex}`} onClick={() => setPublicEventDetail(item)}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                      style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
+                      <div style={{ background: pat.gradient, height:120, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {iconSVG[pat.icon]}
+                      </div>
+                      <div style={{ padding:"12px 14px" }}>
+                        <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>{wd} · {dd}. {monShort[mm-1]}{ev.startTime ? ` · ${ev.startTime}` : ""}</div>
+                        <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginTop:3 }}>{ev.label || "Veranstaltung"}</div>
+                        {ev.publicText && <div style={{ fontSize:11, color:"#888", marginTop:5, lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{ev.publicText}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Detail-Overlay */}
+            {publicEventDetail && (() => {
+              const { ev, key, subIndex } = publicEventDetail;
+              const idx = publicList.findIndex(p => p.key === key && p.subIndex === subIndex);
+              const pat = patternFor(publicEventDetail, idx >= 0 ? idx : 0);
+              const [yy,mm,dd] = key.split("-").map(Number);
+              const wd = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
+              const monthFull = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][mm-1];
+              return (
+                <div onClick={() => setPublicEventDetail(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                  <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", overflowY:"auto" }}>
+                    <div style={{ background: pat.gradient, height:180, display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
+                      <div style={{ width:64, height:64 }}>{iconSVG[pat.icon]}</div>
+                      <button onClick={() => setPublicEventDetail(null)}
+                        style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                      </button>
+                    </div>
+                    <div style={{ padding:"20px 24px 24px" }}>
+                      <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:6 }}>{wd}, {dd}. {monthFull} {yy}{ev.startTime ? ` · ${ev.startTime}${ev.endTime ? ` – ${ev.endTime}` : ""} Uhr` : ""}</div>
+                      <h3 style={{ margin:"0 0 10px", fontSize:20, fontWeight:700, color:BRAND.aubergine }}>{ev.label || "Veranstaltung"}</h3>
+                      {ev.publicText ? (
+                        <div style={{ fontSize:14, color:"#555", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{ev.publicText}</div>
+                      ) : (
+                        <div style={{ fontSize:13, color:"#999", fontStyle:"italic" }}>Weitere Informationen auf Anfrage.</div>
+                      )}
+                      {ev.contactAddress && (
+                        <div style={{ fontSize:12, color:"#888", marginTop:14, paddingTop:14, borderTop:"1px solid #f0e8ee", display:"flex", alignItems:"flex-start", gap:8 }}>
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
+                          <span>{ev.contactAddress}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+          </div>
+        </div>
+        );
+      })()}
 
 
 
