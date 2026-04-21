@@ -1713,9 +1713,12 @@ export default function App() {
             {!isDesk && (
               <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3, display:"flex", flexDirection:"column", gap:8, alignItems:"flex-end" }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  title="Veranstaltungen"
-                  style={{ background:"#fff", color:BRAND.lila, border:`2px solid ${BRAND.lila}`, borderRadius:10, width:44, height:44, padding:0, fontSize:20, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 12px rgba(0,0,0,0.2)", lineHeight:1, flexShrink:0 }}>
-                  V
+                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.4 }}>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#fff" strokeWidth="1.6"/>
+                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                  Veranstaltungen
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
                   style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
@@ -1901,12 +1904,12 @@ export default function App() {
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
                 }}>
-                {/* Ganztaegige Veranstaltung: violette Ecke oben rechts */}
-                {hasAllDayVeranst && <div style={{ position:"absolute", top:0, right:0, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, background: BRAND.lila, clipPath:"polygon(100% 0, 0 0, 100% 100%)", borderTopRightRadius: winW > 900 ? 10 : 8, pointerEvents:"none", zIndex:1 }} />}
+                {/* Ganztaegige Veranstaltung: farbige Ecke oben rechts (Admin=lila, Kunde=türkis) */}
+                {hasAllDayVeranst && <div style={{ position:"absolute", top:0, right:0, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, background: isAdmin ? BRAND.lila : publicTheme.accentColor, clipPath:"polygon(100% 0, 0 0, 100% 100%)", borderTopRightRadius: winW > 900 ? 10 : 8, pointerEvents:"none", zIndex:1 }} />}
                 {/* Series indicator for admin - S badge */}
                 {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box", zIndex:2 }}>S</div>}
-                {/* Zeittermin-Veranstaltung: V-Badge (unter S-Badge falls Serie, sonst oben rechts, violett auf weiss) */}
-                {hasTimedVeranst && <div style={{ position:"absolute", top: winW > 900 ? (isSeriesAdmin ? 26 : 4) : (isSeriesAdmin ? 20 : 4), right:4, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box", zIndex:2 }}>V</div>}
+                {/* Zeittermin-Veranstaltung: V-Badge (Admin=lila, Kunde=türkis, unter S-Badge falls Serie) */}
+                {hasTimedVeranst && <div style={{ position:"absolute", top: winW > 900 ? (isSeriesAdmin ? 26 : 4) : (isSeriesAdmin ? 20 : 4), right:4, background:"#fff", color: isAdmin ? BRAND.lila : publicTheme.accentColor, border:`1.5px solid ${isAdmin ? BRAND.lila : publicTheme.accentColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box", zIndex:2 }}>V</div>}
                 {/* Pending indicator for admin */}
                 {isPending && !isPast && ev.allDay && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
@@ -5072,14 +5075,19 @@ export default function App() {
                 {pDays.map((day, i) => {
                   if (!day) return <div key={`pe${i}`} />;
                   const dKey = dateKey(publicYear, publicMonth, day);
-                  const hasPublic = publicDayKeys.has(dKey);
+                  const dayVeranst = veranstaltungDateMap[dKey] || [];
+                  const hasAllDay = dayVeranst.some(x => x.dateEntry.allDay);
+                  const hasTimed  = dayVeranst.some(x => !x.dateEntry.allDay);
+                  const hasPublic = hasAllDay || hasTimed;
                   const isPast = dKey < todayKey;
                   return (
                     <button key={dKey} onClick={() => { if (hasPublic) openByDay(dKey); }}
                       disabled={!hasPublic}
-                      style={{ aspectRatio:"1", background: hasPublic ? publicTheme.accentSoft : "#fff", border: hasPublic ? `1.5px solid ${publicTheme.accentColor}` : "1px solid #e8e0e5", borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: hasPublic ? "pointer" : "default", padding:0, opacity: isPast ? 0.4 : 1, transition:"all .15s" }}>
+                      style={{ aspectRatio:"1", background: hasTimed ? publicTheme.accentSoft : "#fff", border: hasTimed ? `1.5px solid ${publicTheme.accentColor}` : (hasAllDay ? "1px solid #e8e0e5" : "1px solid #e8e0e5"), borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: hasPublic ? "pointer" : "default", padding:0, opacity: isPast ? 0.4 : 1, transition:"all .15s", position:"relative", overflow:"hidden" }}>
+                      {/* Ganztägige Veranstaltung: türkise Ecke oben rechts */}
+                      {hasAllDay && <div style={{ position:"absolute", top:0, right:0, width:12, height:12, background: publicTheme.accentColor, clipPath:"polygon(100% 0, 0 0, 100% 100%)", pointerEvents:"none" }} />}
                       <span style={{ fontSize:11, fontWeight: hasPublic ? 600 : 400, color: hasPublic ? publicTheme.accentColor : BRAND.aubergine, lineHeight:1 }}>{day}</span>
-                      {hasPublic && <div style={{ width:5, height:5, borderRadius:"50%", background: publicTheme.accentColor, marginTop:2 }} />}
+                      {hasTimed && <div style={{ width:5, height:5, borderRadius:"50%", background: publicTheme.accentColor, marginTop:2 }} />}
                     </button>
                   );
                 })}
