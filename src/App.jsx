@@ -787,7 +787,8 @@ export default function App() {
   const [adminTheme, setAdminTheme] = useState(DEFAULT_ADMIN_THEME);
   const [publicTheme, setPublicTheme] = useState(DEFAULT_PUBLIC_THEME);
   const [showDesignPublic, setShowDesignPublic] = useState(false);
-  const [publicEventDetail, setPublicEventDetail] = useState(null); // { dateKey, ev, subIndex } - alt; fuer neue API: { veranstaltung }
+  const [publicEventDetail, setPublicEventDetail] = useState(null); // { veranstaltung } | { veranstaltung, focusDate }
+  const [publicDayPicker, setPublicDayPicker] = useState(null); // { dateKey, candidates: [veranstaltung, ...] } - Auswahl bei mehreren
   const [publicMonth, setPublicMonth] = useState(new Date().getMonth());
   const [publicYear, setPublicYear] = useState(new Date().getFullYear());
   // Veranstaltungen — eigenständige Entität mit eigenen Terminen, blockieren keine Tage
@@ -1014,9 +1015,11 @@ export default function App() {
     if (!day) return;
     const key = dateKey(year, month, day);
     const ev = events[key]?.status === "deleted" ? null : events[key];
+    const hasVer = hasVeranstaltungAtDate(key);
     setSelectedDate(key);
     if (isAdmin) {
-      if (ev) {
+      if (ev || hasVer) {
+        // Info-Modal zeigt regulaere Events UND Veranstaltungs-Termine
         setFromCalendar(true);
         setModalView("info");
       } else {
@@ -1842,6 +1845,7 @@ export default function App() {
             const isToday = key === todayKey;
             const isPast = key < todayKey;
             const customerBooked = !isAdmin && ev && (ev.status === "booked" || ev.status === "blocked") && ev.allDay && !ev.isSeries;
+            const customerPartial = !isAdmin && ev && !ev.allDay && !ev.isSeries && (ev.status === "booked" || ev.status === "blocked");
             const customerSeries = !isAdmin && ev && ev.isSeries;
             const customerFree = !isAdmin && (!ev || ev.status === "pending" || ev.isSeries || !ev.allDay);
             const hasVeranst = hasVeranstaltungAtDate(key);
@@ -1864,8 +1868,8 @@ export default function App() {
                 }}>
                 {/* Series indicator for admin - S badge */}
                 {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>S</div>}
-                {/* Public indicator - V badge (oben links, analog zum S-Badge, violett auf weiss) */}
-                {hasVeranst && <div style={{ position:"absolute", top:4, left:4, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>V</div>}
+                {/* Public indicator - V badge (unter dem S-Badge, violett auf weiss) */}
+                {hasVeranst && <div style={{ position:"absolute", top: winW > 900 ? (isSeriesAdmin ? 26 : 4) : (isSeriesAdmin ? 20 : 4), right:4, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box" }}>V</div>}
                 {/* Pending indicator for admin */}
                 {isPending && !isPast && ev.allDay && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
@@ -1874,6 +1878,25 @@ export default function App() {
                 )}
                 <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin && !ev.isSeries) || customerBooked ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? adminTheme.todayColor : customerBooked ? BRAND.lila : ev && isAdmin && !ev.isSeries && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ display:"flex", gap:2, marginTop:2 }}><div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.lila }} /></div>}
+                {customerPartial && (() => {
+                  // Zähle Zeit-Termine (Haupt + Subs mit booked/blocked, nicht ganztägig)
+                  let count = 1;
+                  (ev.subEvents || []).forEach(s => {
+                    if (s && !s.allDay && s.status !== "deleted" && (s.status === "booked" || s.status === "blocked")) count++;
+                  });
+                  const visible = Math.min(count, 3);
+                  const thickness = winW > 900 ? 3 : 2;
+                  const gap = winW > 900 ? 2 : 1.5;
+                  const bottomPad = winW > 900 ? 5 : 3;
+                  const sidePad = winW > 900 ? 8 : 6;
+                  return (
+                    <div style={{ position:"absolute", bottom: bottomPad, left: sidePad, right: sidePad, display:"flex", flexDirection:"column", gap: gap+"px", pointerEvents:"none" }}>
+                      {Array.from({ length: visible }).map((_, i) => (
+                        <div key={i} style={{ height: thickness, background: BRAND.lila, opacity: isPast ? 0.3 : 0.75, borderRadius:1.5 }} />
+                      ))}
+                    </div>
+                  );
+                })()}
                 {ev && isAdmin && !ev.isSeries && (() => {
                   // Bänder-Darstellung: bei teilverbuchten Events (nicht ganztägig) — egal ob gebucht, Anfrage oder intern
                   // Jeder Termin (Haupt + SubEvents) bekommt einen eigenen Balken unten, Farbe je Einzelstatus
@@ -4565,11 +4588,12 @@ export default function App() {
             })()}
 
             {/* Info View */}
-            {modalView === "info" && events[selectedDate] && (() => {
-              const ev = events[selectedDate];
-              const et = eventTypes.find(e => e.id === ev.type);
-              const hasMultiple = isAdmin && ev.subEvents && ev.subEvents.length > 0;
-              const allRequests = isAdmin ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...(ev.subEvents || []).map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))].filter(s => s.status !== "deleted") : [];
+            {modalView === "info" && (events[selectedDate] || hasVeranstaltungAtDate(selectedDate)) && (() => {
+              const ev = events[selectedDate] || null;
+              const et = ev ? eventTypes.find(e => e.id === ev.type) : null;
+              const hasMultiple = ev && isAdmin && ev.subEvents && ev.subEvents.length > 0;
+              const allRequests = ev && isAdmin ? [{ ...ev, _isMain: true, _subIndex: -1 }, ...(ev.subEvents || []).map((s, i) => ({ ...s, _isMain: false, _subIndex: i }))].filter(s => s.status !== "deleted") : [];
+              const veranstAtDay = veranstaltungDateMap[selectedDate] || [];
               return (
                 <>
                   <div style={{ marginBottom: 16 }}>
@@ -4577,7 +4601,35 @@ export default function App() {
                   </div>
                   {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:8, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
 
-                  {isAdmin ? (
+                  {/* Veranstaltungen dieses Tages (klickbar — oeffnet Veranstaltungs-Editor) */}
+                  {isAdmin && veranstAtDay.length > 0 && (
+                    <div style={{ marginBottom: 10 }}>
+                      {veranstAtDay.map((item, idx) => {
+                        const v = item.veranstaltung;
+                        const d = item.dateEntry;
+                        return (
+                          <div key={`vat-${idx}`} onClick={() => {
+                            setModalView(null);
+                            setShowVeranstaltungenAdmin(true);
+                            setEditingVeranstaltungId(v.id);
+                            setVeranstaltungDraft(JSON.parse(JSON.stringify(v)));
+                          }}
+                            onMouseEnter={e => { e.currentTarget.style.background = `${BRAND.lila}08`; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+                            style={{ background:"#fff", borderRadius:8, padding:"10px 14px", marginBottom:8, borderLeft:`3px solid ${BRAND.lila}`, border:`1px solid ${BRAND.lila}30`, borderLeftWidth:3, cursor:"pointer", transition:"background .15s", display:"flex", alignItems:"center", gap:10 }}>
+                            <div style={{ background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize:10, fontWeight:700, width:20, height:20, borderRadius:4, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>V</div>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600 }}>{v.title || "Veranstaltung"}</div>
+                              <div style={{ fontSize:12, color:"#888", marginTop:2 }}><ClockIcon color="#bbb" />{d?.allDay ? "Ganztägig" : `${d?.startTime || ""} – ${d?.endTime || ""}`}{d?.seriesId ? " · Serie" : ""}</div>
+                            </div>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M9 5l7 7-7 7"/></svg>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {isAdmin && ev ? (
                     <div style={{ marginBottom:10 }}>
                       {allRequests.map((sub, idx) => {
                         const subColor = (sub.status === "blocked" || sub.isSeries) ? "#009a93" : sub.status === "pending" ? BRAND.aprikot : BRAND.aubergine;
@@ -4660,7 +4712,7 @@ export default function App() {
                         );
                       })}
                     </div>
-                  ) : (
+                  ) : ev ? (
                     <div style={{ padding:"16px 0" }}>
                       {ev.isPublic ? (
                         <>
@@ -4699,9 +4751,9 @@ export default function App() {
                         </a>
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
-                  {isAdmin && fromCalendar && !ev.allDay && (
+                  {ev && isAdmin && fromCalendar && !ev.allDay && (
                     <button onClick={() => {
                       setAdminForm({ type:"booked", label:"", note:"", startTime: ev.endTime || "13:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, addToExisting:true, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, groupName:"", customerEmail:"", customerPhone:"", price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
                       setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
@@ -4769,28 +4821,31 @@ export default function App() {
 
       {/* ============== ÖFFENTLICHE VERANSTALTUNGEN MODAL ============== */}
       {modalView === "publicEvents" && (() => {
-        // Nur Veranstaltungen mit mindestens einem zukünftigen Termin anzeigen
-        const visibleVeranstaltungen = (veranstaltungen || []).filter(v => (v.dates || []).some(d => d.date >= todayKey));
+        // Alle Veranstaltungen mit mindestens einem Termin im aktuell angezeigten Kalenderjahr
+        const yearStr = String(publicYear);
+        const visibleVeranstaltungen = (veranstaltungen || []).filter(v => (v.dates || []).some(d => d.date?.slice(0,4) === yearStr));
         const nextDateOf = (v) => {
           const future = (v.dates || []).filter(d => d.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date));
           return future[0] || null;
         };
-        // Nach frühestem zukünftigen Termin sortieren
+        // Nach frühestem zukünftigen Termin sortieren (oder nach erstem Termin im Jahr falls keine zukünftigen)
         const sortedVeranstaltungen = [...visibleVeranstaltungen].sort((a,b) => {
-          const na = nextDateOf(a)?.date || "9999";
-          const nb = nextDateOf(b)?.date || "9999";
+          const na = nextDateOf(a)?.date || ((a.dates||[]).filter(d => d.date?.slice(0,4) === yearStr).sort((x,y) => x.date.localeCompare(y.date))[0]?.date) || "9999";
+          const nb = nextDateOf(b)?.date || ((b.dates||[]).filter(d => d.date?.slice(0,4) === yearStr).sort((x,y) => x.date.localeCompare(y.date))[0]?.date) || "9999";
           return na.localeCompare(nb);
         });
 
-        // Welche Tage haben öffentliche Veranstaltungen?
+        // Welche Tage haben öffentliche Veranstaltungen (nur zukünftige)?
         const publicDayKeys = new Set();
-        sortedVeranstaltungen.forEach(v => (v.dates || []).forEach(d => { if (d.date >= todayKey) publicDayKeys.add(d.date); }));
+        (veranstaltungen || []).forEach(v => (v.dates || []).forEach(d => { if (d.date >= todayKey) publicDayKeys.add(d.date); }));
 
         // Mini-Kalender-Daten
         const pDays = getMonthDays(publicYear, publicMonth);
         const monthName = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"][publicMonth];
         const prevPM = () => { if (publicMonth === 0) { setPublicMonth(11); setPublicYear(y=>y-1); } else setPublicMonth(m=>m-1); };
         const nextPM = () => { if (publicMonth === 11) { setPublicMonth(0); setPublicYear(y=>y+1); } else setPublicMonth(m=>m+1); };
+        const isCurrentMonth = publicMonth === today.getMonth() && publicYear === today.getFullYear();
+        const goToToday = () => { setPublicMonth(today.getMonth()); setPublicYear(today.getFullYear()); };
 
         const tilePatterns = [
           { id:"yoga",   gradient: "linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)" },
@@ -4812,18 +4867,24 @@ export default function App() {
         const monShort = ["Jän","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
         const monthFullArr = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 
+        // Klick auf einen markierten Tag im Kunden-Kalender
         const openByDay = (dKey) => {
-          const hit = sortedVeranstaltungen.find(v => (v.dates || []).some(d => d.date === dKey));
-          if (hit) setPublicEventDetail({ veranstaltung: hit });
+          const candidates = (veranstaltungen || []).filter(v => (v.dates || []).some(d => d.date === dKey));
+          if (candidates.length === 0) return;
+          if (candidates.length === 1) {
+            setPublicEventDetail({ veranstaltung: candidates[0], focusDate: dKey });
+          } else {
+            setPublicDayPicker({ dateKey: dKey, candidates });
+          }
         };
 
         return (
-        <div onClick={() => { setModalView(null); setPublicEventDetail(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
+        <div onClick={() => { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW > 600 ? 18 : 0, width:"100%", maxWidth:760, padding: winW > 600 ? "24px 28px" : "20px 16px", boxShadow:"0 24px 60px rgba(0,0,0,0.18)", minHeight: winW > 600 ? "auto" : "100vh" }}>
 
             {/* Header */}
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
-              <button onClick={() => { setModalView(null); setPublicEventDetail(null); }}
+              <button onClick={() => { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); }}
                 onMouseEnter={e => { e.currentTarget.style.background = "#ede8ed"; e.currentTarget.style.color = publicTheme.accentColor; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "#f5f3f4"; e.currentTarget.style.color = "#888"; }}
                 style={{ background:"#f5f3f4", border:"none", color:"#888", borderRadius:"50%", width:36, height:36, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
@@ -4844,7 +4905,15 @@ export default function App() {
             <div style={{ background:"#faf7fa", borderRadius:12, padding:"12px 14px", marginBottom:20 }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
                 <button onClick={prevPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>‹</button>
-                <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{monthName} {publicYear}</div>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{monthName} {publicYear}</div>
+                  {!isCurrentMonth && (
+                    <button onClick={goToToday}
+                      style={{ background:"none", border:`1px solid ${publicTheme.accentColor}50`, color: publicTheme.accentColor, padding:"1px 10px", borderRadius:10, fontSize:10, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>
+                      Heute
+                    </button>
+                  )}
+                </div>
                 <button onClick={nextPM} style={{ background:"none", border:"none", color:"#aaa", fontSize:18, cursor:"pointer", padding:"4px 8px", lineHeight:1 }}>›</button>
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(7, 1fr)", gap:4, marginBottom:4 }}>
@@ -4872,7 +4941,7 @@ export default function App() {
             </div>
 
             {/* Kachel-Übersicht */}
-            <h3 style={{ margin:"0 0 12px", fontSize:14, fontWeight:600, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5 }}>Unsere Veranstaltungen</h3>
+            <h3 style={{ margin:"0 0 12px", fontSize:14, fontWeight:600, color:BRAND.aubergine, textTransform:"uppercase", letterSpacing:1.5 }}>Veranstaltungen {publicYear}</h3>
             {sortedVeranstaltungen.length === 0 ? (
               <div style={{ padding:"32px 20px", background:"#faf7fa", borderRadius:12, textAlign:"center", color:"#999", fontSize:13, fontStyle:"italic" }}>
                 {publicTheme.emptyMessage}
@@ -4894,7 +4963,11 @@ export default function App() {
                         {iconSVG[pat.id]}
                       </div>
                       <div style={{ padding:"12px 14px" }}>
-                        {nxt && <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>{wd} · {dd}. {monShort[mm-1]}{nxt.allDay ? "" : (nxt.startTime ? ` · ${nxt.startTime}` : "")}{futureCount > 1 ? ` · +${futureCount-1} weitere` : ""}</div>}
+                        {nxt ? (
+                          <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>{wd} · {dd}. {monShort[mm-1]}{nxt.allDay ? "" : (nxt.startTime ? ` · ${nxt.startTime}` : "")}{futureCount > 1 ? ` · +${futureCount-1} weitere` : ""}</div>
+                        ) : (
+                          <div style={{ fontSize:10, color:"#aaa", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Termine in {publicYear}</div>
+                        )}
                         <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginTop:3 }}>{v.title || "Veranstaltung"}</div>
                         {v.description && <div style={{ fontSize:11, color:"#888", marginTop:5, lineHeight:1.45, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{v.description}</div>}
                       </div>
@@ -4904,11 +4977,58 @@ export default function App() {
               </div>
             )}
 
+            {/* Tag-Auswahl-Dialog bei mehreren Veranstaltungen am gleichen Tag */}
+            {publicDayPicker && (() => {
+              const [yy,mm,dd] = publicDayPicker.dateKey.split("-").map(Number);
+              const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
+              return (
+                <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                  <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:420, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)" }}>
+                    <div style={{ padding:"18px 22px 12px", borderBottom:"1px solid #f0e8ee", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                      <div>
+                        <div style={{ fontSize:10, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600 }}>Veranstaltungen am</div>
+                        <div style={{ fontSize:16, fontWeight:700, color:BRAND.aubergine, marginTop:2 }}>{wdLong}, {dd}. {monthFullArr[mm-1]} {yy}</div>
+                      </div>
+                      <button onClick={() => setPublicDayPicker(null)}
+                        style={{ background:"#f5f3f4", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888", flexShrink:0 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                      </button>
+                    </div>
+                    <div style={{ padding:"12px", display:"flex", flexDirection:"column", gap:8 }}>
+                      {publicDayPicker.candidates.map(v => {
+                        const pat = patternFor(v);
+                        const entry = (v.dates||[]).find(d => d.date === publicDayPicker.dateKey);
+                        return (
+                          <div key={v.id} onClick={() => { setPublicDayPicker(null); setPublicEventDetail({ veranstaltung: v, focusDate: publicDayPicker.dateKey }); }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#faf7fa"}
+                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
+                            style={{ display:"flex", alignItems:"center", gap:12, padding:"10px", border:"1px solid #eee4ed", borderRadius:10, cursor:"pointer", transition:"background .15s" }}>
+                            <div style={{ width:50, height:50, borderRadius:8, background: pat.gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                              {React.cloneElement(iconSVG[pat.id], { width:26, height:26 })}
+                            </div>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginBottom:2 }}>{v.title || "Veranstaltung"}</div>
+                              <div style={{ fontSize:11, color:"#888" }}>{entry?.allDay ? "ganztägig" : (entry ? `${entry.startTime} – ${entry.endTime} Uhr` : "")}</div>
+                            </div>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M9 5l7 7-7 7"/></svg>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Detail-Overlay */}
             {publicEventDetail && publicEventDetail.veranstaltung && (() => {
               const v = publicEventDetail.veranstaltung;
               const pat = patternFor(v);
+              const focusDate = publicEventDetail.focusDate || null;
+              const focusEntry = focusDate ? (v.dates || []).find(d => d.date === focusDate) : null;
               const futureDates = (v.dates || []).filter(d => d.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date));
+              const telPlain = v.contactPhone ? v.contactPhone.replace(/\s/g,"") : "";
+              const address = "Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee";
               return (
                 <div onClick={() => setPublicEventDetail(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", overflowY:"auto" }}>
@@ -4927,8 +5047,20 @@ export default function App() {
                         <div style={{ fontSize:13, color:"#999", fontStyle:"italic", marginBottom:16 }}>Weitere Informationen auf Anfrage.</div>
                       )}
 
-                      {/* Termine-Liste */}
-                      {futureDates.length > 0 && (
+                      {/* Termin(e) */}
+                      {focusEntry ? (() => {
+                        const [yy2,mm2,dd2] = focusEntry.date.split("-").map(Number);
+                        const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
+                        return (
+                          <div style={{ marginBottom:16 }}>
+                            <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Termin</div>
+                            <div style={{ padding:"10px 12px", background: publicTheme.accentSoft, borderRadius:8, fontSize:14, color:BRAND.aubergine, display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, border:`1px solid ${publicTheme.accentColor}30` }}>
+                              <span style={{ fontWeight:600 }}>{wdLong}, {dd2}. {monthFullArr[mm2-1]} {yy2}</span>
+                              <span style={{ fontSize:13, color:"#555", flexShrink:0, fontWeight:500 }}>{focusEntry.allDay ? "ganztägig" : `${focusEntry.startTime} – ${focusEntry.endTime} Uhr`}</span>
+                            </div>
+                          </div>
+                        );
+                      })() : futureDates.length > 0 && (
                         <div style={{ marginBottom:16 }}>
                           <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Kommende Termine</div>
                           <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
@@ -4946,13 +5078,25 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* Ansprechpartner */}
-                      {(v.contactName || v.contactPhone) && (
-                        <div style={{ paddingTop:14, borderTop:"1px solid #f0e8ee", display:"flex", flexDirection:"column", gap:6 }}>
-                          <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Kontakt</div>
-                          {v.contactName && <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>{v.contactName}</div>}
-                          {v.contactPhone && <a href={`tel:${v.contactPhone.replace(/\s/g,"")}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
-                        </div>
+                      {/* Kontakt + Adresse */}
+                      <div style={{ paddingTop:14, borderTop:"1px solid #f0e8ee", display:"flex", flexDirection:"column", gap:6 }}>
+                        <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Kontakt</div>
+                        {v.contactName && <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>{v.contactName}</div>}
+                        {v.contactPhone && <a href={`tel:${telPlain}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
+                        <a href={`https://maps.google.com/?q=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize:13, color:"#777", textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2 }}>
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
+                          <span>{address}</span>
+                        </a>
+                      </div>
+
+                      {/* Anmelden-Button — nur im focus-Modus (Tag-Klick) und wenn Telefon vorhanden */}
+                      {focusEntry && telPlain && (
+                        <a href={`tel:${telPlain}`}
+                          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginTop:18, padding:"14px 0", background: publicTheme.accentColor, color:"#fff", borderRadius:10, textDecoration:"none", fontWeight:700, fontSize:15, letterSpacing:0.5 }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                          Anmelden
+                        </a>
                       )}
                     </div>
                   </div>
