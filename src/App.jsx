@@ -808,6 +808,7 @@ export default function App() {
   const [publicTheme, setPublicTheme] = useState(DEFAULT_PUBLIC_THEME);
   const [showDesignPublic, setShowDesignPublic] = useState(false);
   const [publicEventDetail, setPublicEventDetail] = useState(null); // { veranstaltung } | { veranstaltung, focusDate }
+  useEffect(() => { setShowAllDates(false); }, [publicEventDetail?.veranstaltung?.id]);
   const [publicEventsPullY, setPublicEventsPullY] = useState(0);
   const [publicDetailPullY, setPublicDetailPullY] = useState(0);
   const [publicDayPicker, setPublicDayPicker] = useState(null); // { dateKey, candidates: [veranstaltung, ...] } - Auswahl bei mehreren
@@ -822,6 +823,7 @@ export default function App() {
   const [editingSeriesInfo, setEditingSeriesInfo] = useState(null); // { seriesId, startTime, endTime, allDay }
   const [draggedVeranstId, setDraggedVeranstId] = useState(null);
   const [dragOverVeranstId, setDragOverVeranstId] = useState(null);
+  const [showAllDates, setShowAllDates] = useState(false); // "Alle Termine anzeigen" im Detail-Modal
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
   useEffect(() => { setVeranstImageError(false); setShowIconPicker(false); setExpandedVeranstSeries({}); setEditingSeriesInfo(null); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
   const [veranstaltungDatePicker, setVeranstaltungDatePicker] = useState(null); // null | { mode: "single" | "series", data }
@@ -5310,36 +5312,44 @@ export default function App() {
               const [yy,mm,dd] = publicDayPicker.dateKey.split("-").map(Number);
               const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
               return (
-                <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-                  <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:420, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)" }}>
-                    <div style={{ padding:"18px 22px 12px", borderBottom:"1px solid #f0e8ee", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.55)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                  <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, width:"100%", maxWidth:560, maxHeight:"90vh", overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.35)", display:"flex", flexDirection:"column" }}>
+                    <div style={{ padding:"22px 26px 18px", borderBottom:"1px solid #f0e8ee", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, flexShrink:0 }}>
                       <div>
-                        <div style={{ fontSize:10, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600 }}>Veranstaltungen am</div>
-                        <div style={{ fontSize:16, fontWeight:700, color:BRAND.aubergine, marginTop:2 }}>{wdLong}, {dd}. {monthFullArr[mm-1]} {yy}</div>
+                        <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{publicDayPicker.candidates.length} Veranstaltungen</div>
+                        <div style={{ fontSize: winW > 600 ? 22 : 19, fontWeight:700, color:BRAND.aubergine, lineHeight:1.2 }}>{wdLong}, {dd}. {monthFullArr[mm-1]} {yy}</div>
+                        <div style={{ fontSize:12, color:"#888", marginTop:6 }}>Wählen Sie eine Veranstaltung für Details</div>
                       </div>
                       <button onClick={() => setPublicDayPicker(null)}
-                        style={{ background:"#f5f3f4", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888", flexShrink:0 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                        style={{ background:"#f5f3f4", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888", flexShrink:0 }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
                       </button>
                     </div>
-                    <div style={{ padding:"12px", display:"flex", flexDirection:"column", gap:8 }}>
+                    <div style={{ padding:"16px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
                       {publicDayPicker.candidates.map(v => {
                         const pat = patternFor(v);
                         const entry = (v.dates||[]).find(d => d.date === publicDayPicker.dateKey);
+                        const timeLabel = entry?.allDay ? "Ganztägig" : (entry ? `${entry.startTime} – ${entry.endTime} Uhr` : "");
                         return (
                           <div key={v.id} onClick={() => { setPublicDayPicker(null); setPublicEventDetail({ veranstaltung: v, focusDate: publicDayPicker.dateKey }); }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#faf7fa"}
-                            onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-                            style={{ display:"flex", alignItems:"center", gap:12, padding:"10px", border:"1px solid #eee4ed", borderRadius:10, cursor:"pointer", transition:"background .15s" }}>
-                            <div style={{ width:50, height:50, borderRadius:8, flexShrink:0, background: pat.gradient, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
-                              {React.cloneElement(iconSVG[pat.id], { width:26, height:26 })}
+                            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)"; }}
+                            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
+                            style={{ background:"#fff", border:"1px solid #ece5ea", borderRadius:14, cursor:"pointer", transition:"all .2s ease", overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", display:"flex", flexDirection: winW > 500 ? "row" : "column" }}>
+                            <div style={{ position:"relative", flexShrink:0, width: winW > 500 ? 140 : "100%", height: winW > 500 ? "auto" : 120, minHeight: winW > 500 ? 100 : 120, background: pat.gradient, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                              {React.cloneElement(iconSVG[pat.id], { width: winW > 500 ? 38 : 48, height: winW > 500 ? 38 : 48 })}
                               {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                              <div style={{ position:"absolute", top:8, left:8, background:"rgba(255,255,255,0.95)", color: publicTheme.accentColor, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:4, letterSpacing:0.3, textTransform:"uppercase" }}>{timeLabel}</div>
                             </div>
-                            <div style={{ flex:1, minWidth:0 }}>
-                              <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginBottom:2 }}>{v.title || "Veranstaltung"}</div>
-                              <div style={{ fontSize:11, color:"#888" }}>{entry?.allDay ? "ganztägig" : (entry ? `${entry.startTime} – ${entry.endTime} Uhr` : "")}</div>
+                            <div style={{ flex:1, minWidth:0, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                              <div style={{ fontSize: winW > 500 ? 16 : 15, fontWeight:700, color:BRAND.aubergine, marginBottom: v.description ? 4 : 0, lineHeight:1.25 }}>{v.title || "Veranstaltung"}</div>
+                              {v.description && (
+                                <div style={{ fontSize:12, color:"#888", lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{v.description}</div>
+                              )}
+                              <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:8, fontSize:12, color: publicTheme.accentColor, fontWeight:600 }}>
+                                Details ansehen
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                              </div>
                             </div>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M9 5l7 7-7 7"/></svg>
                           </div>
                         );
                       })}
@@ -5426,9 +5436,9 @@ export default function App() {
               const telPlain = v.contactPhone ? v.contactPhone.replace(/\s/g,"") : "";
               const address = "Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee";
               return (
-                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems: winW > 600 ? "center" : "flex-start", justifyContent:"center", padding: winW > 600 ? 16 : 0 }}>
                   <div onClick={e => e.stopPropagation()}
-                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", overflowY:"auto", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
+                    style={{ background:"#fff", borderRadius: winW > 600 ? 16 : 0, width:"100%", maxWidth: winW > 600 ? 480 : "none", overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight: winW > 600 ? "85vh" : "100dvh", height: winW > 600 ? "auto" : "100dvh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
                     {/* Touch-Zone fuer Swipe-to-close (nur Mobile), liegt ueber dem Headerbild */}
                     {winW <= 600 && (
                       <div
@@ -5437,6 +5447,7 @@ export default function App() {
                         onTouchEnd={e => { const dy = e.changedTouches[0].clientY - (e.currentTarget._sy||0); if (dy > 100) { setPublicEventDetail(null); } setPublicDetailPullY(0); }}
                         style={{ position:"absolute", top:0, left:0, right:60, height:48, zIndex:3, touchAction:"none" }} />
                     )}
+                    <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
                     <div style={{ background: pat.gradient, height:180, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
@@ -5531,24 +5542,81 @@ export default function App() {
                                   </div>
                                 </div>
                               )}
-                              {/* Zeit-Termine weiterhin als klickbare Cards */}
-                              {timedDates.map(d => {
-                                const [yy2,mm2,dd2] = d.date.split("-").map(Number);
-                                const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
+                              {/* Zeit-Termine: nach Monat gruppiert, kompakt */}
+                              {timedDates.length > 0 && (() => {
+                                const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+                                // Nach Monat-Key gruppieren
+                                const groups = new Map();
+                                timedDates.forEach(d => {
+                                  const mk = d.date.slice(0,7); // "2026-05"
+                                  if (!groups.has(mk)) groups.set(mk, []);
+                                  groups.get(mk).push(d);
+                                });
+                                const groupArr = Array.from(groups.entries()).sort(([a],[b]) => a.localeCompare(b));
+                                const totalCount = timedDates.length;
+                                // Schwelle: >6 Termine -> erste 2 Monate voll, Rest einklappbar
+                                const shouldCollapse = totalCount > 6 && !showAllDates;
+                                const visibleGroups = shouldCollapse ? groupArr.slice(0, 2) : groupArr;
+                                const hiddenCount = shouldCollapse ? timedDates.length - visibleGroups.reduce((s,[,arr]) => s + arr.length, 0) : 0;
+                                const compact = totalCount > 4; // kompakteres Layout bei vielen
+
+                                const renderDate = (d) => {
+                                  const [yy2,mm2,dd2] = d.date.split("-").map(Number);
+                                  const wdShort = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy2,mm2-1,dd2).getDay()];
+                                  const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
+                                  return { ...d, yy2, mm2, dd2, wdShort, wdLong };
+                                };
+
                                 return (
-                                  <div key={d.id}
-                                    onClick={() => setPublicEventDetail({ veranstaltung: v, focusDate: d.date })}
-                                    onMouseEnter={e => { e.currentTarget.style.background = publicTheme.accentSoft; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 3px 10px rgba(0,0,0,0.06)"; }}
-                                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
-                                    style={{ background:"#fff", borderRadius:8, padding:"12px 14px", border:`1px solid ${publicTheme.accentColor}25`, borderLeft:`3px solid ${publicTheme.accentColor}`, cursor:"pointer", transition:"all .15s", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
-                                    <div style={{ minWidth:0, flex:1 }}>
-                                      <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:0.8, fontWeight:700 }}>{wdLong}, {dd2}. {monthFullArr[mm2-1]} {yy2}</div>
-                                      <div style={{ fontSize:13, color:BRAND.aubergine, marginTop:2, fontWeight:500 }}>{d.startTime} – {d.endTime} Uhr</div>
-                                    </div>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M9 5l7 7-7 7"/></svg>
-                                  </div>
+                                  <>
+                                    {visibleGroups.map(([mk, dates]) => {
+                                      const [yr, mn] = mk.split("-").map(Number);
+                                      return (
+                                        <div key={mk} style={{ marginTop:2 }}>
+                                          <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:6, paddingLeft:2 }}>{monthNames[mn-1]} {yr}</div>
+                                          <div style={{ display: compact ? "grid" : "flex", gridTemplateColumns: compact ? (winW > 500 ? "repeat(2, 1fr)" : "1fr") : undefined, flexDirection: compact ? undefined : "column", gap: compact ? 6 : 8 }}>
+                                            {dates.map(d => {
+                                              const r = renderDate(d);
+                                              return (
+                                                <div key={d.id}
+                                                  onClick={() => setPublicEventDetail({ veranstaltung: v, focusDate: d.date })}
+                                                  onMouseEnter={e => { e.currentTarget.style.background = publicTheme.accentSoft; e.currentTarget.style.borderColor = `${publicTheme.accentColor}55`; }}
+                                                  onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = `${publicTheme.accentColor}20`; }}
+                                                  style={{ background:"#fff", borderRadius:8, padding: compact ? "9px 12px" : "12px 14px", border:`1px solid ${publicTheme.accentColor}20`, borderLeft:`3px solid ${publicTheme.accentColor}`, cursor:"pointer", transition:"all .15s", display:"flex", alignItems:"center", gap:10 }}>
+                                                  <div style={{ minWidth:0, flex:1, display:"flex", alignItems:"baseline", gap:10, flexWrap:"wrap" }}>
+                                                    <div style={{ fontSize: compact ? 12 : 13, color:BRAND.aubergine, fontWeight:600 }}>
+                                                      <span style={{ color: publicTheme.accentColor, fontWeight:700 }}>{r.wdShort}</span>, {r.dd2}.{r.mm2 < 10 ? "0"+r.mm2 : r.mm2}.
+                                                    </div>
+                                                    <div style={{ fontSize: compact ? 12 : 13, color: "#666", fontWeight:500, fontVariantNumeric:"tabular-nums" }}>{r.startTime}–{r.endTime}</div>
+                                                  </div>
+                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M9 5l7 7-7 7"/></svg>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                    {/* "X weitere Termine anzeigen" Button */}
+                                    {shouldCollapse && hiddenCount > 0 && (
+                                      <button onClick={() => setShowAllDates(true)}
+                                        onMouseEnter={e => { e.currentTarget.style.background = publicTheme.accentSoft; }}
+                                        onMouseLeave={e => { e.currentTarget.style.background = "#fff"; }}
+                                        style={{ marginTop:4, padding:"12px 16px", border:`1px dashed ${publicTheme.accentColor}55`, background:"#fff", borderRadius:8, cursor:"pointer", fontSize:13, color: publicTheme.accentColor, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"background .15s", fontFamily:"inherit" }}>
+                                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                        {hiddenCount} weitere{hiddenCount === 1 ? "r" : ""} Termin{hiddenCount === 1 ? "" : "e"} anzeigen
+                                      </button>
+                                    )}
+                                    {showAllDates && totalCount > 6 && (
+                                      <button onClick={() => setShowAllDates(false)}
+                                        style={{ marginTop:4, padding:"8px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:12, color:"#999", fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit" }}>
+                                        <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M4 10l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        Weniger anzeigen
+                                      </button>
+                                    )}
+                                  </>
                                 );
-                              })}
+                              })()}
                               {/* Preis-Hinweis fuer die ganze Veranstaltung */}
                               {(() => {
                                 const hasPrice = !!(v.publicPrice && v.publicPrice.trim());
@@ -5612,6 +5680,7 @@ export default function App() {
                           Anmelden
                         </a>
                       )}
+                    </div>
                     </div>
                   </div>
                 </div>
