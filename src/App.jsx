@@ -67,11 +67,11 @@ const DEFAULT_OPENING_HOURS = {
 // Ein Date-Eintrag mit gleicher seriesId gehört zu einer Serie und wird gemeinsam bearbeitet/gelöscht.
 // imageKey wird aus /assets/<filename> geladen; wenn leer, fallback auf Gradient+Icon.
 const DEFAULT_VERANSTALTUNGEN = [
-  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga_mit_julia.jpeg", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau",  title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "iris_cover.jpg",      iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "taglilie_cover.jpg",  iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "herbstbluetenzauber", title: "Herbstblütenzauber",               title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "herbst_cover.png",    iconPattern: "leaf",   openingHours: DEFAULT_OPENING_HOURS, dates: [] },
-  { id: "lebenskunst",         title: 'Workshop "Lebenskunst"',           title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "",                    iconPattern: "sound",  openingHours: DEFAULT_OPENING_HOURS, dates: [] },
+  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga_mit_julia.jpeg", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau",  title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "iris_cover.jpg",      iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "taglilie_cover.jpg",  iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "herbstbluetenzauber", title: "Herbstblütenzauber",               title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "herbst_cover.png",    iconPattern: "leaf",   openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "lebenskunst",         title: 'Workshop "Lebenskunst"',           title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "",                    iconPattern: "sound",  openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
 ];
 // Korrekturen für früher gespeicherte, falsche Bildnamen (werden beim Laden automatisch migriert)
 const VERANSTALTUNG_IMAGE_CORRECTIONS = {
@@ -907,7 +907,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; if (!d) return { ...sv, imageKey: correctedKey }; return { ...sv, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; const base = { publicPrice: sv.publicPrice || "", kaertnerCardFree: !!sv.kaertnerCardFree, adminPrice: sv.adminPrice || "", adminPaymentStatus: sv.adminPaymentStatus || "open", adminPartialAmount: sv.adminPartialAmount || "" }; if (!d) return { ...sv, ...base, imageKey: correctedKey }; return { ...sv, ...base, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
   const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
@@ -2426,7 +2426,7 @@ export default function App() {
           const startEdit = (v) => { setEditingVeranstaltungId(v.id); setVeranstaltungDraft(JSON.parse(JSON.stringify(v))); };
           const startNew = () => {
             setEditingVeranstaltungId("new");
-            setVeranstaltungDraft({ id:"", title:"", description:"", contactName:"", contactPhone:"", imageKey:"", iconPattern:"yoga", dates:[] });
+            setVeranstaltungDraft({ id:"", title:"", description:"", contactName:"", contactPhone:"", imageKey:"", iconPattern:"yoga", openingHours: DEFAULT_OPENING_HOURS, publicPrice:"", kaertnerCardFree:false, adminPrice:"", adminPaymentStatus:"open", adminPartialAmount:"", dates:[] });
           };
           const cancelEdit = () => { setEditingVeranstaltungId(null); setVeranstaltungDraft(null); setVeranstaltungDatePicker(null); };
           const closeAll = () => { setShowVeranstaltungenAdmin(false); cancelEdit(); };
@@ -2769,6 +2769,76 @@ export default function App() {
                               );
                             })}
                           </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Eintritt für Kunden (öffentlich sichtbar) */}
+                    <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                      <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Eintritt <span style={{ color: BRAND.tuerkis }}>· für Kunden sichtbar</span></div>
+                      <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Leer lassen, wenn kein Preis angezeigt werden soll</div>
+                      <div style={{ position:"relative", marginBottom:10 }}>
+                        <input placeholder='z.B. 15 oder "15 pro Person" oder "Eintritt frei"' value={draft.publicPrice || ""} onChange={e => patchDraft({ publicPrice: e.target.value })}
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                      </div>
+                      <label onClick={() => patchDraft({ kaertnerCardFree: !draft.kaertnerCardFree })}
+                        style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer" }}>
+                        <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${draft.kaertnerCardFree ? BRAND.tuerkis : "#ccc"}`, background: draft.kaertnerCardFree ? BRAND.tuerkis : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                          {draft.kaertnerCardFree && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize:12, color: BRAND.aubergine }}>Mit Kärnten Card kostenlos <span style={{ color:"#999" }}>(Hinweis beim Preis anzeigen)</span></span>
+                      </label>
+                    </div>
+
+                    {/* Admin-Preis & Zahlung — nur fuer Admin */}
+                    {(() => {
+                      const priceNum = parseFloat(String(draft.adminPrice || "").replace(/\./g, "").replace(",", ".")) || 0;
+                      const partialNum = parseFloat(String(draft.adminPartialAmount || "").replace(/\./g, "").replace(",", ".")) || 0;
+                      const fmtMoney = (n) => n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                      const paymentStatus = draft.adminPaymentStatus || "open";
+                      let restOffen;
+                      if (paymentStatus === "paid") restOffen = 0;
+                      else if (paymentStatus === "partial") restOffen = Math.max(0, priceNum - partialNum);
+                      else restOffen = priceNum;
+                      const restColor = paymentStatus === "paid" ? "#006930" : paymentStatus === "partial" ? BRAND.lila : "#c44444";
+                      const statuses = [
+                        { v: "open", l: "Offen", c: "#c44444", bg: "#c4444415", bd: "#c44444" },
+                        { v: "partial", l: "Anzahlung", c: "#8a6a00", bg: "#ffda6f22", bd: "#ffda6f" },
+                        { v: "paid", l: "Bezahlt", c: "#006930", bg: "#e6f3ea", bd: "#006930" },
+                      ];
+                      const pickStatus = (v) => patchDraft({ adminPaymentStatus: v, adminPartialAmount: v === "partial" ? (draft.adminPartialAmount || "") : "" });
+                      return (
+                        <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                          <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Vereinbarter Preis <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· intern</span></div>
+                          <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Nur für Admin sichtbar — z.B. Gage Julia W.</div>
+                          <div style={{ position:"relative", marginBottom:10 }}>
+                            <input placeholder="0,00" value={draft.adminPrice || ""} onChange={e => patchDraft({ adminPrice: e.target.value })}
+                              style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                            <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color: BRAND.lila, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
+                          </div>
+                          <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+                            {statuses.map(s => {
+                              const active = paymentStatus === s.v;
+                              return (
+                                <button key={s.v} onClick={() => pickStatus(s.v)}
+                                  style={{ padding:"8px 14px", border:`1.5px solid ${active ? s.bd : "#e8d8e4"}`, borderRadius:8, background: active ? s.bg : "#fff", color: active ? s.c : "#999", fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.2, fontFamily:"inherit" }}>
+                                  {s.l}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {paymentStatus === "partial" && (
+                            <div style={{ position:"relative", marginTop:8 }}>
+                              <input placeholder="Angezahlter Betrag" value={draft.adminPartialAmount || ""} onChange={e => patchDraft({ adminPartialAmount: e.target.value })}
+                                style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                              <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#8a6a00", fontWeight:600, fontSize:13, pointerEvents:"none" }}>€</span>
+                            </div>
+                          )}
+                          {priceNum > 0 && (
+                            <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:8, paddingRight:2 }}>
+                              Noch offen: <span style={{ color: restColor, fontWeight:700, fontSize:13 }}>€ {fmtMoney(restOffen)}</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -5219,6 +5289,9 @@ export default function App() {
                       {focusEntry ? (() => {
                         const [yy2,mm2,dd2] = focusEntry.date.split("-").map(Number);
                         const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
+                        const hasPrice = !!(v.publicPrice && v.publicPrice.trim());
+                        const priceLooksNumeric = hasPrice && /^\s*[\d.,]+\s*(pro\s|€)?/i.test(v.publicPrice.trim());
+                        const priceDisplay = hasPrice ? (priceLooksNumeric ? `€ ${v.publicPrice.replace(/^€\s*/,"").trim()}` : v.publicPrice) : "";
                         return (
                           <div style={{ marginBottom:16 }}>
                             <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Termin</div>
@@ -5226,6 +5299,14 @@ export default function App() {
                               <span style={{ fontWeight:600 }}>{wdLong}, {dd2}. {monthFullArr[mm2-1]} {yy2}</span>
                               <span style={{ fontSize:13, color:"#555", flexShrink:0, fontWeight:500 }}>{focusEntry.allDay ? "ganztägig" : `${focusEntry.startTime} – ${focusEntry.endTime} Uhr`}</span>
                             </div>
+                            {hasPrice && (
+                              <div style={{ marginTop:8, padding:"8px 12px", display:"flex", flexDirection:"column", gap:2 }}>
+                                <div style={{ fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>Eintritt: {priceDisplay}</div>
+                                {v.kaertnerCardFree && (
+                                  <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       })() : futureDates.length > 0 ? (() => {
@@ -5298,6 +5379,21 @@ export default function App() {
                                   </div>
                                 );
                               })}
+                              {/* Preis-Hinweis fuer die ganze Veranstaltung */}
+                              {(() => {
+                                const hasPrice = !!(v.publicPrice && v.publicPrice.trim());
+                                if (!hasPrice) return null;
+                                const priceLooksNumeric = /^\s*[\d.,]+\s*(pro\s|€)?/i.test(v.publicPrice.trim());
+                                const priceDisplay = priceLooksNumeric ? `€ ${v.publicPrice.replace(/^€\s*/,"").trim()}` : v.publicPrice;
+                                return (
+                                  <div style={{ marginTop:4, padding:"8px 14px", display:"flex", flexDirection:"column", gap:2 }}>
+                                    <div style={{ fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>Eintritt: {priceDisplay}</div>
+                                    {v.kaertnerCardFree && (
+                                      <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         );
