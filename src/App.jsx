@@ -818,7 +818,7 @@ export default function App() {
   const [showVeranstaltungenAdmin, setShowVeranstaltungenAdmin] = useState(false);
   const [editingVeranstaltungId, setEditingVeranstaltungId] = useState(null); // null | id-string ("new" fuer neu anlegen)
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
-  useEffect(() => { setVeranstImageError(false); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
+  useEffect(() => { setVeranstImageError(false); setShowIconPicker(false); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
   const [veranstaltungDatePicker, setVeranstaltungDatePicker] = useState(null); // null | { mode: "single" | "series", data }
   const [designDraftTypes, setDesignDraftTypes] = useState(null);
   const [designDraftTheme, setDesignDraftTheme] = useState(null);
@@ -839,6 +839,7 @@ export default function App() {
   const [seriesYear, setSeriesYear] = useState(null);
   const [heroIdx, setHeroIdx] = useState(0);
   const [veranstImageError, setVeranstImageError] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const heroImages = ["/assets/garten-hintergrund.jpg","/assets/garten-hintergrund1.jpg","/assets/garten-hintergrund2.jpg","/assets/garten-hintergrund3.jpg","/assets/garten-hintergrund4.jpg","/assets/garten-hintergrund5.jpg","/assets/garten-hintergrund6.jpg"];
   useEffect(() => { const img = new Image(); img.src = "/assets/garten-Anfrage-gesendet.jpg"; }, []);
   useEffect(() => { if (isAdmin) return; const t = setInterval(() => setHeroIdx(i => (i+1) % 7), 10000); return () => clearInterval(t); }, [isAdmin]);
@@ -2589,22 +2590,45 @@ export default function App() {
                         style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
                     </div>
 
-                    {/* Titelbild / Icon */}
-                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Titelbild-Symbol</label>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:6, marginBottom:8 }}>
-                      {iconPatterns.map(opt => {
-                        const active = (draft.iconPattern || "yoga") === opt.id;
+                    {/* Titelbild / Icon — kompakt einklappbar */}
+                    <div style={{ marginBottom:8 }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+                        <label style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Titelbild-Symbol</label>
+                        <button type="button" onClick={() => setShowIconPicker(s => !s)}
+                          style={{ background:"none", border:"none", color: BRAND.lila, fontSize:11, fontWeight:600, cursor:"pointer", padding:"2px 4px", display:"flex", alignItems:"center", gap:4 }}>
+                          {showIconPicker ? "Ausblenden" : "Ändern"}
+                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ transform: showIconPicker ? "rotate(180deg)" : "rotate(0)", transition:"transform .2s" }}><path d="M4 6l4 4 4-4" stroke={BRAND.lila} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </button>
+                      </div>
+                      {!showIconPicker && (() => {
+                        const active = iconPatterns.find(p => p.id === (draft.iconPattern || "yoga")) || iconPatterns[0];
                         return (
-                          <button key={opt.id} type="button" onClick={() => patchDraft({ iconPattern: opt.id })}
-                            title={opt.label}
-                            style={{ padding:0, border: active ? `2px solid ${BRAND.lila}` : "1px solid #e0d8de", borderRadius:8, background:"#fff", cursor:"pointer", overflow:"hidden", transition:"all .15s", boxShadow: active ? `0 2px 8px ${BRAND.lila}25` : "none" }}>
-                            <div style={{ background: opt.gradient, height:46, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                              {React.cloneElement(iconSvg[opt.id], { width:22, height:22 })}
+                          <button type="button" onClick={() => setShowIconPicker(true)}
+                            style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", border:"1px solid #e0d8de", borderRadius:8, background:"#fff", cursor:"pointer", width:"100%", textAlign:"left" }}>
+                            <div style={{ width:32, height:32, borderRadius:6, background: active.gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                              {React.cloneElement(iconSvg[active.id], { width:18, height:18 })}
                             </div>
-                            <div style={{ fontSize:10, padding:"4px 2px", color: active ? BRAND.lila : "#888", fontWeight: active ? 600 : 400 }}>{opt.label}</div>
+                            <span style={{ fontSize:13, color: BRAND.aubergine, fontWeight:500 }}>{active.label}</span>
                           </button>
                         );
-                      })}
+                      })()}
+                      {showIconPicker && (
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:6 }}>
+                          {iconPatterns.map(opt => {
+                            const active = (draft.iconPattern || "yoga") === opt.id;
+                            return (
+                              <button key={opt.id} type="button" onClick={() => { patchDraft({ iconPattern: opt.id }); setShowIconPicker(false); }}
+                                title={opt.label}
+                                style={{ padding:0, border: active ? `2px solid ${BRAND.lila}` : "1px solid #e0d8de", borderRadius:8, background:"#fff", cursor:"pointer", overflow:"hidden", transition:"all .15s", boxShadow: active ? `0 2px 8px ${BRAND.lila}25` : "none" }}>
+                                <div style={{ background: opt.gradient, height:46, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                  {React.cloneElement(iconSvg[opt.id], { width:22, height:22 })}
+                                </div>
+                                <div style={{ fontSize:10, padding:"4px 2px", color: active ? BRAND.lila : "#888", fontWeight: active ? 600 : 400 }}>{opt.label}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     <input placeholder="Bild-Dateiname, z.B. veranstaltung.png (liegt in /assets/)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
                       style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${draft.imageKey ? (veranstImageError ? "#c44" : BRAND.tuerkis)+"50" : "#e8e0e5"}`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom: draft.imageKey ? 4 : 16, color: draft.imageKey ? BRAND.aubergine : "#888", background: draft.imageKey ? "#fff" : "#fafafa" }} />
@@ -2779,7 +2803,8 @@ export default function App() {
                       <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Leer lassen, wenn kein Preis angezeigt werden soll</div>
                       <div style={{ position:"relative", marginBottom:10 }}>
                         <input placeholder='z.B. 15 oder "15 pro Person" oder "Eintritt frei"' value={draft.publicPrice || ""} onChange={e => patchDraft({ publicPrice: e.target.value })}
-                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                          style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                        <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color: BRAND.tuerkis, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
                       </div>
                       <label onClick={() => patchDraft({ kaertnerCardFree: !draft.kaertnerCardFree })}
                         style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer" }}>
@@ -2836,7 +2861,7 @@ export default function App() {
                           )}
                           {priceNum > 0 && (
                             <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:8, paddingRight:2 }}>
-                              Noch offen: <span style={{ color: restColor, fontWeight:700, fontSize:13 }}>€ {fmtMoney(restOffen)}</span>
+                              Noch offen: <span style={{ color: restColor, fontWeight:700, fontSize:13 }}>{fmtMoney(restOffen)} €</span>
                             </div>
                           )}
                         </div>
@@ -4043,7 +4068,7 @@ export default function App() {
                       )}
                       {priceNum > 0 && (
                         <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:8, paddingRight:2 }}>
-                          Noch offen: <span style={{ color: restColor, fontWeight:700, fontSize:13 }}>€ {fmtMoney(restOffen)}</span>
+                          Noch offen: <span style={{ color: restColor, fontWeight:700, fontSize:13 }}>{fmtMoney(restOffen)} €</span>
                           {adminForm.cleaningFee && paymentStatus !== "paid" && <span style={{ color:"#999", fontSize:10, marginLeft:4 }}>inkl. Pauschale</span>}
                         </div>
                       )}
@@ -4856,11 +4881,11 @@ export default function App() {
                               const restOffen = Math.max(0, priceNum - partialNum + feeAmount);
                               return (
                                 <div style={{ fontSize:12, color:"#888", marginTop:5, display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                                  <span style={{ color:BRAND.lila, fontWeight:700 }}>€ {fmtMoney(priceNum + feeAmount)}</span>
+                                  <span style={{ color:BRAND.lila, fontWeight:700 }}>{fmtMoney(priceNum + feeAmount)} €</span>
                                   {sub.cleaningFee && <span style={{ fontSize:10, color:"#999" }}>inkl. Pauschale</span>}
                                   <span style={{ fontSize:10, color:statusColor, fontWeight:700, background:statusColor+"18", padding:"2px 7px", borderRadius:4, textTransform:"uppercase", letterSpacing:0.4 }}>{statusLabel}</span>
                                   {ps === "partial" && partialNum > 0 && (
-                                    <span style={{ color:"#999" }}>· offen: <span style={{ color:BRAND.lila, fontWeight:600 }}>€ {fmtMoney(restOffen)}</span></span>
+                                    <span style={{ color:"#999" }}>· offen: <span style={{ color:BRAND.lila, fontWeight:600 }}>{fmtMoney(restOffen)} €</span></span>
                                   )}
                                 </div>
                               );
@@ -5290,8 +5315,9 @@ export default function App() {
                         const [yy2,mm2,dd2] = focusEntry.date.split("-").map(Number);
                         const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy2,mm2-1,dd2).getDay()];
                         const hasPrice = !!(v.publicPrice && v.publicPrice.trim());
-                        const priceLooksNumeric = hasPrice && /^\s*[\d.,]+\s*(pro\s|€)?/i.test(v.publicPrice.trim());
-                        const priceDisplay = hasPrice ? (priceLooksNumeric ? `€ ${v.publicPrice.replace(/^€\s*/,"").trim()}` : v.publicPrice) : "";
+                        const raw = hasPrice ? v.publicPrice.trim().replace(/\s*€\s*$/, "").replace(/^\s*€\s*/, "") : "";
+                        const priceLooksNumeric = hasPrice && /^\s*[\d.,]+\s*$/.test(raw);
+                        const priceDisplay = hasPrice ? (priceLooksNumeric ? `${raw} €` : raw) : "";
                         return (
                           <div style={{ marginBottom:16 }}>
                             <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:8 }}>Termin</div>
@@ -5300,10 +5326,10 @@ export default function App() {
                               <span style={{ fontSize:13, color:"#555", flexShrink:0, fontWeight:500 }}>{focusEntry.allDay ? "ganztägig" : `${focusEntry.startTime} – ${focusEntry.endTime} Uhr`}</span>
                             </div>
                             {hasPrice && (
-                              <div style={{ marginTop:8, padding:"8px 12px", display:"flex", flexDirection:"column", gap:2 }}>
-                                <div style={{ fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>Eintritt: {priceDisplay}</div>
+                              <div style={{ marginTop:8, display:"flex", flexDirection:"column", alignItems:"flex-start", gap:4 }}>
+                                <div style={{ display:"inline-block", padding:"8px 14px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:8, fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>Eintritt: {priceDisplay}</div>
                                 {v.kaertnerCardFree && (
-                                  <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                                  <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic", paddingLeft:14 }}>mit Kärnten Card kostenlos</div>
                                 )}
                               </div>
                             )}
@@ -5383,13 +5409,14 @@ export default function App() {
                               {(() => {
                                 const hasPrice = !!(v.publicPrice && v.publicPrice.trim());
                                 if (!hasPrice) return null;
-                                const priceLooksNumeric = /^\s*[\d.,]+\s*(pro\s|€)?/i.test(v.publicPrice.trim());
-                                const priceDisplay = priceLooksNumeric ? `€ ${v.publicPrice.replace(/^€\s*/,"").trim()}` : v.publicPrice;
+                                const raw = v.publicPrice.trim().replace(/\s*€\s*$/, "").replace(/^\s*€\s*/, "");
+                                const priceLooksNumeric = /^\s*[\d.,]+\s*$/.test(raw);
+                                const priceDisplay = priceLooksNumeric ? `${raw} €` : raw;
                                 return (
-                                  <div style={{ marginTop:4, padding:"8px 14px", display:"flex", flexDirection:"column", gap:2 }}>
-                                    <div style={{ fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>Eintritt: {priceDisplay}</div>
+                                  <div style={{ marginTop:4, display:"flex", flexDirection:"column", alignItems:"flex-start", gap:4 }}>
+                                    <div style={{ display:"inline-block", padding:"8px 14px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:8, fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>Eintritt: {priceDisplay}</div>
                                     {v.kaertnerCardFree && (
-                                      <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                                      <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic", paddingLeft:14 }}>mit Kärnten Card kostenlos</div>
                                     )}
                                   </div>
                                 );
