@@ -824,6 +824,7 @@ export default function App() {
   const [editingSeriesInfo, setEditingSeriesInfo] = useState(null); // { seriesId, startTime, endTime, allDay }
   const [draggedVeranstId, setDraggedVeranstId] = useState(null);
   const [dragOverVeranstId, setDragOverVeranstId] = useState(null);
+  const [veranstSyncing, setVeranstSyncing] = useState(false);
   const [showAllDates, setShowAllDates] = useState(false); // "Alle Termine anzeigen" im Detail-Modal
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
   useEffect(() => { setVeranstImageError(false); setShowIconPicker(false); setExpandedVeranstSeries({}); setEditingSeriesInfo(null); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
@@ -2531,6 +2532,41 @@ export default function App() {
                         <h2 style={{ margin:0, fontSize: winW > 600 ? 22 : 18, fontWeight:700, color: BRAND.aubergine, letterSpacing:0.5, lineHeight:1.2 }}>Veranstaltungen</h2>
                         <div style={{ fontSize:12, color:"#888", marginTop:3 }}>{veranstaltungen.length} Kachel{veranstaltungen.length === 1 ? "" : "n"}</div>
                       </div>
+                      <button onClick={async () => {
+                          if (veranstSyncing) return;
+                          setVeranstSyncing(true);
+                          try {
+                            const patched = await syncVeranstaltungenDiff(lastSyncedVeranstaltungen.current || [], veranstaltungen, (stats) => {
+                              const totalOk = stats.created + stats.updated + stats.deleted;
+                              if (stats.failed > 0 && totalOk === 0) {
+                                setToast({ msg: "⚠ Sync fehlgeschlagen", detail: `${stats.failed} Termin${stats.failed === 1 ? "" : "e"} konnte${stats.failed === 1 ? "" : "n"} nicht synchronisiert werden.`, color: "#c44" });
+                              } else if (totalOk === 0) {
+                                setToast({ msg: "✓ Nichts zu synchronisieren", detail: "Alle Termine sind bereits aktuell.", color: "#888" });
+                              } else {
+                                const parts = [];
+                                if (stats.created) parts.push(`${stats.created} neu`);
+                                if (stats.updated) parts.push(`${stats.updated} aktualisiert`);
+                                if (stats.deleted) parts.push(`${stats.deleted} gelöscht`);
+                                setToast({ msg: "✓ Google-Sync erfolgreich", detail: parts.join(" · "), color: BRAND.moosgruen });
+                              }
+                            });
+                            if (patched) {
+                              lastSyncedVeranstaltungen.current = patched;
+                              setVeranstaltungen(patched);
+                              try { await saveData("veranstaltungen", JSON.stringify(patched)); } catch {}
+                            }
+                          } catch (e) {
+                            setToast({ msg: "⚠ Sync-Fehler", detail: e?.message || "Unbekannter Fehler", color: "#c44" });
+                          } finally {
+                            setVeranstSyncing(false);
+                          }
+                        }}
+                        title="Alle Termine mit Google Kalender synchronisieren"
+                        disabled={veranstSyncing}
+                        style={{ background: veranstSyncing ? "#eee" : "#f9f7fa", border:"1px solid #ebe4ea", color: veranstSyncing ? "#aaa" : "#888", borderRadius:8, padding:"8px 12px", fontSize:12, cursor: veranstSyncing ? "wait" : "pointer", display:"flex", alignItems:"center", gap:6, fontWeight:500 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: veranstSyncing ? "spin 1s linear infinite" : "none" }}><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                        {veranstSyncing ? "Synct..." : "Google-Sync"}
+                      </button>
                       <button onClick={() => { setShowVeranstaltungenAdmin(false); setShowDesignPublic(true); }}
                         title="Design der Veranstaltungs-Seite anpassen"
                         style={{ background:"#f9f7fa", border:"1px solid #ebe4ea", color:"#888", borderRadius:8, padding:"8px 12px", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6, fontWeight:500 }}>
@@ -5753,6 +5789,7 @@ export default function App() {
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         input, textarea, select, button { font-size: 16px; }
         @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
+        @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes toastProgress { from { width:100% } to { width:0% } }
         @keyframes pendingPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(242,140,90,0.3) } 50% { box-shadow: 0 0 8px 2px rgba(242,140,90,0.25) } }
         @keyframes successFadeUp { from { opacity:0; transform:translateY(24px) scale(0.97) } to { opacity:1; transform:translateY(0) scale(1) } }
