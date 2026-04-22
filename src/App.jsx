@@ -5312,7 +5312,7 @@ export default function App() {
               const [yy,mm,dd] = publicDayPicker.dateKey.split("-").map(Number);
               const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
               return (
-                <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.55)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.55)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, width:"100%", maxWidth:560, maxHeight:"90vh", overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.35)", display:"flex", flexDirection:"column" }}>
                     <div style={{ padding:"22px 26px 18px", borderBottom:"1px solid #f0e8ee", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, flexShrink:0 }}>
                       <div>
@@ -5392,7 +5392,7 @@ export default function App() {
               };
               const segs = formatWeek();
               return (
-                <div onClick={() => setPublicDayInfo(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                <div onClick={() => setPublicDayInfo(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()}
                     style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:400, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", padding:"24px 24px 22px", position:"relative" }}>
                     <button onClick={() => setPublicDayInfo(null)}
@@ -5426,8 +5426,15 @@ export default function App() {
               );
             })()}
 
-            {/* Detail-Overlay */}
-            {publicEventDetail && publicEventDetail.veranstaltung && (() => {
+            {/* Detail-Overlay wird außerhalb dieses Overlays gerendert (siehe unten) damit position:fixed korrekt am Viewport haftet */}
+
+          </div>
+        </div>
+        );
+      })()}
+
+      {/* ============== VERANSTALTUNGS-DETAIL-MODAL (auf Root-Ebene, damit position:fixed nicht vom Parent-transform beeinflusst wird) ============== */}
+      {publicEventDetail && publicEventDetail.veranstaltung && (() => {
               const v = publicEventDetail.veranstaltung;
               const pat = patternFor(v);
               const focusDate = publicEventDetail.focusDate || null;
@@ -5436,9 +5443,9 @@ export default function App() {
               const telPlain = v.contactPhone ? v.contactPhone.replace(/\s/g,"") : "";
               const address = "Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee";
               return (
-                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()}
-                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
+                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85dvh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
                     {/* Touch-Zone fuer Swipe-to-close (nur Mobile), liegt ueber dem Headerbild */}
                     {winW <= 600 && (
                       <div
@@ -5448,7 +5455,7 @@ export default function App() {
                         style={{ position:"absolute", top:0, left:0, right:60, height:48, zIndex:3, touchAction:"none" }} />
                     )}
                     <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-                    <div style={{ background: pat.gradient, height:180, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                    <div style={{ background: pat.gradient, height:180, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
                       {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
@@ -5686,11 +5693,6 @@ export default function App() {
                 </div>
               );
             })()}
-
-          </div>
-        </div>
-        );
-      })()}
 
 
 
