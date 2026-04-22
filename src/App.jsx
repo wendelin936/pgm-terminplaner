@@ -809,7 +809,6 @@ export default function App() {
   const [publicTheme, setPublicTheme] = useState(DEFAULT_PUBLIC_THEME);
   const [showDesignPublic, setShowDesignPublic] = useState(false);
   const [publicEventDetail, setPublicEventDetail] = useState(null); // { veranstaltung } | { veranstaltung, focusDate }
-  useEffect(() => { setShowAllDates(false); }, [publicEventDetail?.veranstaltung?.id]);
   const [publicEventsPullY, setPublicEventsPullY] = useState(0);
   const [publicDetailPullY, setPublicDetailPullY] = useState(0);
   const [publicDayPicker, setPublicDayPicker] = useState(null); // { dateKey, candidates: [veranstaltung, ...] } - Auswahl bei mehreren
@@ -826,6 +825,7 @@ export default function App() {
   const [dragOverVeranstId, setDragOverVeranstId] = useState(null);
   const [veranstSyncing, setVeranstSyncing] = useState(false);
   const [showAllDates, setShowAllDates] = useState(false); // "Alle Termine anzeigen" im Detail-Modal
+  useEffect(() => { setShowAllDates(false); setPublicDetailPullY(0); }, [publicEventDetail?.veranstaltung?.id, publicEventDetail?.focusDate]);
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
   useEffect(() => { setVeranstImageError(false); setShowIconPicker(false); setExpandedVeranstSeries({}); setEditingSeriesInfo(null); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
   const [veranstaltungDatePicker, setVeranstaltungDatePicker] = useState(null); // null | { mode: "single" | "series", data }
@@ -5365,129 +5365,145 @@ export default function App() {
               </div>
             )}
 
-            {/* Tag-Auswahl-Dialog bei mehreren Veranstaltungen am gleichen Tag */}
-            {publicDayPicker && (() => {
-              const [yy,mm,dd] = publicDayPicker.dateKey.split("-").map(Number);
-              const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
-              return (
-                <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.55)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-                  <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, width:"100%", maxWidth:560, maxHeight:"90vh", overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.35)", display:"flex", flexDirection:"column" }}>
-                    <div style={{ padding:"22px 26px 18px", borderBottom:"1px solid #f0e8ee", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, flexShrink:0 }}>
-                      <div>
-                        <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{publicDayPicker.candidates.length} Veranstaltungen</div>
-                        <div style={{ fontSize: winW > 600 ? 22 : 19, fontWeight:700, color:BRAND.aubergine, lineHeight:1.2 }}>{wdLong}, {dd}. {monthFullArr[mm-1]} {yy}</div>
-                        <div style={{ fontSize:12, color:"#888", marginTop:6 }}>Wählen Sie eine Veranstaltung für Details</div>
-                      </div>
-                      <button onClick={() => setPublicDayPicker(null)}
-                        style={{ background:"#f5f3f4", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888", flexShrink:0 }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
-                      </button>
-                    </div>
-                    <div style={{ padding:"16px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
-                      {publicDayPicker.candidates.map(v => {
-                        const pat = patternFor(v);
-                        const entry = (v.dates||[]).find(d => d.date === publicDayPicker.dateKey);
-                        const timeLabel = entry?.allDay ? "Ganztägig" : (entry ? `${entry.startTime} – ${entry.endTime} Uhr` : "");
-                        return (
-                          <div key={v.id} onClick={() => { setPublicDayPicker(null); setPublicEventDetail({ veranstaltung: v, focusDate: publicDayPicker.dateKey }); }}
-                            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
-                            style={{ background:"#fff", border:"1px solid #ece5ea", borderRadius:14, cursor:"pointer", transition:"all .2s ease", overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", display:"flex", flexDirection: winW > 500 ? "row" : "column" }}>
-                            <div style={{ position:"relative", flexShrink:0, width: winW > 500 ? 140 : "100%", height: winW > 500 ? "auto" : 120, minHeight: winW > 500 ? 100 : 120, background: pat.gradient, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-                              {React.cloneElement(iconSVG[pat.id], { width: winW > 500 ? 38 : 48, height: winW > 500 ? 38 : 48 })}
-                              {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
-                              <div style={{ position:"absolute", top:8, left:8, background:"rgba(255,255,255,0.95)", color: publicTheme.accentColor, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:4, letterSpacing:0.3, textTransform:"uppercase" }}>{timeLabel}</div>
-                            </div>
-                            <div style={{ flex:1, minWidth:0, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
-                              <div style={{ fontSize: winW > 500 ? 16 : 15, fontWeight:700, color:BRAND.aubergine, marginBottom: v.description ? 4 : 0, lineHeight:1.25 }}>{v.title || "Veranstaltung"}</div>
-                              {v.description && (
-                                <div style={{ fontSize:12, color:"#888", lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{v.description}</div>
-                              )}
-                              <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:8, fontSize:12, color: publicTheme.accentColor, fontWeight:600 }}>
-                                Details ansehen
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Info-Overlay: Tag ohne Veranstaltung - zeigt Oeffnungszeiten */}
-            {publicDayInfo && (() => {
-              const dKey = publicDayInfo.dateKey;
-              const [yy,mm,dd] = dKey.split("-").map(Number);
-              const wdIdx = new Date(yy, mm-1, dd).getDay();
-              const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][wdIdx];
-              // Öffnungszeiten zusammenfassen: Aggregat über alle Veranstaltungen; falls verschieden oder keine → Default
-              // Wir nehmen die erste Veranstaltung als Referenz (Öffnungszeiten sind im Alltag gleich)
-              const refVeranst = (veranstaltungen || []).find(v => v.openingHours) || null;
-              const oh = (refVeranst?.openingHours) || DEFAULT_OPENING_HOURS;
-              const dayKeys = ["sun","mon","tue","wed","thu","fri","sat"];
-              const today = oh[dayKeys[wdIdx]] || { closed:true };
-              const isClosed = !!today.closed;
-              // Kompakte Wochen-Darstellung
-              const formatWeek = () => {
-                const dk = ["mon","tue","wed","thu","fri","sat","sun"];
-                const lbl = { mon:"Mo", tue:"Di", wed:"Mi", thu:"Do", fri:"Fr", sat:"Sa", sun:"So" };
-                const segs = [];
-                let i = 0;
-                while (i < 7) {
-                  const d = oh[dk[i]] || { closed:true };
-                  let j = i;
-                  while (j+1 < 7) {
-                    const n = oh[dk[j+1]] || { closed:true };
-                    if (d.closed === n.closed && d.open === n.open && d.close === n.close) j++; else break;
-                  }
-                  segs.push({ range: i === j ? lbl[dk[i]] : `${lbl[dk[i]]}–${lbl[dk[j]]}`, text: d.closed ? "geschlossen" : `${d.open} – ${d.close} Uhr`, closed: !!d.closed });
-                  i = j + 1;
-                }
-                return segs;
-              };
-              const segs = formatWeek();
-              return (
-                <div onClick={() => setPublicDayInfo(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-                  <div onClick={e => e.stopPropagation()}
-                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:400, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", padding:"24px 24px 22px", position:"relative" }}>
-                    <button onClick={() => setPublicDayInfo(null)}
-                      style={{ position:"absolute", top:14, right:14, background:"#f5f3f4", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888" }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
-                    </button>
-                    <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:4 }}>{wdLong}</div>
-                    <div style={{ fontSize:18, color:BRAND.aubergine, fontWeight:700, marginBottom:16 }}>{dd}. {monthFullArr[mm-1]} {yy}</div>
-                    {isClosed ? (
-                      <div style={{ padding:"14px 16px", background:"#faf7fa", border:"1px solid #ede5ea", borderRadius:10, marginBottom:16 }}>
-                        <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:4 }}>Heute geschlossen</div>
-                        <div style={{ fontSize:12, color:"#888", lineHeight:1.5 }}>Der Paradiesgarten ist an diesem Tag nicht geöffnet.</div>
-                      </div>
-                    ) : (
-                      <div style={{ padding:"14px 16px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:10, marginBottom:16 }}>
-                        <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>Geöffnet von</div>
-                        <div style={{ fontSize:16, color: BRAND.aubergine, fontWeight:700 }}>{today.open} – {today.close} Uhr</div>
-                      </div>
-                    )}
-                    <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:8 }}>Reguläre Öffnungszeiten</div>
-                    <div style={{ display:"flex", flexDirection:"column", gap:3, marginBottom:2 }}>
-                      {segs.map((s, i) => (
-                        <div key={i} style={{ fontSize:13, color: s.closed ? "#999" : BRAND.aubergine, display:"flex", gap:10 }}>
-                          <span style={{ fontWeight:600, minWidth:56 }}>{s.range}</span>
-                          <span style={{ fontWeight: s.closed ? 400 : 500, fontStyle: s.closed ? "italic" : "normal" }}>{s.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* Tag-Auswahl-Dialog und Info-Overlay werden aussserhalb dieses Overlays gerendert (siehe unten), damit position:fixed nicht vom Parent-transform beeinflusst wird */}
 
             {/* Detail-Overlay wird außerhalb dieses Overlays gerendert (siehe unten) damit position:fixed korrekt am Viewport haftet */}
 
           </div>
         </div>
+        );
+      })()}
+
+      {/* ============== TAG-AUSWAHL-DIALOG (auf Root-Ebene) bei mehreren Veranstaltungen am gleichen Tag ============== */}
+      {publicDayPicker && (() => {
+        const tilePatterns = [
+          { id:"yoga",   gradient: "linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)" },
+          { id:"flower", gradient: "linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)" },
+          { id:"sound",  gradient: "linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)" },
+          { id:"leaf",   gradient: "linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)" },
+          { id:"circle", gradient: "linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)" },
+        ];
+        const iconSVG = {
+          yoga:   <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>,
+          flower: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2v6m0 0c-1.5 0-3 .5-4 1.5C7 10.5 6.5 12 6.5 13.5S7 16.5 8 17.5s2.5 1.5 4 1.5 3-.5 4-1.5 1.5-2.5 1.5-4-.5-3-1.5-4S13.5 8 12 8z"/></svg>,
+          sound:  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg>,
+          leaf:   <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg>,
+          circle: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>,
+        };
+        const patternFor = (v) => tilePatterns.find(p => p.id === (v.iconPattern || "yoga")) || tilePatterns[0];
+        const monthFullArr = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+        const [yy,mm,dd] = publicDayPicker.dateKey.split("-").map(Number);
+        const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
+        return (
+          <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.55)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, width:"100%", maxWidth:560, maxHeight: winW <= 600 ? "90dvh" : "85vh", overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.35)", display:"flex", flexDirection:"column" }}>
+              <div style={{ padding:"22px 26px 18px", borderBottom:"1px solid #f0e8ee", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, flexShrink:0 }}>
+                <div>
+                  <div style={{ fontSize:11, color:publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>{publicDayPicker.candidates.length} Veranstaltungen</div>
+                  <div style={{ fontSize: winW > 600 ? 22 : 19, fontWeight:700, color:BRAND.aubergine, lineHeight:1.2 }}>{wdLong}, {dd}. {monthFullArr[mm-1]} {yy}</div>
+                  <div style={{ fontSize:12, color:"#888", marginTop:6 }}>Wählen Sie eine Veranstaltung für Details</div>
+                </div>
+                <button onClick={() => setPublicDayPicker(null)}
+                  style={{ background:"#f5f3f4", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888", flexShrink:0 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                </button>
+              </div>
+              <div style={{ padding:"16px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
+                {publicDayPicker.candidates.map(v => {
+                  const pat = patternFor(v);
+                  const entry = (v.dates||[]).find(d => d.date === publicDayPicker.dateKey);
+                  const timeLabel = entry?.allDay ? "Ganztägig" : (entry ? `${entry.startTime} – ${entry.endTime} Uhr` : "");
+                  return (
+                    <div key={v.id} onClick={() => { setPublicDayPicker(null); setPublicEventDetail({ veranstaltung: v, focusDate: publicDayPicker.dateKey }); }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
+                      style={{ background:"#fff", border:"1px solid #ece5ea", borderRadius:14, cursor:"pointer", transition:"all .2s ease", overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", display:"flex", flexDirection: winW > 500 ? "row" : "column" }}>
+                      <div style={{ position:"relative", flexShrink:0, width: winW > 500 ? 140 : "100%", height: winW > 500 ? "auto" : 120, minHeight: winW > 500 ? 100 : 120, background: pat.gradient, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+                        {React.cloneElement(iconSVG[pat.id], { width: winW > 500 ? 38 : 48, height: winW > 500 ? 38 : 48 })}
+                        {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                        <div style={{ position:"absolute", top:8, left:8, background:"rgba(255,255,255,0.95)", color: publicTheme.accentColor, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:4, letterSpacing:0.3, textTransform:"uppercase" }}>{timeLabel}</div>
+                      </div>
+                      <div style={{ flex:1, minWidth:0, padding:"14px 16px", display:"flex", flexDirection:"column", justifyContent:"center" }}>
+                        <div style={{ fontSize: winW > 500 ? 16 : 15, fontWeight:700, color:BRAND.aubergine, marginBottom: v.description ? 4 : 0, lineHeight:1.25 }}>{v.title || "Veranstaltung"}</div>
+                        {v.description && (
+                          <div style={{ fontSize:12, color:"#888", lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{v.description}</div>
+                        )}
+                        <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:8, fontSize:12, color: publicTheme.accentColor, fontWeight:600 }}>
+                          Details ansehen
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ============== INFO-OVERLAY (auf Root-Ebene): Tag ohne Veranstaltung - zeigt Oeffnungszeiten ============== */}
+      {publicDayInfo && (() => {
+        const monthFullArr = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+        const dKey = publicDayInfo.dateKey;
+        const [yy,mm,dd] = dKey.split("-").map(Number);
+        const wdIdx = new Date(yy, mm-1, dd).getDay();
+        const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][wdIdx];
+        const refVeranst = (veranstaltungen || []).find(v => v.openingHours) || null;
+        const oh = (refVeranst?.openingHours) || DEFAULT_OPENING_HOURS;
+        const dayKeys = ["sun","mon","tue","wed","thu","fri","sat"];
+        const today = oh[dayKeys[wdIdx]] || { closed:true };
+        const isClosed = !!today.closed;
+        const formatWeek = () => {
+          const dk = ["mon","tue","wed","thu","fri","sat","sun"];
+          const lbl = { mon:"Mo", tue:"Di", wed:"Mi", thu:"Do", fri:"Fr", sat:"Sa", sun:"So" };
+          const segs = [];
+          let i = 0;
+          while (i < 7) {
+            const d = oh[dk[i]] || { closed:true };
+            let j = i;
+            while (j+1 < 7) {
+              const n = oh[dk[j+1]] || { closed:true };
+              if (d.closed === n.closed && d.open === n.open && d.close === n.close) j++; else break;
+            }
+            segs.push({ range: i === j ? lbl[dk[i]] : `${lbl[dk[i]]}–${lbl[dk[j]]}`, text: d.closed ? "geschlossen" : `${d.open} – ${d.close} Uhr`, closed: !!d.closed });
+            i = j + 1;
+          }
+          return segs;
+        };
+        const segs = formatWeek();
+        return (
+          <div onClick={() => setPublicDayInfo(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:400, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", padding:"24px 24px 22px", position:"relative" }}>
+              <button onClick={() => setPublicDayInfo(null)}
+                style={{ position:"absolute", top:14, right:14, background:"#f5f3f4", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+              </button>
+              <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:4 }}>{wdLong}</div>
+              <div style={{ fontSize:18, color:BRAND.aubergine, fontWeight:700, marginBottom:16 }}>{dd}. {monthFullArr[mm-1]} {yy}</div>
+              {isClosed ? (
+                <div style={{ padding:"14px 16px", background:"#faf7fa", border:"1px solid #ede5ea", borderRadius:10, marginBottom:16 }}>
+                  <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:4 }}>Heute geschlossen</div>
+                  <div style={{ fontSize:12, color:"#888", lineHeight:1.5 }}>Der Paradiesgarten ist an diesem Tag nicht geöffnet.</div>
+                </div>
+              ) : (
+                <div style={{ padding:"14px 16px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:10, marginBottom:16 }}>
+                  <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>Geöffnet von</div>
+                  <div style={{ fontSize:16, color: BRAND.aubergine, fontWeight:700 }}>{today.open} – {today.close} Uhr</div>
+                </div>
+              )}
+              <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:8 }}>Reguläre Öffnungszeiten</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:3, marginBottom:2 }}>
+                {segs.map((s, i) => (
+                  <div key={i} style={{ fontSize:13, color: s.closed ? "#999" : BRAND.aubergine, display:"flex", gap:10 }}>
+                    <span style={{ fontWeight:600, minWidth:56 }}>{s.range}</span>
+                    <span style={{ fontWeight: s.closed ? 400 : 500, fontStyle: s.closed ? "italic" : "normal" }}>{s.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         );
       })()}
 
