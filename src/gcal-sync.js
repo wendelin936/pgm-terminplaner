@@ -248,3 +248,215 @@ export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
 
   return anyPatched ? patched : null;
 }
+
+// ============================================================
+// VERANSTALTUNGS-SYNC
+// Jede Veranstaltung hat ein Array von `dates`. Jeder Termin-Entry wird als
+// eigenes Google-Calendar-Event synchronisiert.
+// sync-Key: "v_${veranstaltungId}:${dateEntryId}" (stabil über Lifecycle).
+// googleEventId wird am einzelnen date-Entry gespeichert.
+// ============================================================
+
+// Mapping: Veranstaltung + Termin → pseudo-event-Struktur für den Worker.
+// Der Worker erwartet die gleiche Struktur wie ein normales event, daher
+// mappen wir die Veranstaltungs-Daten auf label/adminNote/contactName etc.
+function veranstaltungToEvent(v, d) {
+  const title = v.title || "Veranstaltung";
+  const parts = [];
+  if (v.description && v.description.trim()) parts.push(v.description.trim());
+  if (v.contactName) parts.push(`Ansprechpartner: ${v.contactName}`);
+  if (v.contactPhone) parts.push(`Tel: ${v.contactPhone}`);
+  if (v.publicPrice && v.publicPrice.trim()) {
+    const lbl = (v.publicPriceLabel && v.publicPriceLabel.trim()) ? v.publicPriceLabel : "Eintritt";
+    const raw = v.publicPrice.trim();
+    const isPercent = /%/.test(raw);
+    const looksNumeric = /^\s*[\d.,]+\s*$/.test(raw.replace(/\s*€\s*$/, "").replace(/^\s*€\s*/, ""));
+    const display = isPercent ? raw : (looksNumeric ? `${raw.replace(/\s*€\s*$/, "").replace(/^\s*€\s*/, "")} €` : raw);
+    parts.push(`${lbl}: ${display}`);
+  }
+  if (v.kaertnerCardFree) parts.push("Mit Kärnten Card kostenlos");
+  if (v.adminPrice && v.adminPrice.trim()) {
+    const raw = v.adminPrice.trim();
+    const isPercent = /%/.test(raw);
+    const looksNumeric = /^\s*[\d.,]+\s*$/.test(raw.replace(/\s*€\s*$/, "").replace(/^\s*€\s*/, ""));
+    const display = isPercent ? raw : (looksNumeric ? `${raw.replace(/\s*€\s*$/, "").replace(/^\s*€\s*/, "")} €` : raw);
+    parts.push(`Vereinbart (intern): ${display}`);
+    const psMap = { open: "Offen", partial: "Anzahlung", paid: "Bezahlt" };
+    const ps = psMap[v.adminPaymentStatus];
+    if (ps) parts.push(`Zahlungsstatus: ${ps}`);
+    if (v.adminPaymentStatus === "partial" && v.adminPartialAmount) {
+      parts.push(`Angezahlt: ${v.adminPartialAmount} €`);
+    }
+  }
+  if (d.seriesId) parts.push(`(Serie · ${d.seriesId.slice(0, 8)})`);
+
+  return {
+    type: "veranstaltung",
+    label: title,
+    status: "booked",
+    startTime: d.startTime || "09:00",
+    endTime: d.endTime || "17:00",
+    allDay: !!d.allDay,
+    contactName: v.contactName || "",
+    contactPhone: v.contactPhone || "",
+    adminNote: parts.join("\n"),
+    name: title,
+  };
+}
+
+function flattenVeranstaltungen(veranstaltungen) {
+  const out = [];
+  for (const v of (veranstaltungen || [])) {
+    if (!v || !v.id || !Array.isArray(v.dates)) continue;
+    for (const d of v.dates) {
+      if (!d || !d.id || !d.date) continue;
+      const syncId = `v_${v.id}:${d.id}`;
+      out.push({ syncId, veranstaltungId: v.id, dateEntryId: d.id, dateKey: d.date, veranstaltung: v, dateEntry: d });
+    }
+  }
+  return out;
+}
+
+function extractVeranstGcalIds(veranstaltungen) {
+  const map = new Map();
+  for (const v of (veranstaltungen || [])) {
+    if (!v || !v.id) continue;
+    for (const d of (v.dates || [])) {
+      if (d?.id && d?.googleEventId) {
+        map.set(`v_${v.id}:${d.id}`, { gcalId: d.googleEventId, veranstaltungId: v.id, dateEntryId: d.id });
+      }
+    }
+  }
+  return map;
+}
+
+function veranstEntryChanged(a, b) {
+  // Termin-Felder die für Google relevant sind
+  const dateFields = ["date", "startTime", "endTime", "allDay"];
+  for (const f of dateFields) {
+    if ((a.dateEntry?.[f] ?? "") !== (b.dateEntry?.[f] ?? "")) return true;
+  }
+  // Veranstaltungs-Felder die in Summary/Description landen
+  const vFields = ["title", "description", "contactName", "contactPhone",
+    "publicPrice", "publicPriceLabel", "kaertnerCardFree",
+    "adminPrice", "adminPaymentStatus", "adminPartialAmount"];
+  for (const f of vFields) {
+    if ((a.veranstaltung?.[f] ?? "") !== (b.veranstaltung?.[f] ?? "")) return true;
+  }
+  return false;
+}
+
+// ============================================================
+// Haupt-Funktion: Diff + Batch-Sync für Veranstaltungen
+// Rückgabe: gepatchtes veranstaltungen-Array mit neuen googleEventIds, oder null wenn nichts zu tun
+// ============================================================
+export async function syncVeranstaltungenDiff(oldVeranst, newVeranst, onComplete) {
+  const oldFlat = new Map(flattenVeranstaltungen(oldVeranst).map(x => [x.syncId, x]));
+  const newFlat = new Map(flattenVeranstaltungen(newVeranst).map(x => [x.syncId, x]));
+  const oldGcalIds = extractVeranstGcalIds(oldVeranst);
+  const newGcalIds = extractVeranstGcalIds(newVeranst);
+
+  const ops = [];
+
+  // CREATE: jeder Termin der keine googleEventId hat (neu oder bisher nicht gesynct)
+  for (const [syncId, entry] of newFlat) {
+    if (newGcalIds.has(syncId)) continue; // hat schon eine gcalId → kein create
+    ops.push({
+      op: "create",
+      localId: syncId,
+      dateKey: entry.dateKey,
+      event: veranstaltungToEvent(entry.veranstaltung, entry.dateEntry),
+    });
+  }
+
+  // UPDATE
+  for (const [syncId, entry] of newFlat) {
+    const oldEntry = oldFlat.get(syncId);
+    const gcalId = newGcalIds.get(syncId)?.gcalId;
+    if (oldEntry && gcalId && veranstEntryChanged(oldEntry, entry)) {
+      ops.push({
+        op: "update",
+        localId: syncId,
+        gcalId,
+        dateKey: entry.dateKey,
+        event: veranstaltungToEvent(entry.veranstaltung, entry.dateEntry),
+      });
+    }
+  }
+
+  // DELETE
+  for (const [syncId, entry] of oldFlat) {
+    if (!newFlat.has(syncId)) {
+      const gcalId = oldGcalIds.get(syncId)?.gcalId || newGcalIds.get(syncId)?.gcalId;
+      if (gcalId) ops.push({ op: "delete", localId: syncId, gcalId });
+    }
+  }
+
+  if (ops.length === 0) {
+    console.log("[gcal veranst sync] no ops");
+    if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: 0 });
+    return null;
+  }
+  console.log("[gcal veranst sync] sending ops:", ops);
+
+  let results;
+  try {
+    const res = await fetch(`${GCAL_WORKER_URL}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-PGM-Secret": GCAL_SHARED_SECRET },
+      body: JSON.stringify({ ops }),
+    });
+    const data = await res.json();
+    console.log("[gcal veranst sync] response:", data);
+    if (!data.ok) {
+      console.warn("[gcal veranst sync] batch failed:", data);
+      if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: ops.length });
+      return null;
+    }
+    results = data.results || [];
+  } catch (e) {
+    console.warn("[gcal veranst sync] network error:", e);
+    if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: ops.length });
+    return null;
+  }
+
+  // Patch: googleEventId in date-Entries einsetzen bzw. entfernen
+  const patched = structuredClone(newVeranst);
+  let anyPatched = false;
+  const opByLocalId = new Map(ops.map(o => [o.localId, o.op]));
+
+  const modifyBySyncId = (syncId, updater) => {
+    // syncId: v_{veranstaltungId}:{dateEntryId}
+    const afterPrefix = syncId.startsWith("v_") ? syncId.slice(2) : syncId;
+    const colonIdx = afterPrefix.lastIndexOf(":");
+    if (colonIdx < 0) return false;
+    const vId = afterPrefix.slice(0, colonIdx);
+    const dId = afterPrefix.slice(colonIdx + 1);
+    const v = patched.find(x => x.id === vId);
+    if (!v || !Array.isArray(v.dates)) return false;
+    const idx = v.dates.findIndex(d => d.id === dId);
+    if (idx < 0) return false;
+    v.dates[idx] = updater(v.dates[idx]);
+    anyPatched = true;
+    return true;
+  };
+
+  const stats = { created: 0, updated: 0, deleted: 0, failed: 0 };
+  for (const r of results) {
+    const op = opByLocalId.get(r.localId);
+    if (!r.ok) { stats.failed++; continue; }
+    if (op === "delete") {
+      stats.deleted++;
+      modifyBySyncId(r.localId, d => { const { googleEventId, ...rest } = d; return rest; });
+    } else if (op === "update") {
+      stats.updated++;
+    } else if (r.googleEventId) {
+      stats.created++;
+      modifyBySyncId(r.localId, d => ({ ...d, googleEventId: r.googleEventId }));
+    }
+  }
+  console.log("[gcal veranst sync] stats:", stats);
+  if (onComplete) onComplete(stats);
+
+  return anyPatched ? patched : null;
+}
