@@ -817,8 +817,10 @@ export default function App() {
   const [veranstaltungen, setVeranstaltungen] = useState(DEFAULT_VERANSTALTUNGEN);
   const [showVeranstaltungenAdmin, setShowVeranstaltungenAdmin] = useState(false);
   const [editingVeranstaltungId, setEditingVeranstaltungId] = useState(null); // null | id-string ("new" fuer neu anlegen)
+  const [expandedVeranstSeries, setExpandedVeranstSeries] = useState({});
+  const [editingSeriesInfo, setEditingSeriesInfo] = useState(null); // { seriesId, startTime, endTime, allDay }
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
-  useEffect(() => { setVeranstImageError(false); setShowIconPicker(false); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
+  useEffect(() => { setVeranstImageError(false); setShowIconPicker(false); setExpandedVeranstSeries({}); setEditingSeriesInfo(null); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
   const [veranstaltungDatePicker, setVeranstaltungDatePicker] = useState(null); // null | { mode: "single" | "series", data }
   const [designDraftTypes, setDesignDraftTypes] = useState(null);
   const [designDraftTheme, setDesignDraftTheme] = useState(null);
@@ -2561,58 +2563,28 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Icon + Titel-Vorschau */}
-                    <div style={{ display:"flex", gap:14, marginBottom:18, alignItems:"center" }}>
-                      <div style={{ width:72, height:72, borderRadius:10, flexShrink:0, background: patOf(draft).gradient, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                    {/* Icon + Titel-Vorschau — Viereck ist klickbar und oeffnet Icon-Picker */}
+                    <div style={{ display:"flex", gap:14, marginBottom: showIconPicker ? 8 : 18, alignItems:"center" }}>
+                      <button type="button" onClick={() => setShowIconPicker(s => !s)}
+                        title={draft.imageKey ? "Symbol als Fallback ändern" : "Symbol ändern"}
+                        style={{ width:72, height:72, borderRadius:10, flexShrink:0, background: patOf(draft).gradient, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden", padding:0, border: showIconPicker ? `2px solid ${BRAND.lila}` : "1px solid transparent", cursor:"pointer" }}>
                         {iconSvg[patOf(draft).id]}
                         {draft.imageKey && <img src={`/assets/${draft.imageKey}`} alt=""
                           onLoad={() => setVeranstImageError(false)}
                           onError={ev => { ev.currentTarget.style.display = "none"; setVeranstImageError(true); }}
                           style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
-                      </div>
+                        {/* kleines Edit-Icon unten rechts */}
+                        <div style={{ position:"absolute", bottom:3, right:3, width:18, height:18, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}>
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={BRAND.lila} strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        </div>
+                      </button>
                       <input placeholder="Titel der Veranstaltung" value={draft.title} onChange={e => patchDraft({ title: e.target.value })}
                         style={{ flex:1, padding:"12px 14px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:16, fontWeight:600, fontFamily:"inherit", boxSizing:"border-box", color: BRAND.aubergine }} />
                     </div>
-
-                    {/* Beschreibung */}
-                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Kurzbeschreibung</label>
-                    <textarea placeholder="Text für Kunden…" value={draft.description || ""} onChange={e => patchDraft({ description: e.target.value })}
-                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", minHeight:70, resize:"vertical", marginBottom:14 }} />
-
-                    {/* Ansprechpartner */}
-                    <div style={{ background:"#f9f7fa", borderRadius:10, padding:"12px 14px", marginBottom:14, border:"1px solid #ede8ed" }}>
-                      <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>
-                        Ansprechpartner <span style={{ color:"#009a93", fontWeight:500 }}>· für Kunden sichtbar</span>
-                      </div>
-                      <input placeholder="Name" value={draft.contactName || ""} onChange={e => patchDraft({ contactName: e.target.value })}
-                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6 }} />
-                      <input placeholder="Telefon" value={draft.contactPhone || ""} onChange={e => patchDraft({ contactPhone: e.target.value })}
-                        style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box" }} />
-                    </div>
-
-                    {/* Titelbild / Icon — kompakt einklappbar */}
-                    <div style={{ marginBottom:8 }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
-                        <label style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Titelbild-Symbol</label>
-                        <button type="button" onClick={() => setShowIconPicker(s => !s)}
-                          style={{ background:"none", border:"none", color: BRAND.lila, fontSize:11, fontWeight:600, cursor:"pointer", padding:"2px 4px", display:"flex", alignItems:"center", gap:4 }}>
-                          {showIconPicker ? "Ausblenden" : "Ändern"}
-                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none" style={{ transform: showIconPicker ? "rotate(180deg)" : "rotate(0)", transition:"transform .2s" }}><path d="M4 6l4 4 4-4" stroke={BRAND.lila} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        </button>
-                      </div>
-                      {!showIconPicker && (() => {
-                        const active = iconPatterns.find(p => p.id === (draft.iconPattern || "yoga")) || iconPatterns[0];
-                        return (
-                          <button type="button" onClick={() => setShowIconPicker(true)}
-                            style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", border:"1px solid #e0d8de", borderRadius:8, background:"#fff", cursor:"pointer", width:"100%", textAlign:"left" }}>
-                            <div style={{ width:32, height:32, borderRadius:6, background: active.gradient, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                              {React.cloneElement(iconSvg[active.id], { width:18, height:18 })}
-                            </div>
-                            <span style={{ fontSize:13, color: BRAND.aubergine, fontWeight:500 }}>{active.label}</span>
-                          </button>
-                        );
-                      })()}
-                      {showIconPicker && (
+                    {/* Icon-Picker (klappt unter dem Viereck auf) */}
+                    {showIconPicker && (
+                      <div style={{ marginBottom:18, padding:"10px 12px", background:"#faf7fa", border:"1px solid #ede5ed", borderRadius:8 }}>
+                        <div style={{ fontSize:10, color:"#888", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Symbol {draft.imageKey ? "(Fallback falls kein Bild geladen wird)" : ""}</div>
                         <div style={{ display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:6 }}>
                           {iconPatterns.map(opt => {
                             const active = (draft.iconPattern || "yoga") === opt.id;
@@ -2628,16 +2600,29 @@ export default function App() {
                             );
                           })}
                         </div>
-                      )}
-                    </div>
-                    <input placeholder="Bild-Dateiname, z.B. veranstaltung.png (liegt in /assets/)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
-                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${draft.imageKey ? (veranstImageError ? "#c44" : BRAND.tuerkis)+"50" : "#e8e0e5"}`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom: draft.imageKey ? 4 : 16, color: draft.imageKey ? BRAND.aubergine : "#888", background: draft.imageKey ? "#fff" : "#fafafa" }} />
-                    {draft.imageKey && !veranstImageError && (
-                      <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:16, fontSize:11, color: BRAND.tuerkis, fontWeight:500 }}>
-                        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke={BRAND.tuerkis} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        Bild verknüpft — wird aus <code style={{ background:`${BRAND.tuerkis}12`, padding:"1px 5px", borderRadius:3, fontFamily:"monospace", fontSize:10 }}>/assets/{draft.imageKey}</code> geladen
                       </div>
                     )}
+
+                    {/* Beschreibung */}
+                    <label style={{ fontSize:10, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>Kurzbeschreibung</label>
+                    <textarea placeholder="Text für Kunden…" value={draft.description || ""} onChange={e => patchDraft({ description: e.target.value })}
+                      style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", minHeight:70, resize:"vertical", marginBottom:14 }} />
+
+                    {/* Ansprechpartner */}
+                    <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                      <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>
+                        Ansprechpartner <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span>
+                      </div>
+                      <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Name und Telefon der Kontaktperson für diese Veranstaltung</div>
+                      <input placeholder="Name" value={draft.contactName || ""} onChange={e => patchDraft({ contactName: e.target.value })}
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
+                      <input placeholder="Telefon" value={draft.contactPhone || ""} onChange={e => patchDraft({ contactPhone: e.target.value })}
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                    </div>
+
+                    {/* Bild-Dateiname (optional) */}
+                    <input placeholder="Bild-Dateiname, z.B. veranstaltung.png (liegt in /assets/)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
+                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${draft.imageKey && veranstImageError ? "#c44" : "#e8e0e5"}`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom: draft.imageKey && veranstImageError ? 4 : 16, color: draft.imageKey ? BRAND.aubergine : "#888", background:"#fafafa" }} />
                     {draft.imageKey && veranstImageError && (
                       <div style={{ display:"flex", alignItems:"flex-start", gap:6, marginBottom:16, fontSize:11, color:"#c44", fontWeight:500, background:"#fdf3f3", border:"1px solid #f3c8c8", borderRadius:6, padding:"8px 10px" }}>
                         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:1 }}><circle cx="8" cy="8" r="6.5" stroke="#c44" strokeWidth="1.5"/><path d="M8 5v3.5" stroke="#c44" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="10.8" r="0.8" fill="#c44"/></svg>
@@ -2649,27 +2634,28 @@ export default function App() {
                     )}
 
                     {/* Termine */}
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-                      <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Termine</div>
-                      <div style={{ display:"flex", gap:6 }}>
-                        <button onClick={addSingleDate}
-                          style={{ padding:"6px 10px", background:`${BRAND.lila}12`, color:BRAND.lila, border:`1px solid ${BRAND.lila}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.lila} strokeWidth="1.8" strokeLinecap="round"/></svg>
-                          Einzeltermin
-                        </button>
-                        <button onClick={startSeriesPicker}
-                          style={{ padding:"6px 10px", background:`${BRAND.tuerkis}12`, color:BRAND.tuerkis, border:`1px solid ${BRAND.tuerkis}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-                          <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.tuerkis} strokeWidth="1.8" strokeLinecap="round"/></svg>
-                          Serie
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ marginBottom:18 }}>
-                      {(draft.dates || []).length === 0 ? (
-                        <div style={{ padding:"18px 14px", background:"#faf7fa", borderRadius:8, textAlign:"center", color:"#aaa", fontSize:12, fontStyle:"italic" }}>
-                          Noch keine Termine — legen Sie oben einen Einzel- oder Serientermin an.
+                    <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.lila}` }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                        <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Termine</div>
+                        <div style={{ display:"flex", gap:6 }}>
+                          <button onClick={addSingleDate}
+                            style={{ padding:"6px 10px", background:`${BRAND.lila}12`, color:BRAND.lila, border:`1px solid ${BRAND.lila}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.lila} strokeWidth="1.8" strokeLinecap="round"/></svg>
+                            Einzeltermin
+                          </button>
+                          <button onClick={startSeriesPicker}
+                            style={{ padding:"6px 10px", background:`${BRAND.tuerkis}12`, color:BRAND.tuerkis, border:`1px solid ${BRAND.tuerkis}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.tuerkis} strokeWidth="1.8" strokeLinecap="round"/></svg>
+                            Serie
+                          </button>
                         </div>
-                      ) : (() => {
+                      </div>
+                      <div>
+                        {(draft.dates || []).length === 0 ? (
+                          <div style={{ padding:"18px 14px", background:"#faf7fa", borderRadius:8, textAlign:"center", color:"#aaa", fontSize:12, fontStyle:"italic" }}>
+                            Noch keine Termine — legen Sie oben einen Einzel- oder Serientermin an.
+                          </div>
+                        ) : (() => {
                         // Nach seriesId gruppieren; Einzelne bekommen jeweils eigenen Block
                         const sorted = [...(draft.dates||[])].sort((a,b) => (a.date||"").localeCompare(b.date||""));
                         const groups = [];
@@ -2716,35 +2702,87 @@ export default function App() {
                                 // Serie
                                 const entries = g.entries;
                                 const first = entries[0];
+                                const isOpen = !!expandedVeranstSeries[g.seriesId];
+                                const editing = editingSeriesInfo && editingSeriesInfo.seriesId === g.seriesId;
+                                const applySeriesEdit = () => {
+                                  if (!editingSeriesInfo) return;
+                                  patchDraft({ dates: (veranstaltungDraft?.dates||[]).map(d => d.seriesId === editingSeriesInfo.seriesId ? { ...d, startTime: editingSeriesInfo.startTime, endTime: editingSeriesInfo.endTime, allDay: editingSeriesInfo.allDay } : d) });
+                                  setEditingSeriesInfo(null);
+                                };
                                 return (
-                                  <div key={g.seriesId} style={{ padding:"10px 12px", background:"#fff", border:`1px solid ${BRAND.tuerkis}30`, borderRadius:8 }}>
-                                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                                      <div style={{ fontSize:10, color:BRAND.tuerkis, fontWeight:700, textTransform:"uppercase", letterSpacing:1, background:`${BRAND.tuerkis}12`, padding:"2px 6px", borderRadius:4 }}>Serie · {entries.length} Termine</div>
-                                      {!first.allDay && <div style={{ fontSize:12, color:"#666" }}>{first.startTime} – {first.endTime} Uhr</div>}
-                                      {first.allDay && <div style={{ fontSize:12, color:"#666" }}>ganztägig</div>}
-                                      <button onClick={() => removeDateOrSeries(first)} title="Serie löschen"
-                                        style={{ marginLeft:"auto", background:"none", border:"none", color:"#c44", cursor:"pointer", padding:4, display:"flex", alignItems:"center" }}>
-                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-                                      </button>
+                                  <div key={g.seriesId} style={{ background:"#fff", border:`1px solid ${BRAND.tuerkis}35`, borderRadius:8, overflow:"hidden" }}>
+                                    {/* Header (immer sichtbar, klickbar zum Ein-/Aufklappen) */}
+                                    <div onClick={() => setExpandedVeranstSeries(s => ({ ...s, [g.seriesId]: !s[g.seriesId] }))}
+                                      style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", cursor:"pointer", background: isOpen ? `${BRAND.tuerkis}0c` : "#fff", transition:"background .15s" }}>
+                                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ transform: isOpen ? "rotate(90deg)" : "rotate(0)", transition:"transform .2s", color: BRAND.tuerkis, flexShrink:0 }}><path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                      <div style={{ fontSize:10, color:BRAND.tuerkis, fontWeight:700, textTransform:"uppercase", letterSpacing:1, background:`${BRAND.tuerkis}18`, padding:"3px 8px", borderRadius:4 }}>Serie · {entries.length} Termine</div>
+                                      <div style={{ fontSize:12, color:"#666" }}>{first.allDay ? "ganztägig" : `${first.startTime} – ${first.endTime} Uhr`}</div>
+                                      {isOpen && !editing && (
+                                        <button onClick={(ev) => { ev.stopPropagation(); setEditingSeriesInfo({ seriesId: g.seriesId, startTime: first.startTime || "08:00", endTime: first.endTime || "17:00", allDay: !!first.allDay }); }}
+                                          title="Zeit für alle Termine bearbeiten"
+                                          onMouseEnter={e => { e.currentTarget.style.background = `${BRAND.tuerkis}22`; }}
+                                          onMouseLeave={e => { e.currentTarget.style.background = `${BRAND.tuerkis}10`; }}
+                                          style={{ marginLeft:"auto", background:`${BRAND.tuerkis}10`, border:`1px solid ${BRAND.tuerkis}40`, borderRadius:6, padding:"4px 8px", cursor:"pointer", color: BRAND.tuerkis, display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:600, transition:"all .15s" }}>
+                                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                          Bearbeiten
+                                        </button>
+                                      )}
+                                      {isOpen && (
+                                        <button onClick={(ev) => { ev.stopPropagation(); removeDateOrSeries(first); }}
+                                          title="Ganze Serie löschen"
+                                          style={{ marginLeft: editing ? "auto" : 0, background:"none", border:"none", color:"#c44", cursor:"pointer", padding:4, display:"flex", alignItems:"center" }}>
+                                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                                        </button>
+                                      )}
                                     </div>
-                                    <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                                      {entries.map(e => {
-                                        const [yy,mm,dd] = e.date.split("-").map(Number);
-                                        const wd = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
-                                        const isPast = e.date < todayKey;
-                                        return (
-                                          <div key={e.id} style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, padding:"3px 4px 3px 7px", background:isPast ? "#f5f3f4" : `${BRAND.tuerkis}08`, color: isPast ? "#aaa" : BRAND.aubergine, borderRadius:4, fontWeight:500 }}>
-                                            <span>{wd} {dd}.{mm}.{yy}</span>
-                                            <button onClick={() => removeSingleSeriesDate(e.id)} title="Diesen Termin entfernen"
-                                              onMouseEnter={ev => { ev.currentTarget.style.background = "#fdeaea"; ev.currentTarget.style.color = "#c44"; }}
-                                              onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = "#aaa"; }}
-                                              style={{ background:"transparent", border:"none", color:"#aaa", cursor:"pointer", padding:"1px 3px", display:"flex", alignItems:"center", borderRadius:3, transition:"all .1s" }}>
-                                              <svg width="8" height="8" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-                                            </button>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
+                                    {/* Bearbeiten-Panel */}
+                                    {isOpen && editing && (
+                                      <div style={{ padding:"10px 12px", background:`${BRAND.tuerkis}05`, borderTop:`1px solid ${BRAND.tuerkis}20`, display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <span style={{ fontSize:11, color:"#666", fontWeight:500 }}>Zeit für alle {entries.length} Termine:</span>
+                                        {!editingSeriesInfo.allDay && (
+                                          <>
+                                            <input type="time" value={editingSeriesInfo.startTime} onChange={e => setEditingSeriesInfo(s => ({ ...s, startTime: e.target.value }))} step="900"
+                                              style={{ padding:"5px 7px", border:"1px solid #e0d8de", borderRadius:5, fontSize:12, fontFamily:"inherit", width:80 }} />
+                                            <span style={{ color:"#888", fontSize:12 }}>–</span>
+                                            <input type="time" value={editingSeriesInfo.endTime} onChange={e => setEditingSeriesInfo(s => ({ ...s, endTime: e.target.value }))} step="900"
+                                              style={{ padding:"5px 7px", border:"1px solid #e0d8de", borderRadius:5, fontSize:12, fontFamily:"inherit", width:80 }} />
+                                          </>
+                                        )}
+                                        <label style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, color:"#666", cursor:"pointer" }}>
+                                          <input type="checkbox" checked={editingSeriesInfo.allDay} onChange={e => setEditingSeriesInfo(s => ({ ...s, allDay: e.target.checked }))} />
+                                          ganztägig
+                                        </label>
+                                        <button onClick={applySeriesEdit}
+                                          style={{ marginLeft:"auto", background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:5, padding:"5px 12px", cursor:"pointer", fontSize:11, fontWeight:600 }}>
+                                          Übernehmen
+                                        </button>
+                                        <button onClick={() => setEditingSeriesInfo(null)}
+                                          style={{ background:"none", border:"1px solid #e0d8de", borderRadius:5, padding:"5px 10px", cursor:"pointer", fontSize:11, color:"#888" }}>
+                                          Abbrechen
+                                        </button>
+                                      </div>
+                                    )}
+                                    {/* Chips */}
+                                    {isOpen && (
+                                      <div style={{ padding:"8px 12px 10px", display:"flex", flexWrap:"wrap", gap:4, borderTop: editing ? `1px solid ${BRAND.tuerkis}20` : "none" }}>
+                                        {entries.map(e => {
+                                          const [yy,mm,dd] = e.date.split("-").map(Number);
+                                          const wd = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
+                                          const isPast = e.date < todayKey;
+                                          return (
+                                            <div key={e.id} style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, padding:"3px 4px 3px 7px", background:isPast ? "#f5f3f4" : `${BRAND.tuerkis}08`, color: isPast ? "#aaa" : BRAND.aubergine, borderRadius:4, fontWeight:500 }}>
+                                              <span>{wd} {dd}.{mm}.{yy}</span>
+                                              <button onClick={() => removeSingleSeriesDate(e.id)} title="Diesen Termin entfernen"
+                                                onMouseEnter={ev => { ev.currentTarget.style.background = "#fdeaea"; ev.currentTarget.style.color = "#c44"; }}
+                                                onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = "#aaa"; }}
+                                                style={{ background:"transparent", border:"none", color:"#aaa", cursor:"pointer", padding:"1px 3px", display:"flex", alignItems:"center", borderRadius:3, transition:"all .1s" }}>
+                                                <svg width="8" height="8" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                                              </button>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               }
@@ -2752,6 +2790,7 @@ export default function App() {
                           </div>
                         );
                       })()}
+                      </div>
                     </div>
 
                     {/* Öffnungszeiten — nur zeigen wenn mind. ein ganztägiger Termin */}
@@ -2768,9 +2807,10 @@ export default function App() {
                       ];
                       const updDay = (dk, patch) => patchDraft({ openingHours: { ...oh, [dk]: { ...(oh[dk] || { open:"09:00", close:"17:00", closed:false }), ...patch } } });
                       return (
-                        <div style={{ marginBottom:18 }}>
-                          <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Öffnungszeiten (für ganztägige Termine)</div>
-                          <div style={{ background:"#faf7fa", borderRadius:10, padding:"10px 12px", display:"flex", flexDirection:"column", gap:6 }}>
+                        <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                          <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Öffnungszeiten <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span></div>
+                          <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Gilt an ganztägigen Terminen dieser Veranstaltung</div>
+                          <div style={{ background:"#faf7fa", borderRadius:8, padding:"10px 12px", display:"flex", flexDirection:"column", gap:6 }}>
                             {days.map(d => {
                               const entry = oh[d.key] || { open:"09:00", close:"17:00", closed:false };
                               return (
@@ -2798,8 +2838,8 @@ export default function App() {
                     })()}
 
                     {/* Eintritt für Kunden (öffentlich sichtbar) */}
-                    <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
-                      <div style={{ fontSize:11, color:BRAND.aubergine, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Eintritt <span style={{ color: BRAND.tuerkis }}>· für Kunden sichtbar</span></div>
+                    <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                      <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Eintritt <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span></div>
                       <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Leer lassen, wenn kein Preis angezeigt werden soll</div>
                       <div style={{ position:"relative", marginBottom:10 }}>
                         <input placeholder='z.B. 15 oder "15 pro Person" oder "Eintritt frei"' value={draft.publicPrice || ""} onChange={e => patchDraft({ publicPrice: e.target.value })}
@@ -2817,7 +2857,10 @@ export default function App() {
 
                     {/* Admin-Preis & Zahlung — nur fuer Admin */}
                     {(() => {
-                      const priceNum = parseFloat(String(draft.adminPrice || "").replace(/\./g, "").replace(",", ".")) || 0;
+                      const priceStr = String(draft.adminPrice || "");
+                      const isPercent = /%/.test(priceStr);
+                      const rawNum = parseFloat(priceStr.replace(/\./g, "").replace(",", ".")) || 0;
+                      const priceNum = isPercent ? 0 : rawNum;
                       const partialNum = parseFloat(String(draft.adminPartialAmount || "").replace(/\./g, "").replace(",", ".")) || 0;
                       const fmtMoney = (n) => n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                       const paymentStatus = draft.adminPaymentStatus || "open";
@@ -2833,7 +2876,7 @@ export default function App() {
                       ];
                       const pickStatus = (v) => patchDraft({ adminPaymentStatus: v, adminPartialAmount: v === "partial" ? (draft.adminPartialAmount || "") : "" });
                       return (
-                        <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                        <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.lila}` }}>
                           <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Vereinbarter Preis <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· intern</span></div>
                           <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Nur für Admin sichtbar — z.B. Gage Julia W.</div>
                           <div style={{ position:"relative", marginBottom:10 }}>
@@ -2859,7 +2902,12 @@ export default function App() {
                               <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#8a6a00", fontWeight:600, fontSize:13, pointerEvents:"none" }}>€</span>
                             </div>
                           )}
-                          {priceNum > 0 && (
+                          {isPercent && rawNum > 0 && (
+                            <div style={{ fontSize:13, color: BRAND.lila, fontWeight:700, textAlign:"right", marginTop:8, paddingRight:2 }}>
+                              {priceStr.trim().match(/[\d.,]+\s*%/)?.[0].replace(/\s+/g,"") || `${rawNum}%`}
+                            </div>
+                          )}
+                          {!isPercent && priceNum > 0 && (
                             <div style={{ fontSize:11, color:"#999", textAlign:"right", marginTop:8, paddingRight:2 }}>
                               Noch offen: <span style={{ color: restColor, fontWeight:700, fontSize:13 }}>{fmtMoney(restOffen)} €</span>
                             </div>
