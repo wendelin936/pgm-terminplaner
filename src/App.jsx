@@ -5469,7 +5469,7 @@ export default function App() {
               return (
                 <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()}
-                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85dvh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
+                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight: winW <= 600 ? "90dvh" : "85dvh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
                     {/* Touch-Zone fuer Swipe-to-close (nur Mobile), liegt ueber dem Headerbild */}
                     {winW <= 600 && (
                       <div
@@ -5479,7 +5479,7 @@ export default function App() {
                         style={{ position:"absolute", top:0, left:0, right:60, height:48, zIndex:3, touchAction:"none" }} />
                     )}
                     <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-                    <div style={{ background: pat.gradient, height:180, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                    <div style={{ background: pat.gradient, height: winW <= 600 ? 140 : 180, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
                       {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
@@ -5585,11 +5585,25 @@ export default function App() {
                                 });
                                 const groupArr = Array.from(groups.entries()).sort(([a],[b]) => a.localeCompare(b));
                                 const totalCount = timedDates.length;
-                                // Schwelle: >6 Termine -> erste 2 Monate voll, Rest einklappbar
-                                const shouldCollapse = totalCount > 6 && !showAllDates;
-                                const visibleGroups = shouldCollapse ? groupArr.slice(0, 2) : groupArr;
-                                const hiddenCount = shouldCollapse ? timedDates.length - visibleGroups.reduce((s,[,arr]) => s + arr.length, 0) : 0;
-                                const compact = totalCount > 4; // kompakteres Layout bei vielen
+                                // Schwelle: >2 Termine -> nur erste 2 zeigen, Rest einklappbar
+                                const MAX_VISIBLE = 2;
+                                const shouldCollapse = totalCount > MAX_VISIBLE && !showAllDates;
+                                // Gruppen so beschneiden dass insgesamt nur MAX_VISIBLE Termine sichtbar sind
+                                let visibleGroups = groupArr;
+                                if (shouldCollapse) {
+                                  visibleGroups = [];
+                                  let shown = 0;
+                                  for (const [mk, dates] of groupArr) {
+                                    const remaining = MAX_VISIBLE - shown;
+                                    if (remaining <= 0) break;
+                                    const take = dates.slice(0, remaining);
+                                    visibleGroups.push([mk, take]);
+                                    shown += take.length;
+                                    if (shown >= MAX_VISIBLE) break;
+                                  }
+                                }
+                                const hiddenCount = shouldCollapse ? totalCount - visibleGroups.reduce((s,[,arr]) => s + arr.length, 0) : 0;
+                                const compact = !shouldCollapse && totalCount > 4; // kompakt nur im expandierten Zustand bei vielen
 
                                 const renderDate = (d) => {
                                   const [yy2,mm2,dd2] = d.date.split("-").map(Number);
@@ -5638,7 +5652,7 @@ export default function App() {
                                         {hiddenCount} weitere{hiddenCount === 1 ? "r" : ""} Termin{hiddenCount === 1 ? "" : "e"} anzeigen
                                       </button>
                                     )}
-                                    {showAllDates && totalCount > 6 && (
+                                    {showAllDates && totalCount > 2 && (
                                       <button onClick={() => setShowAllDates(false)}
                                         style={{ marginTop:4, padding:"8px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:12, color:"#999", fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit" }}>
                                         <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M4 10l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
