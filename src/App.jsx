@@ -811,6 +811,7 @@ export default function App() {
   const [publicEventsPullY, setPublicEventsPullY] = useState(0);
   const [publicDetailPullY, setPublicDetailPullY] = useState(0);
   const [publicDayPicker, setPublicDayPicker] = useState(null); // { dateKey, candidates: [veranstaltung, ...] } - Auswahl bei mehreren
+  const [publicDayInfo, setPublicDayInfo] = useState(null); // { dateKey } — Tag ohne Veranstaltung, zeigt Oeffnungszeiten
   const [publicMonth, setPublicMonth] = useState(new Date().getMonth());
   const [publicYear, setPublicYear] = useState(new Date().getFullYear());
   // Veranstaltungen — eigenständige Entität mit eigenen Terminen, blockieren keine Tage
@@ -819,6 +820,8 @@ export default function App() {
   const [editingVeranstaltungId, setEditingVeranstaltungId] = useState(null); // null | id-string ("new" fuer neu anlegen)
   const [expandedVeranstSeries, setExpandedVeranstSeries] = useState({});
   const [editingSeriesInfo, setEditingSeriesInfo] = useState(null); // { seriesId, startTime, endTime, allDay }
+  const [draggedVeranstId, setDraggedVeranstId] = useState(null);
+  const [dragOverVeranstId, setDragOverVeranstId] = useState(null);
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
   useEffect(() => { setVeranstImageError(false); setShowIconPicker(false); setExpandedVeranstSeries({}); setEditingSeriesInfo(null); }, [veranstaltungDraft?.imageKey, veranstaltungDraft?.id]);
   const [veranstaltungDatePicker, setVeranstaltungDatePicker] = useState(null); // null | { mode: "single" | "series", data }
@@ -1902,7 +1905,7 @@ export default function App() {
                   aspectRatio:"1",
                   border: isToday ? `2.5px solid ${adminTheme.todayColor}` : (isPast && ev) ? "1px solid #e8e0e5" : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}90` : isBlockedAdminAllDay ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : `${BRAND.lila}0c`) : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : `${statusColor}0c`) : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
@@ -1918,8 +1921,8 @@ export default function App() {
                 {/* Pending indicator for admin */}
                 {isPending && !isPast && ev.allDay && <div style={{ position:"absolute", bottom:0, left:0, right:0, background:adminTheme.pendingColor, color:"#fff", fontSize: winW > 900 ? 8 : 6, fontWeight:700, textAlign:"center", borderRadius: winW > 900 ? "0 0 8px 8px" : "0 0 6px 6px", padding: winW > 900 ? "3px 0" : "2px 0", letterSpacing:0.5, lineHeight:1.1 }}>Anfrage</div>}
                 {hol && !ev && (winW > 900 ?
-                  <div style={{ position:"absolute", top:0, left:0, right: hasAllDayVeranst ? 22 : 0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius: hasAllDayVeranst ? "10px 0 2px 2px" : "10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis", zIndex:3 }}>{hol}</div>
-                  : <div style={{ position:"absolute", top:0, left:0, right: hasAllDayVeranst ? 16 : 0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius: hasAllDayVeranst ? "8px 0 0 0" : "8px 8px 0 0", zIndex:3 }} />
+                  <div style={{ position:"absolute", top:0, left:0, right:0, background:`${BRAND.aubergine}50`, color:BRAND.aubergine, fontSize:9, lineHeight:1, borderRadius:"10px 10px 2px 2px", padding:"3px 2px", textAlign:"center", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis", zIndex:3 }}>{hol}</div>
+                  : <div style={{ position:"absolute", top:0, left:0, right:0, height:5, background:BRAND.aubergine, opacity:0.35, borderRadius:"8px 8px 0 0", zIndex:3 }} />
                 )}
                 <span style={{ fontSize: winW > 900 ? 16 : (isAdmin ? 12 : 14), fontWeight: isToday || (ev && isAdmin && !ev.isSeries) || customerBooked ? 700 : (hol && !ev && winW <= 900 ? 600 : 400), color: isToday && !ev ? adminTheme.todayColor : customerBooked ? BRAND.lila : ev && isAdmin && !ev.isSeries && ev.status!=="blocked" ? statusColor : (hol && !ev && winW <= 900 ? BRAND.lila : BRAND.aubergine) }}>{day}</span>
                 {customerBooked && <div style={{ display:"flex", gap:2, marginTop:2 }}><div style={{ width: winW > 900 ? 8 : 7, height: winW > 900 ? 8 : 7, borderRadius:"50%", background: BRAND.lila }} /></div>}
@@ -2518,15 +2521,43 @@ export default function App() {
                       </button>
                     </div>
 
+                    <div style={{ fontSize:11, color:"#999", marginBottom:8, fontStyle:"italic" }}>Tipp: Ziehen Sie die Kacheln mit dem Griff oben links, um die Reihenfolge zu ändern. Diese Reihenfolge wird auch dem Kunden angezeigt.</div>
                     <div style={{ display:"grid", gridTemplateColumns: winW > 560 ? "repeat(2, 1fr)" : "1fr", gap:12 }}>
                       {veranstaltungen.map(v => {
                         const pat = patOf(v);
                         const futureDates = (v.dates||[]).filter(d => d.date >= todayKey);
+                        const isDragging = draggedVeranstId === v.id;
+                        const isDragOver = dragOverVeranstId === v.id && draggedVeranstId && draggedVeranstId !== v.id;
                         return (
-                          <div key={v.id} onClick={() => startEdit(v)}
-                            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
-                            style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
+                          <div key={v.id}
+                            draggable
+                            onDragStart={e => { setDraggedVeranstId(v.id); e.dataTransfer.effectAllowed = "move"; }}
+                            onDragEnd={() => { setDraggedVeranstId(null); setDragOverVeranstId(null); }}
+                            onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (draggedVeranstId && draggedVeranstId !== v.id) setDragOverVeranstId(v.id); }}
+                            onDragLeave={e => { if (dragOverVeranstId === v.id) setDragOverVeranstId(null); }}
+                            onDrop={e => {
+                              e.preventDefault();
+                              if (!draggedVeranstId || draggedVeranstId === v.id) return;
+                              const arr = [...veranstaltungen];
+                              const fromIdx = arr.findIndex(x => x.id === draggedVeranstId);
+                              const toIdx = arr.findIndex(x => x.id === v.id);
+                              if (fromIdx < 0 || toIdx < 0) return;
+                              const [moved] = arr.splice(fromIdx, 1);
+                              arr.splice(toIdx, 0, moved);
+                              saveVeranstaltungen(arr);
+                              setDraggedVeranstId(null); setDragOverVeranstId(null);
+                            }}
+                            onClick={() => startEdit(v)}
+                            onMouseEnter={e => { if (!isDragging) { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; } }}
+                            onMouseLeave={e => { if (!isDragging) { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; } }}
+                            style={{ background:"#fff", border: isDragOver ? `2px solid ${BRAND.lila}` : "1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s", opacity: isDragging ? 0.4 : 1, position:"relative" }}>
+                            {/* Drag-Handle oben links */}
+                            <div
+                              onMouseDown={e => e.stopPropagation()}
+                              title="Zum Neuanordnen ziehen"
+                              style={{ position:"absolute", top:6, left:6, background:"rgba(255,255,255,0.92)", borderRadius:6, padding:"4px 5px", cursor:"grab", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2, boxShadow:"0 1px 4px rgba(0,0,0,0.15)", color: BRAND.aubergine }}>
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="4" r="1.3" fill="currentColor"/><circle cx="11" cy="4" r="1.3" fill="currentColor"/><circle cx="5" cy="8" r="1.3" fill="currentColor"/><circle cx="11" cy="8" r="1.3" fill="currentColor"/><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="11" cy="12" r="1.3" fill="currentColor"/></svg>
+                            </div>
                             <div style={{ position:"relative", background: pat.gradient, height:100, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                               {iconSvg[pat.id]}
                               {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
@@ -5099,15 +5130,8 @@ export default function App() {
           const future = (v.dates || []).filter(d => d.date >= todayKey).sort((a,b) => a.date.localeCompare(b.date));
           return future[0] || null;
         };
-        // Sortierung: erst nach frühestem zukünftigen Termin; Veranstaltungen ohne Termine im Jahr → ganz unten
-        const sortedVeranstaltungen = [...visibleVeranstaltungen].sort((a,b) => {
-          const hasDatesA = (a.dates || []).some(d => d.date?.slice(0,4) === yearStr);
-          const hasDatesB = (b.dates || []).some(d => d.date?.slice(0,4) === yearStr);
-          if (hasDatesA !== hasDatesB) return hasDatesA ? -1 : 1;
-          const na = nextDateOf(a)?.date || ((a.dates||[]).filter(d => d.date?.slice(0,4) === yearStr).sort((x,y) => x.date.localeCompare(y.date))[0]?.date) || "9999";
-          const nb = nextDateOf(b)?.date || ((b.dates||[]).filter(d => d.date?.slice(0,4) === yearStr).sort((x,y) => x.date.localeCompare(y.date))[0]?.date) || "9999";
-          return na.localeCompare(nb);
-        });
+        // Reihenfolge wird vom Admin via Drag-and-Drop gesteuert (Array-Position)
+        const sortedVeranstaltungen = [...visibleVeranstaltungen];
 
         // Welche Tage haben öffentliche Veranstaltungen (nur zukünftige)?
         const publicDayKeys = new Set();
@@ -5222,19 +5246,23 @@ export default function App() {
                   const hasTimed  = dayVeranst.some(x => !x.dateEntry.allDay);
                   const hasPublic = hasAllDay || hasTimed;
                   const isPast = dKey < todayKey;
+                  const onDayClick = () => {
+                    if (hasPublic) openByDay(dKey);
+                    else if (!isPast) setPublicDayInfo({ dateKey: dKey });
+                  };
                   return (
-                    <button key={dKey} onClick={() => { if (hasPublic) openByDay(dKey); }}
-                      disabled={!hasPublic}
-                      style={{ aspectRatio:"1", background: hasTimed ? publicTheme.accentSoft : "#fff", border: hasTimed ? `1.5px solid ${publicTheme.accentColor}` : (hasAllDay ? "1px solid #e8e0e5" : "1px solid #e8e0e5"), borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: hasPublic ? "pointer" : "default", padding:0, opacity: isPast ? 0.4 : 1, transition:"all .15s", position:"relative", overflow:"hidden" }}>
-                      {/* Ganztägige Veranstaltung: türkise Ecke oben rechts */}
-                      {hasAllDay && <div style={{ position:"absolute", top:0, right:0, width:12, height:12, background: publicTheme.accentColor, clipPath:"polygon(100% 0, 0 0, 100% 100%)", pointerEvents:"none" }} />}
+                    <button key={dKey} onClick={onDayClick}
+                      disabled={isPast && !hasPublic}
+                      style={{ aspectRatio:"1", background: hasTimed ? publicTheme.accentSoft : "#fff", border: hasTimed ? `1.5px solid ${publicTheme.accentColor}` : "1px solid #e8e0e5", borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor: (isPast && !hasPublic) ? "default" : "pointer", padding:0, opacity: isPast ? 0.4 : 1, transition:"all .15s", position:"relative", overflow:"hidden" }}>
                       <span style={{ fontSize:11, fontWeight: hasPublic ? 600 : 400, color: hasPublic ? publicTheme.accentColor : BRAND.aubergine, lineHeight:1 }}>{day}</span>
                       {hasTimed && <div style={{ width:5, height:5, borderRadius:"50%", background: publicTheme.accentColor, marginTop:2 }} />}
+                      {/* Ganztägige Veranstaltung: unterer türkiser Strich */}
+                      {hasAllDay && <div style={{ position:"absolute", bottom:0, left:0, right:0, height:3, background: publicTheme.accentColor, borderBottomLeftRadius:7, borderBottomRightRadius:7, pointerEvents:"none" }} />}
                     </button>
                   );
                 })}
               </div>
-              <div style={{ textAlign:"center", fontSize:11, color:"#aaa", marginTop:8, fontStyle:"italic" }}>Tippen Sie auf einen Tag mit Punkt für Details</div>
+              <div style={{ textAlign:"center", fontSize:11, color:"#aaa", marginTop:8, fontStyle:"italic" }}>Tippen Sie auf einen Tag für Details</div>
             </div>
 
             {/* Kachel-Übersicht */}
@@ -5313,6 +5341,73 @@ export default function App() {
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Info-Overlay: Tag ohne Veranstaltung - zeigt Oeffnungszeiten */}
+            {publicDayInfo && (() => {
+              const dKey = publicDayInfo.dateKey;
+              const [yy,mm,dd] = dKey.split("-").map(Number);
+              const wdIdx = new Date(yy, mm-1, dd).getDay();
+              const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][wdIdx];
+              // Öffnungszeiten zusammenfassen: Aggregat über alle Veranstaltungen; falls verschieden oder keine → Default
+              // Wir nehmen die erste Veranstaltung als Referenz (Öffnungszeiten sind im Alltag gleich)
+              const refVeranst = (veranstaltungen || []).find(v => v.openingHours) || null;
+              const oh = (refVeranst?.openingHours) || DEFAULT_OPENING_HOURS;
+              const dayKeys = ["sun","mon","tue","wed","thu","fri","sat"];
+              const today = oh[dayKeys[wdIdx]] || { closed:true };
+              const isClosed = !!today.closed;
+              // Kompakte Wochen-Darstellung
+              const formatWeek = () => {
+                const dk = ["mon","tue","wed","thu","fri","sat","sun"];
+                const lbl = { mon:"Mo", tue:"Di", wed:"Mi", thu:"Do", fri:"Fr", sat:"Sa", sun:"So" };
+                const segs = [];
+                let i = 0;
+                while (i < 7) {
+                  const d = oh[dk[i]] || { closed:true };
+                  let j = i;
+                  while (j+1 < 7) {
+                    const n = oh[dk[j+1]] || { closed:true };
+                    if (d.closed === n.closed && d.open === n.open && d.close === n.close) j++; else break;
+                  }
+                  segs.push({ range: i === j ? lbl[dk[i]] : `${lbl[dk[i]]}–${lbl[dk[j]]}`, text: d.closed ? "geschlossen" : `${d.open} – ${d.close} Uhr`, closed: !!d.closed });
+                  i = j + 1;
+                }
+                return segs;
+              };
+              const segs = formatWeek();
+              return (
+                <div onClick={() => setPublicDayInfo(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                  <div onClick={e => e.stopPropagation()}
+                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:400, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", padding:"24px 24px 22px", position:"relative" }}>
+                    <button onClick={() => setPublicDayInfo(null)}
+                      style={{ position:"absolute", top:14, right:14, background:"#f5f3f4", border:"none", borderRadius:"50%", width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#888" }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
+                    </button>
+                    <div style={{ fontSize:11, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:4 }}>{wdLong}</div>
+                    <div style={{ fontSize:18, color:BRAND.aubergine, fontWeight:700, marginBottom:16 }}>{dd}. {monthFullArr[mm-1]} {yy}</div>
+                    {isClosed ? (
+                      <div style={{ padding:"14px 16px", background:"#faf7fa", border:"1px solid #ede5ea", borderRadius:10, marginBottom:16 }}>
+                        <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:4 }}>Heute geschlossen</div>
+                        <div style={{ fontSize:12, color:"#888", lineHeight:1.5 }}>Der Paradiesgarten ist an diesem Tag nicht geöffnet.</div>
+                      </div>
+                    ) : (
+                      <div style={{ padding:"14px 16px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:10, marginBottom:16 }}>
+                        <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:4 }}>Geöffnet von</div>
+                        <div style={{ fontSize:16, color: BRAND.aubergine, fontWeight:700 }}>{today.open} – {today.close} Uhr</div>
+                      </div>
+                    )}
+                    <div style={{ fontSize:10, color: publicTheme.accentColor, textTransform:"uppercase", letterSpacing:1.5, fontWeight:700, marginBottom:8 }}>Reguläre Öffnungszeiten</div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:3, marginBottom:2 }}>
+                      {segs.map((s, i) => (
+                        <div key={i} style={{ fontSize:13, color: s.closed ? "#999" : BRAND.aubergine, display:"flex", gap:10 }}>
+                          <span style={{ fontWeight:600, minWidth:56 }}>{s.range}</span>
+                          <span style={{ fontWeight: s.closed ? 400 : 500, fontStyle: s.closed ? "italic" : "normal" }}>{s.text}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
