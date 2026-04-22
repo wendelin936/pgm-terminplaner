@@ -1669,7 +1669,7 @@ export default function App() {
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:10, height:10, borderRadius:2, background:`repeating-linear-gradient(-45deg, transparent, transparent 2px, ${adminTheme.blockedColor}25 2px, ${adminTheme.blockedColor}25 3.5px)`, border:`1px solid ${adminTheme.blockedColor}30`, display:"inline-block" }} /> {winW < 520 ? "Intern" : "Interner Termin"}</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>S</span> {winW < 520 ? "Serie" : "Serientermin"}</span>
           <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:3, background:"#fff", color:BRAND.lila, border:`1.5px solid ${BRAND.lila}`, fontSize:7, fontWeight:700, display:"inline-flex", alignItems:"center", justifyContent:"center", boxSizing:"border-box" }}>V</span> {winW < 520 ? "Veranst." : "Veranstaltung"}</span>
-          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:2, background:"#fff", border:"1px solid #e0d8de", position:"relative", display:"inline-block", boxSizing:"border-box", overflow:"hidden" }}><span style={{ position:"absolute", top:0, right:0, width:7, height:7, background:BRAND.lila, clipPath:"polygon(100% 0, 0 0, 100% 100%)" }} /></span> {winW < 520 ? "Ganztags" : "Ganztägige Veranstaltung"}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ width:12, height:12, borderRadius:2, background:"#fff", border:"1px solid #e0d8de", position:"relative", display:"inline-block", boxSizing:"border-box", overflow:"hidden" }}><span style={{ position:"absolute", bottom:0, left:0, right:0, height:3, background:BRAND.lila }} /></span> {winW < 520 ? "Ganztags" : "Ganztägige Veranstaltung"}</span>
         </div>
       )}
 
@@ -1907,8 +1907,10 @@ export default function App() {
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
                 }}>
-                {/* Ganztaegige Veranstaltung: farbige Ecke oben rechts (Admin=lila, Kunde=türkis) */}
-                {hasAllDayVeranst && <div style={{ position:"absolute", top:0, right:0, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, background: isAdmin ? BRAND.lila : publicTheme.accentColor, clipPath:"polygon(100% 0, 0 0, 100% 100%)", borderTopRightRadius: winW > 900 ? 10 : 8, pointerEvents:"none", zIndex:1 }} />}
+                {/* Ganztaegige Veranstaltung: Admin = unterer violetter Rand, Kunde = tuerkise Ecke */}
+                {hasAllDayVeranst && (isAdmin
+                  ? <div style={{ position:"absolute", bottom:0, left:0, right:0, height: winW > 900 ? 5 : 4, background: BRAND.lila, borderBottomLeftRadius: winW > 900 ? 10 : 8, borderBottomRightRadius: winW > 900 ? 10 : 8, pointerEvents:"none", zIndex:1 }} />
+                  : <div style={{ position:"absolute", top:0, right:0, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, background: publicTheme.accentColor, clipPath:"polygon(100% 0, 0 0, 100% 100%)", borderTopRightRadius: winW > 900 ? 10 : 8, pointerEvents:"none", zIndex:1 }} />)}
                 {/* Series indicator for admin - S badge */}
                 {isSeriesAdmin && <div style={{ position:"absolute", top:4, right:4, background:"#fff", color:adminTheme.seriesColor, border:`1.5px solid ${adminTheme.seriesColor}`, fontSize: winW > 900 ? 11 : 8, fontWeight:700, width: winW > 900 ? 20 : 14, height: winW > 900 ? 20 : 14, borderRadius: winW > 900 ? 4 : 3, display:"flex", alignItems:"center", justifyContent:"center", lineHeight:1, boxSizing:"border-box", zIndex:2 }}>S</div>}
                 {/* Zeittermin-Veranstaltung: V-Badge (Admin=lila, Kunde=türkis, unter S-Badge falls Serie) */}
