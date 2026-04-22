@@ -5436,9 +5436,9 @@ export default function App() {
               const telPlain = v.contactPhone ? v.contactPhone.replace(/\s/g,"") : "";
               const address = "Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee";
               return (
-                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems: winW > 600 ? "center" : "flex-start", justifyContent:"center", padding: winW > 600 ? 16 : 0 }}>
+                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()}
-                    style={{ background:"#fff", borderRadius: winW > 600 ? 16 : 0, width:"100%", maxWidth: winW > 600 ? 480 : "none", overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight: winW > 600 ? "85vh" : "100dvh", height: winW > 600 ? "auto" : "100dvh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
+                    style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight:"85vh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
                     {/* Touch-Zone fuer Swipe-to-close (nur Mobile), liegt ueber dem Headerbild */}
                     {winW <= 600 && (
                       <div
