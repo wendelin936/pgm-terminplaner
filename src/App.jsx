@@ -5742,11 +5742,10 @@ export default function App() {
                       <div style={{ paddingTop:14, borderTop:"1px solid #f0e8ee", display:"flex", flexDirection:"column", gap:6 }}>
                         <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Kontakt</div>
                         {v.contactName && <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>{v.contactName}</div>}
-                        {v.contactPhone && <a href={`tel:${telPlain}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
                         <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer"
                           style={{ fontSize:13, color:"#777", textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2 }}>
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
-                          <span>{address}</span>
+                          <span>Paradiesgarten Mattuschka – Naturschaugarten</span>
                         </a>
                       </div>
 
