@@ -1902,7 +1902,7 @@ export default function App() {
                   aspectRatio:"1",
                   border: isToday ? `2.5px solid ${adminTheme.todayColor}` : (isPast && ev) ? "1px solid #e8e0e5" : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}90` : isBlockedAdminAllDay ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : "#fff") : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `${statusColor}20` : `${BRAND.lila}0c`) : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
@@ -1941,24 +1941,21 @@ export default function App() {
                   );
                 })()}
                 {ev && isAdmin && !ev.isSeries && (() => {
-                  // Bänder-Darstellung: bei teilverbuchten Events (nicht ganztägig) — egal ob gebucht, Anfrage oder intern
-                  // Jeder Termin (Haupt + SubEvents) bekommt einen eigenen Balken unten, Farbe je Einzelstatus
+                  // Punkte-Darstellung: bei teilverbuchten Events (nicht ganztägig) — egal ob gebucht, Anfrage oder intern
+                  // Jeder Termin (Haupt + SubEvents) bekommt einen Punkt unten, Farbe je Einzelstatus
                   const isPartial = !ev.allDay && (ev.status === "booked" || ev.status === "pending" || ev.status === "blocked");
-                  const bandColor = (s) => s.status === "blocked" ? adminTheme.blockedColor : s.status === "pending" ? adminTheme.pendingColor : adminTheme.bookedColor;
+                  const dotColor = (s) => s.status === "blocked" ? adminTheme.blockedColor : s.status === "pending" ? adminTheme.pendingColor : adminTheme.bookedColor;
                   if (isPartial) {
-                    const bands = [{ color: bandColor(ev) }];
+                    const dots = [{ color: dotColor(ev) }];
                     (ev.subEvents || []).forEach(s => {
-                      if (s && !s.allDay && s.status !== "deleted") bands.push({ color: bandColor(s) });
+                      if (s && !s.allDay && s.status !== "deleted") dots.push({ color: dotColor(s) });
                     });
-                    const visible = bands.slice(0, 5);
-                    const thickness = winW > 900 ? 4 : 3;
-                    const gap = winW > 900 ? 2 : 1.5;
-                    const bottomPad = winW > 900 ? 5 : 3;
-                    const sidePad = winW > 900 ? 6 : 4;
+                    const visible = dots.slice(0, 5);
+                    const sz = winW > 900 ? 6 : 4;
                     return (
-                      <div style={{ position:"absolute", bottom: bottomPad, left: sidePad, right: sidePad, display:"flex", flexDirection:"column", gap: gap+"px", pointerEvents:"none" }}>
-                        {visible.map((b, i) => (
-                          <div key={i} style={{ height: thickness, background: b.color, opacity: isPast ? 0.35 : 0.85, borderRadius: 2 }} />
+                      <div style={{ display:"flex", gap:3, marginTop:3, justifyContent:"center", pointerEvents:"none" }}>
+                        {visible.map((d, i) => (
+                          <div key={i} style={{ width:sz, height:sz, borderRadius:"50%", background: d.color, opacity: isPast ? 0.4 : 1 }} />
                         ))}
                       </div>
                     );
@@ -1969,7 +1966,7 @@ export default function App() {
                     if (subDots.length === 0) return null;
                     const sz = winW > 900 ? 6 : 4;
                     return (
-                      <div style={{ display:"flex", gap:2, marginTop:3, justifyContent:"center" }}>
+                      <div style={{ display:"flex", gap:3, marginTop:3, justifyContent:"center" }}>
                         {subDots.map((d,i) => <div key={i} style={{ width:sz, height:sz, borderRadius:"50%", background: d.color }} />)}
                       </div>
                     );
