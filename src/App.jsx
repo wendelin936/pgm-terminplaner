@@ -1701,7 +1701,7 @@ export default function App() {
           const padV = isDesk ? (big ? 28 : 22) : 10;
           const padH = isDesk ? (big ? 56 : 40) : 12;
           const maxW = big ? 1400 : isDesk ? 1180 : 780;
-          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(255px, 39dvh, 430px)";
+          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(293px, 45dvh, 495px)";
           const heroMb = isDesk ? (big ? 22 : 16) : 12;
           const titleFs = isDesk ? (big ? 26 : 22) : Math.max(10, Math.min(13, (winW - 2 * 10) / 30));
           const titleMb = isDesk ? 16 : 8;
