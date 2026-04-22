@@ -3535,7 +3535,7 @@ export default function App() {
           <div style={{ background:BRAND.aubergine, borderRadius:10, padding: winW < 520 ? "14px 16px" : "16px 28px", textAlign:"center", marginBottom:24 }}>
             <div style={{ fontSize: winW < 520 ? 12 : 13, fontWeight:700, color:"#fff", letterSpacing:2, marginBottom:4, textTransform:"uppercase" }}>Paradiesgarten Mattuschka</div>
             <div style={{ fontSize: winW < 520 ? 10 : 11, color:"rgba(230,215,235,0.7)", lineHeight:1.6 }}>
-              <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(230,215,235,0.7)" }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
+              <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer" style={{ color:"rgba(230,215,235,0.7)" }}>Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee</a><br />
               {winW < 520 ? (
                 <>
                   <a href="tel:+4346349119" style={{ color:"rgba(230,215,235,0.7)", textDecoration:"none" }}>+43 463 49 119</a><br />
@@ -5118,7 +5118,7 @@ export default function App() {
                       <div style={{ fontSize:15, fontWeight:600 }}>info@mattuschka.at</div>
                     </div>
                   </a>
-                  <a href="https://maps.google.com/?q=Emmersdorfer+Straße+86+9061+Klagenfurt" target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"#f9f6f8", borderRadius:10, textDecoration:"none", color: BRAND.aubergine, transition:"all .15s" }}>
+                  <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer" style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"#f9f6f8", borderRadius:10, textDecoration:"none", color: BRAND.aubergine, transition:"all .15s" }}>
                     <span style={{ fontSize:20 }}>📍</span>
                     <div>
                       <div style={{ fontSize:11, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Adresse</div>
@@ -5707,7 +5707,7 @@ export default function App() {
                         <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Kontakt</div>
                         {v.contactName && <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>{v.contactName}</div>}
                         {v.contactPhone && <a href={`tel:${telPlain}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
-                        <a href={`https://maps.google.com/?q=${encodeURIComponent(address)}`} target="_blank" rel="noopener noreferrer"
+                        <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer"
                           style={{ fontSize:13, color:"#777", textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2 }}>
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
                           <span>{address}</span>
@@ -5734,8 +5734,7 @@ export default function App() {
                       {/* Anmelden-Button — nur bei Zeit-Termin (nicht ganztägig) und wenn Telefon vorhanden */}
                       {focusEntry && !focusEntry.allDay && telPlain && (
                         <a href={`tel:${telPlain}`}
-                          style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginTop:18, padding:"14px 0", background: publicTheme.accentColor, color:"#fff", borderRadius:10, textDecoration:"none", fontWeight:700, fontSize:15, letterSpacing:0.5 }}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                          style={{ display:"flex", alignItems:"center", justifyContent:"center", marginTop:18, padding:"14px 0", background: publicTheme.accentColor, color:"#fff", borderRadius:10, textDecoration:"none", fontWeight:700, fontSize:15, letterSpacing:0.5 }}>
                           Anmelden
                         </a>
                       )}
