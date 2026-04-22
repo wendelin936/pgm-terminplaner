@@ -1717,20 +1717,22 @@ export default function App() {
               </div>
             )}
             {!isDesk && (
-              <div style={{ position:"absolute", bottom:0, right:0, padding:"16px 16px", zIndex:3, display:"flex", flexDirection:"column", gap:8, alignItems:"flex-end" }}>
-                <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.4 }}>
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#fff" strokeWidth="1.6"/>
-                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
-                  </svg>
-                  Veranstaltungen
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                  style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding:"10px 16px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5 }}>
-                  Location buchen
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
-                </button>
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px", zIndex:3 }}>
+                <div style={{ display:"flex", gap:4, background:"rgba(255,255,255,0.97)", borderRadius:14, padding:5, boxShadow:"0 10px 30px rgba(0,0,0,0.25)" }}>
+                  <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
+                    style={{ flex:1, background:"transparent", color:"#00706b", border:"none", borderRadius:10, padding:"12px 14px", fontSize:13, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit" }}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
+                      <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                    </svg>
+                    Veranstaltungen
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
+                    style={{ flex:1, background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding:"12px 14px", fontSize:13, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit" }}>
+                    Location buchen
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
               </div>
             )}
             {/* Left arrow hover zone */}
@@ -1763,23 +1765,23 @@ export default function App() {
                 <div style={{ fontSize: big ? 36 : 28, fontWeight:700, color:"#fff", letterSpacing:1, textShadow:"0 2px 8px rgba(0,0,0,0.4)" }}>Paradiesgarten Mattuschka</div>
                 <div style={{ fontSize: big ? 16 : 14, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
-              <div style={{ display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
+              <div style={{ display:"flex", gap:5, alignItems:"stretch", flexShrink:0, background:"rgba(255,255,255,0.97)", borderRadius:14, padding:5, boxShadow:"0 10px 30px rgba(0,0,0,0.25)", pointerEvents:"auto" }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.15)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
-                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding: big ? "14px 24px" : "12px 20px", fontSize: big ? 16 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.4, transition:"all .2s ease", pointerEvents:"auto" }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,154,147,0.1)"; e.currentTarget.style.color = "#009a93"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#00706b"; }}
+                  style={{ background:"transparent", color:"#00706b", border:"none", borderRadius:10, padding: big ? "14px 22px" : "12px 18px", fontSize: big ? 15 : 13, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:8, letterSpacing:0.3, transition:"all .2s ease", fontFamily:"inherit" }}>
                   <svg width={big ? 16 : 14} height={big ? 16 : 14} viewBox="0 0 16 16" fill="none">
-                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="#fff" strokeWidth="1.6"/>
-                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
+                    <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
+                    <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                   </svg>
                   Veranstaltungen
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                  onMouseEnter={e => { e.currentTarget.style.transform="scale(1.03)"; e.currentTarget.style.filter="brightness(1.3)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.filter="brightness(1)"; }}
-                  style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding: big ? "16px 32px" : "14px 28px", fontSize: big ? 18 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 6px 20px rgba(0,0,0,0.2)", display:"flex", alignItems:"center", gap:8, letterSpacing:0.5, transition:"all .2s ease", pointerEvents:"auto" }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = "#3d0535"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(88,8,74,0.4)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = siteTheme.bookBtnBg; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                  style={{ background:siteTheme.bookBtnBg, color:siteTheme.bookBtnText, border:"none", borderRadius:10, padding: big ? "14px 24px" : "12px 20px", fontSize: big ? 15 : 14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:8, letterSpacing:0.4, transition:"all .2s ease", fontFamily:"inherit" }}>
                   Location buchen
-                  <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                  <svg width={big ? 16 : 14} height={big ? 16 : 14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </button>
               </div>
             </div>}
