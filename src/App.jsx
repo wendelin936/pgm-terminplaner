@@ -824,6 +824,7 @@ export default function App() {
   const [draggedVeranstId, setDraggedVeranstId] = useState(null);
   const [dragOverVeranstId, setDragOverVeranstId] = useState(null);
   const [veranstSyncing, setVeranstSyncing] = useState(false);
+  const [showAllEventCards, setShowAllEventCards] = useState(false); // Mobile: zeigt "Mehr anzeigen" Kachel-Expansion
   const [showAllDates, setShowAllDates] = useState(false); // "Alle Termine anzeigen" im Detail-Modal
   useEffect(() => { setShowAllDates(false); setPublicDetailPullY(0); }, [publicEventDetail?.veranstaltung?.id, publicEventDetail?.focusDate]);
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
@@ -1701,7 +1702,7 @@ export default function App() {
           const padV = isDesk ? (big ? 28 : 22) : 10;
           const padH = isDesk ? (big ? 56 : 40) : 12;
           const maxW = big ? 1400 : isDesk ? 1180 : 780;
-          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(200px, 28vh, 320px)";
+          const heroH = isDesk ? (big ? "clamp(460px, 52vh, 680px)" : "clamp(380px, 46vh, 560px)") : "clamp(380px, 58dvh, 640px)";
           const heroMb = isDesk ? (big ? 22 : 16) : 12;
           const titleFs = isDesk ? (big ? 26 : 22) : Math.max(10, Math.min(13, (winW - 2 * 10) / 30));
           const titleMb = isDesk ? 16 : 8;
@@ -1810,8 +1811,17 @@ export default function App() {
           </h2>
 
           {/* Event cards — 2x3 desktop, 3x2 mobile — natural height on all sizes */}
-          <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows:"auto", gap: gapCards, flex:"0 0 auto" }}>
-            {eventTypes.map(et => {
+          {(() => {
+            // Mobile-Collapse: bei kleineren Screens nur die ersten 2 (Schmal) oder 4 (Mittel) zeigen,
+            // auf Desktop alle. User kann mit Button alle aufklappen.
+            const mobileVisibleCount = winW < 480 ? 2 : 4;
+            const useCollapse = !isDesk && eventTypes.length > mobileVisibleCount && !showAllEventCards;
+            const visibleTypes = useCollapse ? eventTypes.slice(0, mobileVisibleCount) : eventTypes;
+            const hiddenCount = useCollapse ? eventTypes.length - mobileVisibleCount : 0;
+            return (
+              <>
+                <div style={{ display:"grid", gridTemplateColumns: isDesk ? "repeat(3, 1fr)" : "repeat(2, 1fr)", gridAutoRows:"auto", gap: gapCards, flex:"0 0 auto" }}>
+                  {visibleTypes.map(et => {
               const isGroup = et.isGroupTour;
               const showTags = winW >= 600;
               const showDetail = winW >= 600;
@@ -1854,7 +1864,24 @@ export default function App() {
                 </div>
               );
             })}
-          </div>
+                </div>
+                {useCollapse && hiddenCount > 0 && (
+                  <button onClick={() => setShowAllEventCards(true)}
+                    style={{ marginTop:10, width:"100%", padding:"13px 16px", border:`1px dashed ${BRAND.lila}55`, background:"#fff", borderRadius:10, cursor:"pointer", fontSize:13, color: BRAND.lila, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"center", gap:8, fontFamily:"inherit" }}>
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                    {hiddenCount} weitere Veranstaltungsart{hiddenCount === 1 ? "" : "en"} anzeigen
+                  </button>
+                )}
+                {!useCollapse && !isDesk && showAllEventCards && eventTypes.length > (winW < 480 ? 2 : 4) && (
+                  <button onClick={() => setShowAllEventCards(false)}
+                    style={{ marginTop:8, width:"100%", padding:"8px 14px", border:"none", background:"transparent", cursor:"pointer", fontSize:12, color:"#999", fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", gap:6, fontFamily:"inherit" }}>
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M4 10l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Weniger anzeigen
+                  </button>
+                )}
+              </>
+            );
+          })()}
 
         </div>
         {/* Footer bar — full width, rectangular, extends edge to edge */}
@@ -5761,7 +5788,7 @@ export default function App() {
                         <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer"
                           style={{ fontSize:13, color:"#777", textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2 }}>
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
-                          <span>Paradiesgarten Mattuschka – Naturschaugarten</span>
+                          <span>{address}</span>
                         </a>
                       </div>
 
