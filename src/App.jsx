@@ -5443,6 +5443,22 @@ export default function App() {
 
       {/* ============== VERANSTALTUNGS-DETAIL-MODAL (auf Root-Ebene, damit position:fixed nicht vom Parent-transform beeinflusst wird) ============== */}
       {publicEventDetail && publicEventDetail.veranstaltung && (() => {
+              const tilePatterns = [
+                { id:"yoga",   gradient: "linear-gradient(135deg, #c4d8b9 0%, #9bbf85 100%)" },
+                { id:"flower", gradient: "linear-gradient(135deg, #f4d4c4 0%, #e8a78a 100%)" },
+                { id:"sound",  gradient: "linear-gradient(135deg, #d8c4e0 0%, #b08fc8 100%)" },
+                { id:"leaf",   gradient: "linear-gradient(135deg, #ffe8a8 0%, #f5c45a 100%)" },
+                { id:"circle", gradient: "linear-gradient(135deg, #b9d8d4 0%, #5dbab1 100%)" },
+              ];
+              const iconSVG = {
+                yoga:   <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>,
+                flower: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2v6m0 0c-1.5 0-3 .5-4 1.5C7 10.5 6.5 12 6.5 13.5S7 16.5 8 17.5s2.5 1.5 4 1.5 3-.5 4-1.5 1.5-2.5 1.5-4-.5-3-1.5-4S13.5 8 12 8z"/></svg>,
+                sound:  <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="#fff"/></svg>,
+                leaf:   <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><path d="M12 2c-2 4-2 6 0 9 2-3 2-5 0-9zM6 13c-1 3 0 5 3 6 0-3-1-5-3-6zM18 13c1 3 0 5-3 6 0-3 1-5 3-6zM12 22v-9"/></svg>,
+                circle: <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.4" opacity="0.9"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>,
+              };
+              const patternFor = (v) => tilePatterns.find(p => p.id === (v.iconPattern || "yoga")) || tilePatterns[0];
+              const monthFullArr = ["Jänner","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
               const v = publicEventDetail.veranstaltung;
               const pat = patternFor(v);
               const focusDate = publicEventDetail.focusDate || null;
