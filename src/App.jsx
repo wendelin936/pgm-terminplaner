@@ -1736,21 +1736,17 @@ export default function App() {
               <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px", zIndex:3 }}>
                 <div style={{ display:"flex", gap:10 }}>
                   <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                    style={{ flex:1, position:"relative", overflow:"hidden", background:"rgba(0,154,147,0.65)", backdropFilter:"blur(22px) saturate(180%)", WebkitBackdropFilter:"blur(22px) saturate(180%)", color:"#fff", border:"none", borderRadius:14, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit", textShadow:"0 1px 3px rgba(0,0,0,0.35)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(0,60,55,0.2), inset 0 0 0 1px rgba(255,255,255,0.22), 0 8px 22px rgba(0,100,95,0.3)" }}>
-                    <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 35%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.08) 100%)", pointerEvents:"none" }} />
-                    <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"radial-gradient(ellipse at 30% 0%, rgba(150,255,245,0.5), transparent 55%)", pointerEvents:"none" }} />
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ position:"relative", zIndex:1 }}>
+                    style={{ flex:1, background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                       <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
                       <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                     </svg>
-                    <span style={{ position:"relative", zIndex:1 }}>Veranstaltungen</span>
+                    Veranstaltungen
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                    style={{ flex:1, position:"relative", overflow:"hidden", background:"rgba(88,8,74,0.75)", backdropFilter:"blur(22px) saturate(180%)", WebkitBackdropFilter:"blur(22px) saturate(180%)", color:"#fff", border:"none", borderRadius:14, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit", textShadow:"0 1px 3px rgba(0,0,0,0.35)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(30,0,25,0.25), inset 0 0 0 1px rgba(255,255,255,0.2), 0 8px 22px rgba(60,5,50,0.35)" }}>
-                    <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 35%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.08) 100%)", pointerEvents:"none" }} />
-                    <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"radial-gradient(ellipse at 30% 0%, rgba(220,160,210,0.45), transparent 55%)", pointerEvents:"none" }} />
-                    <span style={{ position:"relative", zIndex:1 }}>Location buchen</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ position:"relative", zIndex:1 }}><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                    style={{ flex:1, background: BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
+                    Location buchen
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                   </button>
                 </div>
               </div>
@@ -1787,25 +1783,21 @@ export default function App() {
               </div>
               <div style={{ display:"flex", gap:12, alignItems:"stretch", flexShrink:0, pointerEvents:"auto" }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,154,147,0.85)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(0,60,55,0.2), inset 0 0 0 1px rgba(255,255,255,0.3), 0 12px 32px rgba(0,100,95,0.4)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,154,147,0.65)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(0,60,55,0.2), inset 0 0 0 1px rgba(255,255,255,0.22), 0 8px 28px rgba(0,100,95,0.3)"; }}
-                  style={{ position:"relative", overflow:"hidden", background:"rgba(0,154,147,0.65)", backdropFilter:"blur(22px) saturate(180%)", WebkitBackdropFilter:"blur(22px) saturate(180%)", color:"#fff", border:"none", borderRadius:16, padding: big ? "17px 26px" : "15px 22px", fontSize: big ? 17 : 15, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.3, transition:"all .3s cubic-bezier(0.4,0,0.2,1)", fontFamily:"inherit", textShadow:"0 1px 3px rgba(0,0,0,0.35)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(0,60,55,0.2), inset 0 0 0 1px rgba(255,255,255,0.22), 0 8px 28px rgba(0,100,95,0.3)" }}>
-                  <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 35%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.08) 100%)", pointerEvents:"none" }} />
-                  <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"radial-gradient(ellipse at 30% 0%, rgba(150,255,245,0.5), transparent 55%)", pointerEvents:"none" }} />
-                  <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 16 16" fill="none" style={{ position:"relative", zIndex:1 }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = "#00807a"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(0,100,95,0.4)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = BRAND.tuerkis; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,100,95,0.3)"; }}
+                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 26px" : "15px 22px", fontSize: big ? 17 : 15, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.3, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
+                  <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 16 16" fill="none">
                     <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
                     <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                   </svg>
-                  <span style={{ position:"relative", zIndex:1 }}>Veranstaltungen</span>
+                  Veranstaltungen
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(88,8,74,0.92)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(30,0,25,0.25), inset 0 0 0 1px rgba(255,255,255,0.28), 0 12px 32px rgba(60,5,50,0.45)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(88,8,74,0.75)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(30,0,25,0.25), inset 0 0 0 1px rgba(255,255,255,0.2), 0 8px 28px rgba(60,5,50,0.35)"; }}
-                  style={{ position:"relative", overflow:"hidden", background:"rgba(88,8,74,0.75)", backdropFilter:"blur(22px) saturate(180%)", WebkitBackdropFilter:"blur(22px) saturate(180%)", color:"#fff", border:"none", borderRadius:16, padding: big ? "17px 28px" : "15px 24px", fontSize: big ? 17 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.4, transition:"all .3s cubic-bezier(0.4,0,0.2,1)", fontFamily:"inherit", textShadow:"0 1px 3px rgba(0,0,0,0.35)", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(30,0,25,0.25), inset 0 0 0 1px rgba(255,255,255,0.2), 0 8px 28px rgba(60,5,50,0.35)" }}>
-                  <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"linear-gradient(135deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.1) 35%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.08) 100%)", pointerEvents:"none" }} />
-                  <span style={{ position:"absolute", inset:0, borderRadius:"inherit", background:"radial-gradient(ellipse at 30% 0%, rgba(220,160,210,0.45), transparent 55%)", pointerEvents:"none" }} />
-                  <span style={{ position:"relative", zIndex:1 }}>Location buchen</span>
-                  <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ position:"relative", zIndex:1 }}><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                  onMouseEnter={e => { e.currentTarget.style.background = "#3d0535"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(60,5,50,0.45)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = BRAND.aubergine; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(60,5,50,0.35)"; }}
+                  style={{ background: BRAND.aubergine, color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 28px" : "15px 24px", fontSize: big ? 17 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.4, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
+                  Location buchen
+                  <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </button>
               </div>
             </div>}
