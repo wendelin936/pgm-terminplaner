@@ -5530,7 +5530,7 @@ export default function App() {
                     <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
                     <div style={{ background: pat.gradient, height: winW <= 600 ? 140 : 180, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
-                      {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                      {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.id === "yoga-julia" ? "center 25%" : "center" }} />}
                       {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
                       <button onClick={() => setPublicEventDetail(null)}
                         style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine, zIndex:4 }}>
@@ -5711,22 +5711,7 @@ export default function App() {
                                   </>
                                 );
                               })()}
-                              {/* Preis-Hinweis fuer die ganze Veranstaltung */}
-                              {(() => {
-                                const hasPrice = !!(v.publicPrice && v.publicPrice.trim());
-                                if (!hasPrice) return null;
-                                const raw = v.publicPrice.trim().replace(/\s*€\s*$/, "").replace(/^\s*€\s*/, "");
-                                const priceLooksNumeric = /^\s*[\d.,]+\s*$/.test(raw);
-                                const priceDisplay = priceLooksNumeric ? `${raw} €` : raw;
-                                return (
-                                  <div style={{ marginTop:4, display:"flex", flexDirection:"column", alignItems:"flex-start", gap:4 }}>
-                                    <div style={{ display:"inline-block", padding:"8px 14px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:8, fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>{(v.publicPriceLabel && v.publicPriceLabel.trim()) ? v.publicPriceLabel : "Eintritt"}: {priceDisplay}</div>
-                                    {v.kaertnerCardFree && (
-                                      <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic", paddingLeft:14 }}>{v.kaertnerCardNote && v.kaertnerCardNote.trim() ? v.kaertnerCardNote : "mit Kärnten Card kostenlos"}</div>
-                                    )}
-                                  </div>
-                                );
-                              })()}
+                              {/* Preis-Hinweis entfernt — wird nur angezeigt wenn ein konkretes Datum gewaehlt ist (focusEntry) */}
                             </div>
                           </div>
                         );
