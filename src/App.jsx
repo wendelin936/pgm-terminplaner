@@ -2578,7 +2578,7 @@ export default function App() {
                             </div>
                             <div style={{ position:"relative", background: pat.gradient, height:100, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                               {iconSvg[pat.id]}
-                              {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                              {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.id === "yoga-julia" ? "center 25%" : "center" }} />}
                             </div>
                             <div style={{ padding:"12px 14px" }}>
                               <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:4, lineHeight:1.3 }}>{v.title || "Ohne Titel"}</div>
@@ -2620,7 +2620,7 @@ export default function App() {
                         {draft.imageKey && <img src={`/assets/${draft.imageKey}`} alt=""
                           onLoad={() => setVeranstImageError(false)}
                           onError={ev => { ev.currentTarget.style.display = "none"; setVeranstImageError(true); }}
-                          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: draft.id === "yoga-julia" ? "center 25%" : "center" }} />}
                         {/* kleines Edit-Icon unten rechts */}
                         <div style={{ position:"absolute", bottom:3, right:3, width:18, height:18, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={BRAND.lila} strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -2670,14 +2670,44 @@ export default function App() {
 
                     {/* Bild-Dateiname Input entfernt — Titelbild wird per Klick auf das Bild oben geaendert */}
 
+                    {/* Eintritt für Kunden (öffentlich sichtbar) */}
+                    <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                      <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Eintritt <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span></div>
+                      <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Leer lassen, wenn kein Preis angezeigt werden soll</div>
+                      <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+                        <div style={{ flex:"0 1 160px", minWidth:120 }}>
+                          <div style={{ fontSize:10, color:"#999", fontWeight:500, marginBottom:3, paddingLeft:2 }}>Bezeichnung</div>
+                          <input placeholder="Eintritt" value={draft.publicPriceLabel || ""} onChange={e => patchDraft({ publicPriceLabel: e.target.value })}
+                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                        </div>
+                        <div style={{ flex:"1 1 160px", minWidth:120, position:"relative" }}>
+                          <div style={{ fontSize:10, color:"#999", fontWeight:500, marginBottom:3, paddingLeft:2 }}>Preis</div>
+                          <input placeholder='z.B. 15 oder "pro Person"' value={draft.publicPrice || ""} onChange={e => patchDraft({ publicPrice: e.target.value })}
+                            style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                          <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(2px)", color: BRAND.tuerkis, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
+                        </div>
+                      </div>
+                      <label onClick={() => patchDraft({ kaertnerCardFree: !draft.kaertnerCardFree })}
+                        style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer" }}>
+                        <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${draft.kaertnerCardFree ? BRAND.tuerkis : "#ccc"}`, background: draft.kaertnerCardFree ? BRAND.tuerkis : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                          {draft.kaertnerCardFree && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize:12, color: BRAND.aubergine }}>Hinweistext beim Preis anzeigen</span>
+                      </label>
+                      {draft.kaertnerCardFree && (
+                        <input placeholder="z.B. mit Kärnten Card kostenlos" value={draft.kaertnerCardNote ?? "mit Kärnten Card kostenlos"} onChange={e => patchDraft({ kaertnerCardNote: e.target.value })}
+                          style={{ width:"100%", padding:"8px 12px", border:`1px solid ${BRAND.tuerkis}40`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, marginTop:6, background:"#fff", fontStyle:"italic" }} />
+                      )}
+                    </div>
+
                     {/* Termine */}
-                    <div style={{ background:`${BRAND.lila}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.lila}20`, borderLeft:`3px solid ${BRAND.lila}` }}>
+                    <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                        <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Termine</div>
+                        <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Termine</div>
                         <div style={{ display:"flex", gap:6 }}>
                           <button onClick={addSingleDate}
-                            style={{ padding:"6px 10px", background:`${BRAND.lila}12`, color:BRAND.lila, border:`1px solid ${BRAND.lila}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.lila} strokeWidth="1.8" strokeLinecap="round"/></svg>
+                            style={{ padding:"6px 10px", background:`${BRAND.tuerkis}12`, color:BRAND.tuerkis, border:`1px solid ${BRAND.tuerkis}30`, borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                            <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke={BRAND.tuerkis} strokeWidth="1.8" strokeLinecap="round"/></svg>
                             Einzeltermin
                           </button>
                           <button onClick={startSeriesPicker}
@@ -2874,42 +2904,15 @@ export default function App() {
                       );
                     })()}
 
-                    {/* Eintritt für Kunden (öffentlich sichtbar) */}
-                    <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
-                      <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Eintritt <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span></div>
-                      <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Leer lassen, wenn kein Preis angezeigt werden soll</div>
-                      <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
-                        <div style={{ flex:"0 1 160px", minWidth:120 }}>
-                          <div style={{ fontSize:10, color:"#999", fontWeight:500, marginBottom:3, paddingLeft:2 }}>Bezeichnung</div>
-                          <input placeholder="Eintritt" value={draft.publicPriceLabel || ""} onChange={e => patchDraft({ publicPriceLabel: e.target.value })}
-                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-                        </div>
-                        <div style={{ flex:"1 1 160px", minWidth:120, position:"relative" }}>
-                          <div style={{ fontSize:10, color:"#999", fontWeight:500, marginBottom:3, paddingLeft:2 }}>Preis</div>
-                          <input placeholder='z.B. 15 oder "pro Person"' value={draft.publicPrice || ""} onChange={e => patchDraft({ publicPrice: e.target.value })}
-                            style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-                          <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(2px)", color: BRAND.tuerkis, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
-                        </div>
-                      </div>
-                      <label onClick={() => patchDraft({ kaertnerCardFree: !draft.kaertnerCardFree })}
-                        style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer" }}>
-                        <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${draft.kaertnerCardFree ? BRAND.tuerkis : "#ccc"}`, background: draft.kaertnerCardFree ? BRAND.tuerkis : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
-                          {draft.kaertnerCardFree && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        <span style={{ fontSize:12, color: BRAND.aubergine }}>Hinweistext beim Preis anzeigen</span>
-                      </label>
-                      {draft.kaertnerCardFree && (
-                        <input placeholder="z.B. mit Kärnten Card kostenlos" value={draft.kaertnerCardNote ?? "mit Kärnten Card kostenlos"} onChange={e => patchDraft({ kaertnerCardNote: e.target.value })}
-                          style={{ width:"100%", padding:"8px 12px", border:`1px solid ${BRAND.tuerkis}40`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, marginTop:6, background:"#fff", fontStyle:"italic" }} />
-                      )}
-                    </div>
-
                     {/* Admin-Preis & Zahlung — nur fuer Admin */}
                     {(() => {
                       const priceStr = String(draft.adminPrice || "");
                       const isPercent = /%/.test(priceStr);
                       const rawNum = parseFloat(priceStr.replace(/\./g, "").replace(",", ".")) || 0;
-                      const priceNum = isPercent ? 0 : rawNum;
+                      const perUnitNum = isPercent ? 0 : rawNum;
+                      const multiplyActive = !!draft.adminPriceMultiply && !isPercent;
+                      const quantityNum = multiplyActive ? (parseInt(String(draft.adminPriceQuantity || "").replace(/\D/g, ""), 10) || 0) : 1;
+                      const priceNum = multiplyActive ? perUnitNum * quantityNum : perUnitNum;
                       const partialNum = parseFloat(String(draft.adminPartialAmount || "").replace(/\./g, "").replace(",", ".")) || 0;
                       const fmtMoney = (n) => n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                       const paymentStatus = draft.adminPaymentStatus || "open";
@@ -2933,6 +2936,29 @@ export default function App() {
                               style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                             <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color: BRAND.lila, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
                           </div>
+                          {!isPercent && (
+                            <>
+                              <label onClick={() => patchDraft({ adminPriceMultiply: !draft.adminPriceMultiply })}
+                                style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0", cursor:"pointer", marginBottom: multiplyActive ? 6 : 10 }}>
+                                <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${multiplyActive ? BRAND.lila : "#ccc"}`, background: multiplyActive ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                                  {multiplyActive && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                </div>
+                                <span style={{ fontSize:12, color: BRAND.aubergine }}>Mit Anzahl multiplizieren <span style={{ color:"#999" }}>(z.B. Preis pro Teilnehmer · Teilnehmer-Anzahl)</span></span>
+                              </label>
+                              {multiplyActive && (
+                                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"8px 10px", background:"#fff", borderRadius:6, border:`1px solid ${BRAND.lila}30` }}>
+                                  <span style={{ fontSize:12, color:"#888", fontWeight:500 }}>Anzahl:</span>
+                                  <input type="text" placeholder="0" value={draft.adminPriceQuantity || ""} onChange={e => patchDraft({ adminPriceQuantity: e.target.value.replace(/\D/g, "") })}
+                                    style={{ width:70, padding:"6px 10px", border:"1px solid #e8d8e4", borderRadius:6, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, textAlign:"center" }} />
+                                  {quantityNum > 0 && perUnitNum > 0 && (
+                                    <span style={{ fontSize:12, color:"#666", marginLeft:"auto" }}>
+                                      {quantityNum} × {fmtMoney(perUnitNum)} € = <span style={{ color: BRAND.lila, fontWeight:700 }}>{fmtMoney(priceNum)} €</span>
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
                           <div style={{ display:"flex", gap:6, marginBottom:10 }}>
                             {statuses.map(s => {
                               const active = paymentStatus === s.v;
