@@ -1,22 +1,29 @@
 // gcal-sync.js — Frontend-Helper für Google Calendar Sync
 // Diff-basiert: vergleicht alte vs. neue events und feuert einen einzigen Batch-Request.
 //
-// Usage in App-deploy.jsx:
-//   import { syncEventsDiff, ensureLocalIds, GCAL_WORKER_URL, GCAL_SHARED_SECRET } from "./gcal-sync.js";
-//   const saveEvents = useCallback(async (updated) => {
-//     const withIds = ensureLocalIds(updated);
-//     const oldEvents = prevEventsSnapshot.current || {};
-//     prevEventsSnapshot.current = withIds;
-//     setEvents(withIds);
-//     try { await saveData("events", JSON.stringify(withIds)); } catch {}
-//     // Sync in background, Update googleEventIds zurückschreiben
-//     syncEventsDiff(oldEvents, withIds).then(patched => {
-//       if (patched) { setEvents(patched); saveData("events", JSON.stringify(patched)); }
-//     });
-//   }, []);
+// AUTH: Firebase ID Token (JWT) per Authorization-Header. KEIN Shared Secret mehr.
+// Beim App-Start muss EINMAL setGcalTokenProvider(fn) aufgerufen werden, wobei fn
+// einen gültigen Firebase ID Token zurückgibt (oder null, wenn kein User eingeloggt ist).
+//
+// Usage in App.jsx:
+//   import { syncEventsDiff, ensureLocalIds, setGcalTokenProvider, GCAL_WORKER_URL } from "./gcal-sync.js";
+//   import { getIdToken } from "./firebase.js";
+//   setGcalTokenProvider(getIdToken);  // einmal beim App-Start
+//   ...
+//   syncEventsDiff(oldEvents, newEvents).then(patched => { ... });
 
 export const GCAL_WORKER_URL = "https://pgm-gcal.wendelin936.workers.dev";
-export const GCAL_SHARED_SECRET = "pgm_7a3f8e2d9c4b1a6f5e8d2c9b3a7f4e1d8c5b2a9f6e3d7c4b1a8e5f2d9c6b3a74";
+
+// ============================================================
+// Auth: Firebase ID Token Provider
+// Wird vom App-Code einmalig gesetzt. Ohne Token wird kein Sync-Request gesendet.
+// ============================================================
+let _tokenProvider = null;
+export function setGcalTokenProvider(fn) { _tokenProvider = fn; }
+async function getAuthToken() {
+  if (!_tokenProvider) { console.warn("[gcal sync] no token provider registered — sync disabled"); return null; }
+  try { return await _tokenProvider(); } catch (e) { console.warn("[gcal sync] token provider error:", e); return null; }
+}
 
 // ============================================================
 // localId generator (kein UUID-Lib nötig)
@@ -176,12 +183,18 @@ export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
   }
   console.log("[gcal sync] sending ops:", ops);
 
-  // Batch-Request
+  // Batch-Request (authentifiziert via Firebase ID Token)
+  const token = await getAuthToken();
+  if (!token) {
+    console.warn("[gcal sync] no auth token — sync skipped");
+    if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: 0, skipped: true });
+    return null;
+  }
   let results;
   try {
     const res = await fetch(`${GCAL_WORKER_URL}/batch`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-PGM-Secret": GCAL_SHARED_SECRET },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ ops }),
     });
     const data = await res.json();
@@ -399,11 +412,17 @@ export async function syncVeranstaltungenDiff(oldVeranst, newVeranst, onComplete
   }
   console.log("[gcal veranst sync] sending ops:", ops);
 
+  const token = await getAuthToken();
+  if (!token) {
+    console.warn("[gcal veranst sync] no auth token — sync skipped");
+    if (onComplete) onComplete({ created: 0, updated: 0, deleted: 0, failed: 0, skipped: true });
+    return null;
+  }
   let results;
   try {
     const res = await fetch(`${GCAL_WORKER_URL}/batch`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-PGM-Secret": GCAL_SHARED_SECRET },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
       body: JSON.stringify({ ops }),
     });
     const data = await res.json();
