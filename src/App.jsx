@@ -1736,17 +1736,17 @@ export default function App() {
               <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px", zIndex:3 }}>
                 <div style={{ display:"flex", gap:10 }}>
                   <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                    style={{ flex:1, background: "rgba(0,154,147,0.95)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    style={{ flex:1, minWidth:0, background: "rgba(0,154,147,0.95)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0 }}>
                       <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
                       <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                     </svg>
-                    Veranstaltungen
+                    <span style={{ overflow:"hidden", textOverflow:"ellipsis" }}>Veranstaltungen</span>
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                    style={{ flex:1, background: "rgba(88,8,74,0.95)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
-                    Location buchen
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+                    style={{ flex: winW < 400 ? "0 0 auto" : 1, background: "rgba(88,8,74,0.95)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
+                    {winW < 400 ? "Buchen" : "Location buchen"}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                   </button>
                 </div>
               </div>
