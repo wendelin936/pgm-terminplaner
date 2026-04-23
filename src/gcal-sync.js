@@ -150,27 +150,28 @@ export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
   }
 
   // DELETE: in old aber nicht in new (status-wechsel booked→pending/deleted zählt hier)
-  // newGcalIds wird hier bewusst auch als Quelle genutzt, damit ein Event das pending ist
-  // aber noch eine gcalId trägt (weil das alte booked war) auch gelöscht wird
+  // Auch ohne gcalId wird eine Delete-Op gefeuert — der Worker findet den Event via
+  // extendedProperties.localId. Das fängt Race-Conditions ab, wenn die googleEventId
+  // noch nicht im lokalen State gespeichert war (z.B. Delete direkt nach Create).
   for (const [localId, entry] of oldMap) {
     if (!newMap.has(localId)) {
-      const gcalId = oldGcalIds.get(localId)?.gcalId || newGcalIds.get(localId)?.gcalId;
-      if (gcalId) ops.push({ op: "delete", localId, gcalId });
+      const gcalId = oldGcalIds.get(localId)?.gcalId || newGcalIds.get(localId)?.gcalId || null;
+      ops.push({ op: "delete", localId, gcalId });
     }
   }
-  // Zusätzlich: jeder Event der eine gcalId hat, aber jetzt nicht mehr syncable ist → delete
-  // Fängt Edge-Cases ab, auch wenn oldEvents fehlerhaft oder leer war
-  const allNewWithGcalId = [];
+  // Zusätzlich: jeder Event in newEvents, der jetzt nicht mehr syncable ist → delete
+  // Egal ob gcalId vorhanden ist oder nicht (Worker findet notfalls via localId).
+  const allNewUnsyncable = [];
   for (const [dk, ev] of Object.entries(newEvents || {})) {
     if (!ev) continue;
-    if (ev.localId && ev.googleEventId && !shouldSync(ev)) allNewWithGcalId.push({ localId: ev.localId, gcalId: ev.googleEventId, dk });
+    if (ev.localId && !shouldSync(ev)) allNewUnsyncable.push({ localId: ev.localId, gcalId: ev.googleEventId || null, dk });
     if (Array.isArray(ev.subEvents)) {
       ev.subEvents.forEach(s => {
-        if (s?.localId && s?.googleEventId && !shouldSync(s)) allNewWithGcalId.push({ localId: s.localId, gcalId: s.googleEventId, dk });
+        if (s?.localId && !shouldSync(s)) allNewUnsyncable.push({ localId: s.localId, gcalId: s.googleEventId || null, dk });
       });
     }
   }
-  for (const x of allNewWithGcalId) {
+  for (const x of allNewUnsyncable) {
     if (!ops.find(o => o.localId === x.localId && o.op === "delete")) {
       ops.push({ op: "delete", localId: x.localId, gcalId: x.gcalId });
     }
