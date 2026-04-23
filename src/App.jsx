@@ -1736,7 +1736,7 @@ export default function App() {
               <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px", zIndex:3 }}>
                 <div style={{ display:"flex", gap:10 }}>
                   <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                    style={{ flex:1, background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
+                    style={{ flex:1, background: "rgba(0,154,147,0.88)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                       <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
                       <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
@@ -1744,7 +1744,7 @@ export default function App() {
                     Veranstaltungen
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                    style={{ flex:1, background: BRAND.aubergine, color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
+                    style={{ flex:1, background: "rgba(88,8,74,0.88)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
                     Location buchen
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                   </button>
@@ -1783,9 +1783,9 @@ export default function App() {
               </div>
               <div style={{ display:"flex", gap:12, alignItems:"stretch", flexShrink:0, pointerEvents:"auto" }}>
                 <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#00807a"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(0,100,95,0.4)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = BRAND.tuerkis; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,100,95,0.3)"; }}
-                  style={{ background: BRAND.tuerkis, color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 26px" : "15px 22px", fontSize: big ? 17 : 15, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.3, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,128,122,0.95)"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(0,100,95,0.4)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,154,147,0.88)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,100,95,0.3)"; }}
+                  style={{ background: "rgba(0,154,147,0.88)", color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 26px" : "15px 22px", fontSize: big ? 17 : 15, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.3, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
                   <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 16 16" fill="none">
                     <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
                     <path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
@@ -1793,9 +1793,9 @@ export default function App() {
                   Veranstaltungen
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#3d0535"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(60,5,50,0.45)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = BRAND.aubergine; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(60,5,50,0.35)"; }}
-                  style={{ background: BRAND.aubergine, color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 28px" : "15px 24px", fontSize: big ? 17 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.4, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(61,5,53,0.95)"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(60,5,50,0.45)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(88,8,74,0.88)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(60,5,50,0.35)"; }}
+                  style={{ background: "rgba(88,8,74,0.88)", color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 28px" : "15px 24px", fontSize: big ? 17 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.4, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
                   Location buchen
                   <svg width={big ? 18 : 16} height={big ? 18 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
                 </button>
