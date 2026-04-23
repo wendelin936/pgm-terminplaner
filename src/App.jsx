@@ -1095,6 +1095,57 @@ export default function App() {
     }).catch(() => {});
   }, []);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
+
+  // ═══════════════════════════════════════════════════════════════
+  // TEMPORÄR — Force-Sync aller Buchungen nach Backup-Restore.
+  // Setzt alle googleEventIds zurück und legt jede aktive Buchung (booked/blocked)
+  // frisch in Google Calendar an. Betrifft NICHT Veranstaltungen.
+  // Wenn Google-Kalender wieder vollständig ist: diese Funktion + den Toolbar-Button
+  // (gekennzeichnet mit „TEMP: GCal-Force-Sync") entfernen.
+  // ═══════════════════════════════════════════════════════════════
+  const manualForceSyncEvents = useCallback(async () => {
+    if (!window.confirm("Alle Buchungen neu in Google Calendar anlegen?\n\nFür jede aktive Buchung (bestätigt + intern) wird ein NEUES Google-Event erzeugt. Alte googleEventIds werden verworfen. Veranstaltungen bleiben unberührt.")) return;
+    // Events klonen + alle googleEventIds entfernen
+    const cleaned = {};
+    for (const [key, ev] of Object.entries(events || {})) {
+      if (!ev) continue;
+      const clone = { ...ev };
+      delete clone.googleEventId;
+      if (Array.isArray(clone.subEvents)) {
+        clone.subEvents = clone.subEvents.map(s => {
+          if (!s) return s;
+          const c = { ...s };
+          delete c.googleEventId;
+          return c;
+        });
+      }
+      cleaned[key] = clone;
+    }
+    const withIds = ensureLocalIds(cleaned);
+    // Optimistisch state + storage updaten (ohne googleEventIds)
+    setEvents(withIds);
+    lastSyncedEvents.current = withIds;
+    try { await saveData("events", JSON.stringify(withIds)); } catch {}
+    showToast("Force-Sync gestartet…", "Alle Buchungen werden in Google Calendar neu angelegt.");
+    // Sync mit leerem oldSnapshot → gcal-sync behandelt alle Events als CREATE
+    try {
+      const patched = await syncEventsDiff({}, withIds, (stats) => {
+        if (stats?.skipped) {
+          showToast("Sync übersprungen", "Kein gültiger Auth-Token. Bitte neu einloggen.", false, "#c44");
+        } else {
+          showToast(`Force-Sync fertig`, `${stats.created || 0} neu · ${stats.failed || 0} fehlgeschlagen`, false, BRAND.moosgruen);
+        }
+      });
+      if (patched) {
+        setEvents(patched);
+        lastSyncedEvents.current = patched;
+        try { await saveData("events", JSON.stringify(patched)); } catch {}
+      }
+    } catch (e) {
+      console.warn("[force-sync] error:", e);
+      showToast("Force-Sync fehlgeschlagen", "Siehe Browser-Konsole.", false, "#c44");
+    }
+  }, [events]);
   const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
   const saveAdminTheme = useCallback(async (updated) => { setAdminTheme(updated); try { await saveData("adminTheme", JSON.stringify(updated)); } catch {} }, []);
   const savePublicTheme = useCallback(async (updated) => { setPublicTheme(updated); try { await saveData("publicTheme", JSON.stringify(updated)); } catch {} }, []);
@@ -1609,6 +1660,12 @@ export default function App() {
                   label:"Veranstaltungen", full:"Veranstaltungen verwalten", color:"#5dd4cd", onClick:() => setShowVeranstaltungenAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="2.5" y="3.5" width="11" height="10" rx="1.4"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg>
                 },
+                // ═══ TEMP: GCal-Force-Sync — nach Abschluss des Sync-Fixes wieder entfernen ═══
+                {
+                  label:"GCal-Sync", full:"TEMP: Alle Buchungen neu in Google Calendar anlegen", color:BRAND.aubergine, onClick: manualForceSyncEvents,
+                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                },
+                // ═══ END TEMP ═══
                 ...(winW < 520 ? [] : [{
                   label:"Backups", full:"Backups anzeigen", color:BRAND.mintgruen, onClick:() => setShowBackups(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
