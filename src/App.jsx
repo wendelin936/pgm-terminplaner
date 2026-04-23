@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { loadData, saveData, adminLogin, adminLogout, onAuthChange } from "./firebase.js";
-import { syncEventsDiff, ensureLocalIds, syncVeranstaltungenDiff } from "./gcal-sync.js";
+import { loadData, saveData, adminLogin, adminLogout, onAuthChange, getIdToken } from "./firebase.js";
+import { syncEventsDiff, ensureLocalIds, syncVeranstaltungenDiff, setGcalTokenProvider } from "./gcal-sync.js";
+
+// Token-Provider für gcal-sync beim Modul-Load einmalig registrieren.
+// Ohne gültigen Firebase-ID-Token feuert gcal-sync keinen Request.
+setGcalTokenProvider(getIdToken);
 
 const BRAND = {
   lila: "#903486",
