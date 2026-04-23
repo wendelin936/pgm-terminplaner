@@ -251,10 +251,12 @@ export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
       modifyByLocalId(r.localId, ev => { const { googleEventId, ...rest } = ev; return rest; });
     } else if (op === "update") {
       stats.updated++;
-    } else if (r.googleEventId) {
+      // bei Update kann der Worker eine (evtl. neue) gcalId zurückgeben — zur Sicherheit eintragen
+      if (r.gcalId) modifyByLocalId(r.localId, ev => ({ ...ev, googleEventId: r.gcalId }));
+    } else if (op === "create" && r.gcalId) {
       stats.created++;
       // create: neue googleEventId einsetzen
-      modifyByLocalId(r.localId, ev => ({ ...ev, googleEventId: r.googleEventId }));
+      modifyByLocalId(r.localId, ev => ({ ...ev, googleEventId: r.gcalId }));
     }
   }
   console.log("[gcal sync] stats:", stats);
@@ -370,6 +372,8 @@ export async function syncVeranstaltungenDiff(oldVeranst, newVeranst, onComplete
   const oldGcalIds = extractVeranstGcalIds(oldVeranst);
   const newGcalIds = extractVeranstGcalIds(newVeranst);
 
+  console.log(`[gcal veranst sync] oldFlat=${oldFlat.size}, newFlat=${newFlat.size}, oldGcalIds=${oldGcalIds.size}, newGcalIds=${newGcalIds.size}`);
+
   const ops = [];
 
   // CREATE: jeder Termin der keine googleEventId hat (neu oder bisher nicht gesynct)
@@ -398,11 +402,11 @@ export async function syncVeranstaltungenDiff(oldVeranst, newVeranst, onComplete
     }
   }
 
-  // DELETE
+  // DELETE: auch ohne gcalId feuern — Worker findet via localId (extendedProperties)
   for (const [syncId, entry] of oldFlat) {
     if (!newFlat.has(syncId)) {
-      const gcalId = oldGcalIds.get(syncId)?.gcalId || newGcalIds.get(syncId)?.gcalId;
-      if (gcalId) ops.push({ op: "delete", localId: syncId, gcalId });
+      const gcalId = oldGcalIds.get(syncId)?.gcalId || newGcalIds.get(syncId)?.gcalId || null;
+      ops.push({ op: "delete", localId: syncId, gcalId });
     }
   }
 
@@ -470,9 +474,10 @@ export async function syncVeranstaltungenDiff(oldVeranst, newVeranst, onComplete
       modifyBySyncId(r.localId, d => { const { googleEventId, ...rest } = d; return rest; });
     } else if (op === "update") {
       stats.updated++;
-    } else if (r.googleEventId) {
+      if (r.gcalId) modifyBySyncId(r.localId, d => ({ ...d, googleEventId: r.gcalId }));
+    } else if (op === "create" && r.gcalId) {
       stats.created++;
-      modifyBySyncId(r.localId, d => ({ ...d, googleEventId: r.googleEventId }));
+      modifyBySyncId(r.localId, d => ({ ...d, googleEventId: r.gcalId }));
     }
   }
   console.log("[gcal veranst sync] stats:", stats);
