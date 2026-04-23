@@ -1,25 +1,48 @@
-// ─────────────────────────────────────────────────────────────
-// ERGÄNZUNG für deine bestehende src/firebase.js
-// ─────────────────────────────────────────────────────────────
-// Irgendwo oben in der Datei, wo auch `auth` angelegt oder
-// importiert wird (z.B. `const auth = getAuth(app)`), einfach
-// folgende Funktion hinzufügen und exportieren.
-//
-// Falls du `auth` aus firebase/auth direkt per getAuth() nutzt,
-// sieht das so aus:
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
-import { getAuth } from "firebase/auth";  // falls noch nicht importiert
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FB_API_KEY,
+  authDomain: import.meta.env.VITE_FB_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FB_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FB_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FB_SENDER_ID,
+  appId: import.meta.env.VITE_FB_APP_ID
+};
 
-// Liefert den aktuellen Firebase-ID-Token oder null, wenn kein User eingeloggt ist.
-// Firebase refreshed den Token automatisch wenn er bald ausläuft.
-export async function getIdToken() {
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+
+export async function loadData(key) {
   try {
-    const user = getAuth().currentUser;
-    if (!user) return null;
-    return await user.getIdToken(/* forceRefresh */ false);
-  } catch {
+    const snap = await getDoc(doc(db, "config", key));
+    return snap.exists() ? snap.data().value : null;
+  } catch (e) {
+    console.error("Firebase load error:", e);
     return null;
   }
+}
+
+export async function saveData(key, value) {
+  try {
+    await setDoc(doc(db, "config", key), { value, updatedAt: new Date().toISOString() });
+  } catch (e) {
+    console.error("Firebase save error:", e);
+  }
+}
+
+export async function adminLogin(email, password) {
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export async function adminLogout() {
+  return signOut(auth);
+}
+
+export function onAuthChange(callback) {
+  return onAuthStateChanged(auth, callback);
 }
 // Firebase ID Token für gcal-sync Worker-Auth
 export async function getIdToken() {
@@ -31,6 +54,3 @@ export async function getIdToken() {
     return null;
   }
 }
-
-// Das ist alles. App.jsx importiert `getIdToken` aus "./firebase.js"
-// und registriert es per setGcalTokenProvider(getIdToken) beim Start.
