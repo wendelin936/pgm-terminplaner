@@ -1,1 +1,5 @@
-/* /index.html 200
+# SPA-Fallback — alle unbekannten Pfade auf index.html
+# Damit /event/yoga-julia, /event/yoga-julia/2026-05-03 etc. direkt aufrufbar sind
+# Muss im Repo unter public/_redirects liegen (Vite kopiert public/* ins dist/-Verzeichnis)
+
+/*    /index.html   200
