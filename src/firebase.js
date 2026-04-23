@@ -21,6 +21,16 @@ export async function getIdToken() {
     return null;
   }
 }
+// Firebase ID Token für gcal-sync Worker-Auth
+export async function getIdToken() {
+  try {
+    const user = getAuth().currentUser;
+    if (!user) return null;
+    return await user.getIdToken(false);
+  } catch {
+    return null;
+  }
+}
 
 // Das ist alles. App.jsx importiert `getIdToken` aus "./firebase.js"
 // und registriert es per setGcalTokenProvider(getIdToken) beim Start.
