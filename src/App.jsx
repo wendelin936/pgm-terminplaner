@@ -61,6 +61,37 @@ const DEFAULT_OPENING_HOURS = {
   sun: { open:"09:00", close:"17:00", closed:true  },
 };
 
+// ============================================================
+// ROUTING — pro Veranstaltung/Termin eigene URL für SEO
+// Schema: /event/{slug} und /event/{slug}/{yyyy-mm-dd}
+// Die v.id ist bereits slug-artig (yoga-julia, iris-pfingstrosen, …) → direkt als Slug nutzen
+// ============================================================
+function parseEventRoute(pathname) {
+  if (!pathname) return { type: "home" };
+  const m = pathname.match(/^\/event\/([^\/]+)(?:\/(\d{4}-\d{2}-\d{2}))?\/?$/);
+  if (!m) return { type: "home" };
+  return { type: m[2] ? "event-date" : "event", slug: m[1], date: m[2] || null };
+}
+function buildEventPath(v, focusDate) {
+  if (!v || !v.id) return "/";
+  return focusDate ? `/event/${v.id}/${focusDate}` : `/event/${v.id}`;
+}
+// Meta-Tags (title + description + canonical) dynamisch setzen — rein clientseitig,
+// wird aber von Google, Bing, Facebook etc. beim Crawlen ausgewertet sobald JS ausgeführt wird.
+// Für absolute SEO-Robustheit später ggf. Prerendering (Netlify Prerender o.ä.) ergänzen.
+function setRouteMeta({ title, description }) {
+  if (typeof document === "undefined") return;
+  if (title) document.title = title;
+  if (description) {
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) { meta = document.createElement("meta"); meta.setAttribute("name", "description"); document.head.appendChild(meta); }
+    meta.setAttribute("content", description);
+  }
+  let canon = document.querySelector('link[rel="canonical"]');
+  if (!canon) { canon = document.createElement("link"); canon.setAttribute("rel", "canonical"); document.head.appendChild(canon); }
+  try { canon.setAttribute("href", window.location.origin + window.location.pathname); } catch {}
+}
+
 // Default-Veranstaltungen — werden beim ersten Laden persistiert falls Firestore noch leer ist.
 // Jede Veranstaltung hat eine ID, Metadaten (für Kunden sichtbar) und eine dates[]-Liste.
 // Termine blockieren den Kalender NICHT, sondern ergänzen ihn nur mit dem V-Marker.
@@ -917,6 +948,102 @@ export default function App() {
     return unsub;
   }, []);
   useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; const base = { publicPrice: sv.publicPrice || "", publicPriceLabel: sv.publicPriceLabel || "Eintritt", kaertnerCardFree: !!sv.kaertnerCardFree, adminPrice: sv.adminPrice || "", adminPaymentStatus: sv.adminPaymentStatus || "open", adminPartialAmount: sv.adminPartialAmount || "" }; if (!d) return { ...sv, ...base, imageKey: correctedKey }; return { ...sv, ...base, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); lastSyncedVeranstaltungen.current = merged; if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { lastSyncedVeranstaltungen.current = DEFAULT_VERANSTALTUNGEN; try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
+  // ============================================================
+  // ROUTING — Sync zwischen URL und publicEventDetail
+  // ============================================================
+  // Initial-URL beim ersten Laden auslesen (erst nachdem Veranstaltungen da sind)
+  const initialRouteApplied = useRef(false);
+  useEffect(() => {
+    if (loading || initialRouteApplied.current) return;
+    initialRouteApplied.current = true;
+    const route = parseEventRoute(window.location.pathname);
+    if (route.type === "event" || route.type === "event-date") {
+      const v = (veranstaltungen || []).find(x => x.id === route.slug);
+      if (v) {
+        setPublicEventDetail(route.type === "event-date" ? { veranstaltung: v, focusDate: route.date } : { veranstaltung: v });
+      } else {
+        // Unbekannter Slug → zurück auf Home (replace, damit keine kaputte URL in der History bleibt)
+        try { window.history.replaceState({}, "", "/"); } catch {}
+      }
+    }
+  }, [loading, veranstaltungen]);
+
+  // Browser Back/Forward → State aus URL neu synchronisieren
+  useEffect(() => {
+    const onPop = () => {
+      const route = parseEventRoute(window.location.pathname);
+      if (route.type === "home") {
+        setPublicEventDetail(null);
+        setPublicDetailPullY(0);
+      } else {
+        const v = (veranstaltungen || []).find(x => x.id === route.slug);
+        if (v) {
+          setPublicEventDetail(route.type === "event-date" ? { veranstaltung: v, focusDate: route.date } : { veranstaltung: v });
+        } else {
+          setPublicEventDetail(null);
+        }
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [veranstaltungen]);
+
+  // Navigation-Helper: Detail öffnen + URL pushen
+  const navigateToEvent = useCallback((v, focusDate) => {
+    if (!v) return;
+    const path = buildEventPath(v, focusDate);
+    try {
+      if (window.location.pathname !== path) {
+        window.history.pushState({}, "", path);
+      }
+    } catch {}
+    setModalView(null);
+    setPublicDayPicker(null);
+    setPublicEventDetail(focusDate ? { veranstaltung: v, focusDate } : { veranstaltung: v });
+  }, []);
+
+  // Navigation-Helper: Detail schließen + URL zurück auf /
+  const navigateHome = useCallback(() => {
+    try {
+      if (window.location.pathname !== "/") {
+        window.history.pushState({}, "", "/");
+      }
+    } catch {}
+    setPublicEventDetail(null);
+    setPublicDetailPullY(0);
+  }, []);
+
+  // Meta-Tags (title, description, canonical) bei Route-Änderung aktualisieren
+  useEffect(() => {
+    const BRAND_NAME = "Paradiesgarten Mattuschka";
+    const BASE_DESC = "Ihr Veranstaltungsort in Klagenfurt am Wörthersee – Hochzeiten, Firmenfeiern, Seminare und Veranstaltungen im historischen Paradiesgarten.";
+    const v = publicEventDetail?.veranstaltung;
+    if (!v) {
+      setRouteMeta({
+        title: `${BRAND_NAME} – Veranstaltungen & Termine`,
+        description: BASE_DESC,
+      });
+      return;
+    }
+    const focusDate = publicEventDetail.focusDate;
+    const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
+    const baseVDesc = clean(v.description) || `${v.title} im Paradiesgarten Mattuschka, Klagenfurt am Wörthersee.`;
+    if (focusDate) {
+      const d = fmtDate(focusDate);
+      const entry = (v.dates || []).find(x => x.date === focusDate);
+      const timeInfo = entry && !entry.allDay && entry.startTime && entry.endTime ? ` (${entry.startTime}–${entry.endTime} Uhr)` : "";
+      setRouteMeta({
+        title: `${v.title} am ${d}${timeInfo} – ${BRAND_NAME}`,
+        description: `${v.title} am ${d}${timeInfo} im Paradiesgarten Mattuschka. ${baseVDesc}`.slice(0, 300),
+      });
+    } else {
+      setRouteMeta({
+        title: `${v.title} – ${BRAND_NAME}`,
+        description: baseVDesc.slice(0, 300),
+      });
+    }
+  }, [publicEventDetail?.veranstaltung?.id, publicEventDetail?.focusDate, publicEventDetail?.veranstaltung?.title, publicEventDetail?.veranstaltung?.description]);
+
   const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
@@ -5215,14 +5342,14 @@ export default function App() {
           const candidates = (veranstaltungen || []).filter(v => (v.dates || []).some(d => d.date === dKey));
           if (candidates.length === 0) return;
           if (candidates.length === 1) {
-            setPublicEventDetail({ veranstaltung: candidates[0], focusDate: dKey });
+            navigateToEvent(candidates[0], dKey);
           } else {
             setPublicDayPicker({ dateKey: dKey, candidates });
           }
         };
 
         return (
-        <div onClick={() => { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); setPublicEventsPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
+        <div onClick={() => { setModalView(null); navigateHome(); setPublicDayPicker(null); setPublicEventsPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:200, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background:"#fff", borderRadius: winW > 600 ? 18 : 0, width:"100%", maxWidth:760, padding: winW > 600 ? "24px 28px" : "20px 16px", boxShadow:"0 24px 60px rgba(0,0,0,0.18)", minHeight: winW > 600 ? "auto" : "100vh", transform: publicEventsPullY ? `translateY(${publicEventsPullY}px)` : "none", transition: publicEventsPullY ? "none" : "transform .2s ease", opacity: publicEventsPullY ? Math.max(0.3, 1 - publicEventsPullY/400) : 1 }}>
 
@@ -5231,7 +5358,7 @@ export default function App() {
               <div
                 onTouchStart={e => { e.currentTarget._sy = e.touches[0].clientY; }}
                 onTouchMove={e => { const dy = e.touches[0].clientY - (e.currentTarget._sy||0); if (dy > 0) setPublicEventsPullY(dy); }}
-                onTouchEnd={e => { const dy = e.changedTouches[0].clientY - (e.currentTarget._sy||0); if (dy > 100) { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); } setPublicEventsPullY(0); }}
+                onTouchEnd={e => { const dy = e.changedTouches[0].clientY - (e.currentTarget._sy||0); if (dy > 100) { setModalView(null); navigateHome(); setPublicDayPicker(null); } setPublicEventsPullY(0); }}
                 style={{ display:"flex", justifyContent:"center", padding:"4px 0 8px", cursor:"grab", touchAction:"none", marginTop:-10 }}>
                 <div style={{ width:40, height:4, borderRadius:2, background:"#d8d0d5" }} />
               </div>
@@ -5239,7 +5366,7 @@ export default function App() {
 
             {/* Header */}
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
-              <button onClick={() => { setModalView(null); setPublicEventDetail(null); setPublicDayPicker(null); }}
+              <button onClick={() => { setModalView(null); navigateHome(); setPublicDayPicker(null); }}
                 onMouseEnter={e => { e.currentTarget.style.background = "#ede8ed"; e.currentTarget.style.color = publicTheme.accentColor; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "#f5f3f4"; e.currentTarget.style.color = "#888"; }}
                 style={{ background:"#f5f3f4", border:"none", color:"#888", borderRadius:"50%", width:36, height:36, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
@@ -5325,7 +5452,7 @@ export default function App() {
                   const [yy,mm,dd] = nxt ? nxt.date.split("-").map(Number) : [0,0,0];
                   const wd = nxt ? wdShort[new Date(yy,mm-1,dd).getDay()] : "";
                   return (
-                    <div key={v.id} onClick={() => setPublicEventDetail({ veranstaltung: v })}
+                    <div key={v.id} onClick={() => navigateToEvent(v)}
                       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.10)"; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
                       style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
@@ -5397,7 +5524,7 @@ export default function App() {
                   const entry = (v.dates||[]).find(d => d.date === publicDayPicker.dateKey);
                   const timeLabel = entry?.allDay ? "Ganztägig" : (entry ? `${entry.startTime} – ${entry.endTime} Uhr` : "");
                   return (
-                    <div key={v.id} onClick={() => { setPublicDayPicker(null); setPublicEventDetail({ veranstaltung: v, focusDate: publicDayPicker.dateKey }); }}
+                    <div key={v.id} onClick={() => { const dk = publicDayPicker.dateKey; setPublicDayPicker(null); navigateToEvent(v, dk); }}
                       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)"; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
                       style={{ background:"#fff", border:"1px solid #ece5ea", borderRadius:14, cursor:"pointer", transition:"all .2s ease", overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", display:"flex", flexDirection: winW > 500 ? "row" : "column" }}>
@@ -5516,7 +5643,7 @@ export default function App() {
               const telPlain = v.contactPhone ? v.contactPhone.replace(/\s/g,"") : "";
               const address = "Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee";
               return (
-                <div onClick={() => { setPublicEventDetail(null); setPublicDetailPullY(0); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                <div onClick={() => { navigateHome(); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()}
                     style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight: winW <= 600 ? "90dvh" : "85dvh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
                     {/* Touch-Zone fuer Swipe-to-close (nur Mobile), liegt ueber dem Headerbild */}
@@ -5524,7 +5651,7 @@ export default function App() {
                       <div
                         onTouchStart={e => { e.currentTarget._sy = e.touches[0].clientY; }}
                         onTouchMove={e => { const dy = e.touches[0].clientY - (e.currentTarget._sy||0); if (dy > 0) setPublicDetailPullY(dy); }}
-                        onTouchEnd={e => { const dy = e.changedTouches[0].clientY - (e.currentTarget._sy||0); if (dy > 100) { setPublicEventDetail(null); } setPublicDetailPullY(0); }}
+                        onTouchEnd={e => { const dy = e.changedTouches[0].clientY - (e.currentTarget._sy||0); if (dy > 100) { navigateHome(); } else { setPublicDetailPullY(0); } }}
                         style={{ position:"absolute", top:0, left:0, right:60, height:48, zIndex:3, touchAction:"none" }} />
                     )}
                     <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
@@ -5532,7 +5659,7 @@ export default function App() {
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.id === "yoga-julia" ? "center 25%" : "center" }} />}
                       {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
-                      <button onClick={() => setPublicEventDetail(null)}
+                      <button onClick={() => navigateHome()}
                         style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine, zIndex:4 }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 6l12 12M6 18L18 6"/></svg>
                       </button>
@@ -5673,7 +5800,7 @@ export default function App() {
                                               const r = renderDate(d);
                                               return (
                                                 <div key={d.id}
-                                                  onClick={() => setPublicEventDetail({ veranstaltung: v, focusDate: d.date })}
+                                                  onClick={() => navigateToEvent(v, d.date)}
                                                   onMouseEnter={e => { e.currentTarget.style.background = publicTheme.accentSoft; e.currentTarget.style.borderColor = `${publicTheme.accentColor}55`; }}
                                                   onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = `${publicTheme.accentColor}20`; }}
                                                   style={{ background:"#fff", borderRadius:8, padding: compact ? "9px 12px" : "12px 14px", border:`1px solid ${publicTheme.accentColor}20`, borderLeft:`3px solid ${publicTheme.accentColor}`, cursor:"pointer", transition:"all .15s", display:"flex", alignItems:"center", gap:10 }}>
