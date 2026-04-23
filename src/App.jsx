@@ -823,7 +823,6 @@ export default function App() {
   const [editingSeriesInfo, setEditingSeriesInfo] = useState(null); // { seriesId, startTime, endTime, allDay }
   const [draggedVeranstId, setDraggedVeranstId] = useState(null);
   const [dragOverVeranstId, setDragOverVeranstId] = useState(null);
-  const [veranstSyncing, setVeranstSyncing] = useState(false);
   const [showAllDates, setShowAllDates] = useState(false); // "Alle Termine anzeigen" im Detail-Modal
   useEffect(() => { setShowAllDates(false); setPublicDetailPullY(0); }, [publicEventDetail?.veranstaltung?.id, publicEventDetail?.focusDate]);
   const [veranstaltungDraft, setVeranstaltungDraft] = useState(null); // Arbeitskopie beim Bearbeiten
@@ -2532,41 +2531,6 @@ export default function App() {
                         <h2 style={{ margin:0, fontSize: winW > 600 ? 22 : 18, fontWeight:700, color: BRAND.aubergine, letterSpacing:0.5, lineHeight:1.2 }}>Veranstaltungen</h2>
                         <div style={{ fontSize:12, color:"#888", marginTop:3 }}>{veranstaltungen.length} Kachel{veranstaltungen.length === 1 ? "" : "n"}</div>
                       </div>
-                      <button onClick={async () => {
-                          if (veranstSyncing) return;
-                          setVeranstSyncing(true);
-                          try {
-                            const patched = await syncVeranstaltungenDiff(lastSyncedVeranstaltungen.current || [], veranstaltungen, (stats) => {
-                              const totalOk = stats.created + stats.updated + stats.deleted;
-                              if (stats.failed > 0 && totalOk === 0) {
-                                setToast({ msg: "⚠ Sync fehlgeschlagen", detail: `${stats.failed} Termin${stats.failed === 1 ? "" : "e"} konnte${stats.failed === 1 ? "" : "n"} nicht synchronisiert werden.`, color: "#c44" });
-                              } else if (totalOk === 0) {
-                                setToast({ msg: "✓ Nichts zu synchronisieren", detail: "Alle Termine sind bereits aktuell.", color: "#888" });
-                              } else {
-                                const parts = [];
-                                if (stats.created) parts.push(`${stats.created} neu`);
-                                if (stats.updated) parts.push(`${stats.updated} aktualisiert`);
-                                if (stats.deleted) parts.push(`${stats.deleted} gelöscht`);
-                                setToast({ msg: "✓ Google-Sync erfolgreich", detail: parts.join(" · "), color: BRAND.moosgruen });
-                              }
-                            });
-                            if (patched) {
-                              lastSyncedVeranstaltungen.current = patched;
-                              setVeranstaltungen(patched);
-                              try { await saveData("veranstaltungen", JSON.stringify(patched)); } catch {}
-                            }
-                          } catch (e) {
-                            setToast({ msg: "⚠ Sync-Fehler", detail: e?.message || "Unbekannter Fehler", color: "#c44" });
-                          } finally {
-                            setVeranstSyncing(false);
-                          }
-                        }}
-                        title="Alle Termine mit Google Kalender synchronisieren"
-                        disabled={veranstSyncing}
-                        style={{ background: veranstSyncing ? "#eee" : "#f9f7fa", border:"1px solid #ebe4ea", color: veranstSyncing ? "#aaa" : "#888", borderRadius:8, padding:"8px 12px", fontSize:12, cursor: veranstSyncing ? "wait" : "pointer", display:"flex", alignItems:"center", gap:6, fontWeight:500 }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: veranstSyncing ? "spin 1s linear infinite" : "none" }}><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                        {veranstSyncing ? "Synct..." : "Google-Sync"}
-                      </button>
                       <button onClick={() => { setShowVeranstaltungenAdmin(false); setShowDesignPublic(true); }}
                         title="Design der Veranstaltungs-Seite anpassen"
                         style={{ background:"#f9f7fa", border:"1px solid #ebe4ea", color:"#888", borderRadius:8, padding:"8px 12px", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:6, fontWeight:500 }}>
@@ -2693,7 +2657,7 @@ export default function App() {
                       style={{ width:"100%", padding:"10px 12px", border:"1.5px solid #e0d8de", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", minHeight:70, resize:"vertical", marginBottom:14 }} />
 
                     {/* Ansprechpartner */}
-                    <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                    <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
                       <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>
                         Ansprechpartner <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span>
                       </div>
@@ -2704,21 +2668,10 @@ export default function App() {
                         style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                     </div>
 
-                    {/* Bild-Dateiname (optional) */}
-                    <input placeholder="Bild-Dateiname, z.B. veranstaltung.png (liegt in /assets/)" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value })}
-                      style={{ width:"100%", padding:"8px 10px", border:`1.5px solid ${draft.imageKey && veranstImageError ? "#c44" : "#e8e0e5"}`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", marginBottom: draft.imageKey && veranstImageError ? 4 : 16, color: draft.imageKey ? BRAND.aubergine : "#888", background:"#fafafa" }} />
-                    {draft.imageKey && veranstImageError && (
-                      <div style={{ display:"flex", alignItems:"flex-start", gap:6, marginBottom:16, fontSize:11, color:"#c44", fontWeight:500, background:"#fdf3f3", border:"1px solid #f3c8c8", borderRadius:6, padding:"8px 10px" }}>
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0, marginTop:1 }}><circle cx="8" cy="8" r="6.5" stroke="#c44" strokeWidth="1.5"/><path d="M8 5v3.5" stroke="#c44" strokeWidth="1.5" strokeLinecap="round"/><circle cx="8" cy="10.8" r="0.8" fill="#c44"/></svg>
-                        <div>
-                          <div style={{ fontWeight:600, marginBottom:2 }}>Bild nicht gefunden</div>
-                          <div style={{ color:"#a33", fontWeight:400 }}>Die Datei <code style={{ background:"#fff", padding:"1px 5px", borderRadius:3, fontFamily:"monospace", fontSize:10, border:"1px solid #f0d0d0" }}>/assets/{draft.imageKey}</code> konnte nicht geladen werden. Prüfe Dateiname (Groß-/Kleinschreibung!) und ob die Datei wirklich im assets-Ordner liegt.</div>
-                        </div>
-                      </div>
-                    )}
+                    {/* Bild-Dateiname Input entfernt — Titelbild wird per Klick auf das Bild oben geaendert */}
 
                     {/* Termine */}
-                    <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.lila}` }}>
+                    <div style={{ background:`${BRAND.lila}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.lila}20`, borderLeft:`3px solid ${BRAND.lila}` }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                         <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Termine</div>
                         <div style={{ display:"flex", gap:6 }}>
@@ -2891,7 +2844,7 @@ export default function App() {
                       ];
                       const updDay = (dk, patch) => patchDraft({ openingHours: { ...oh, [dk]: { ...(oh[dk] || { open:"09:00", close:"17:00", closed:false }), ...patch } } });
                       return (
-                        <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                        <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
                           <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Öffnungszeiten <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span></div>
                           <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Gilt an ganztägigen Terminen dieser Veranstaltung</div>
                           <div style={{ background:"#faf7fa", borderRadius:8, padding:"10px 12px", display:"flex", flexDirection:"column", gap:6 }}>
@@ -2922,7 +2875,7 @@ export default function App() {
                     })()}
 
                     {/* Eintritt für Kunden (öffentlich sichtbar) */}
-                    <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                    <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
                       <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Eintritt <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· für Kunden sichtbar</span></div>
                       <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Leer lassen, wenn kein Preis angezeigt werden soll</div>
                       <div style={{ display:"flex", gap:6, marginBottom:10, flexWrap:"wrap" }}>
@@ -2943,8 +2896,12 @@ export default function App() {
                         <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${draft.kaertnerCardFree ? BRAND.tuerkis : "#ccc"}`, background: draft.kaertnerCardFree ? BRAND.tuerkis : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                           {draft.kaertnerCardFree && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
-                        <span style={{ fontSize:12, color: BRAND.aubergine }}>Mit Kärnten Card kostenlos <span style={{ color:"#999" }}>(Hinweis beim Preis anzeigen)</span></span>
+                        <span style={{ fontSize:12, color: BRAND.aubergine }}>Hinweistext beim Preis anzeigen</span>
                       </label>
+                      {draft.kaertnerCardFree && (
+                        <input placeholder="z.B. mit Kärnten Card kostenlos" value={draft.kaertnerCardNote ?? "mit Kärnten Card kostenlos"} onChange={e => patchDraft({ kaertnerCardNote: e.target.value })}
+                          style={{ width:"100%", padding:"8px 12px", border:`1px solid ${BRAND.tuerkis}40`, borderRadius:6, fontSize:12, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, marginTop:6, background:"#fff", fontStyle:"italic" }} />
+                      )}
                     </div>
 
                     {/* Admin-Preis & Zahlung — nur fuer Admin */}
@@ -2968,7 +2925,7 @@ export default function App() {
                       ];
                       const pickStatus = (v) => patchDraft({ adminPaymentStatus: v, adminPartialAmount: v === "partial" ? (draft.adminPartialAmount || "") : "" });
                       return (
-                        <div style={{ background:"#fff", borderRadius:12, padding:"14px 16px", marginBottom:12, border:"1px solid #ece5ea", borderLeft:`3px solid ${BRAND.lila}` }}>
+                        <div style={{ background:`${BRAND.lila}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.lila}20`, borderLeft:`3px solid ${BRAND.lila}` }}>
                           <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Vereinbarter Preis <span style={{ color:"#999", fontWeight:400, textTransform:"none", letterSpacing:0 }}>· intern</span></div>
                           <div style={{ fontSize:11, color:"#999", marginBottom:10 }}>Nur für Admin sichtbar — z.B. Gage Julia W.</div>
                           <div style={{ position:"relative", marginBottom:10 }}>
@@ -5348,7 +5305,7 @@ export default function App() {
                       style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
                       <div style={{ position:"relative", background: pat.gradient, height:120, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                         {iconSVG[pat.id]}
-                        {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />}
+                        {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.id === "yoga-julia" ? "center 25%" : "center" }} />}
                       </div>
                       <div style={{ padding:"12px 14px" }}>
                         {nxt ? (
@@ -5581,7 +5538,7 @@ export default function App() {
                               <div style={{ marginTop:8, display:"flex", flexDirection:"column", alignItems:"flex-start", gap:4 }}>
                                 <div style={{ display:"inline-block", padding:"8px 14px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:8, fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>{(v.publicPriceLabel && v.publicPriceLabel.trim()) ? v.publicPriceLabel : "Eintritt"}: {priceDisplay}</div>
                                 {v.kaertnerCardFree && (
-                                  <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic", paddingLeft:14 }}>mit Kärnten Card kostenlos</div>
+                                  <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic", paddingLeft:14 }}>{v.kaertnerCardNote && v.kaertnerCardNote.trim() ? v.kaertnerCardNote : "mit Kärnten Card kostenlos"}</div>
                                 )}
                               </div>
                             )}
@@ -5739,7 +5696,7 @@ export default function App() {
                                   <div style={{ marginTop:4, display:"flex", flexDirection:"column", alignItems:"flex-start", gap:4 }}>
                                     <div style={{ display:"inline-block", padding:"8px 14px", background: publicTheme.accentSoft, border:`1px solid ${publicTheme.accentColor}30`, borderRadius:8, fontSize:14, color: BRAND.aubergine, fontWeight:600 }}>{(v.publicPriceLabel && v.publicPriceLabel.trim()) ? v.publicPriceLabel : "Eintritt"}: {priceDisplay}</div>
                                     {v.kaertnerCardFree && (
-                                      <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic", paddingLeft:14 }}>mit Kärnten Card kostenlos</div>
+                                      <div style={{ fontSize:11, color: publicTheme.accentColor, fontStyle:"italic", paddingLeft:14 }}>{v.kaertnerCardNote && v.kaertnerCardNote.trim() ? v.kaertnerCardNote : "mit Kärnten Card kostenlos"}</div>
                                     )}
                                   </div>
                                 );
@@ -5758,6 +5715,7 @@ export default function App() {
                       <div style={{ paddingTop:14, borderTop:"1px solid #f0e8ee", display:"flex", flexDirection:"column", gap:6 }}>
                         <div style={{ fontSize:11, color:"#888", textTransform:"uppercase", letterSpacing:1.2, fontWeight:600 }}>Kontakt</div>
                         {v.contactName && <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>{v.contactName}</div>}
+                        {v.contactPhone && telPlain && <a href={`tel:${telPlain}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
                         <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer"
                           style={{ fontSize:13, color:"#777", textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2 }}>
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
