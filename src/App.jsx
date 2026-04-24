@@ -4142,7 +4142,7 @@ export default function App() {
                     {/* TYP */}
                     {canEditType ? (
                       <div onClick={() => toggleChip("type")}
-                        style={{ background: et ? `${typColor}15` : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: chipPopup === "type" ? `1px solid ${typColor}80` : (et ? `1px solid ${typColor}30` : "1px solid transparent"), transition:"all .15s" }}>
+                        style={{ background: et ? `${typColor}${typColor === BRAND.moosgruen ? "0a" : "15"}` : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: chipPopup === "type" ? `1px solid ${typColor}80` : (et ? `1px solid ${typColor}${typColor === BRAND.moosgruen ? "25" : "30"}` : "1px solid transparent"), transition:"all .15s" }}>
                         <div style={{ fontSize:10, color: et ? typColor : "#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Typ</div>
                         <div style={{ fontSize:14, fontWeight:600, color: et ? typColor : "#888", marginTop:4 }}>{et?.label || "— wählen"}</div>
                       </div>
@@ -4170,16 +4170,30 @@ export default function App() {
                   <>
                   <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                     <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Kontakt</div>
-                    <input placeholder="Name *" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                      style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
-                    <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                      style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
-                    <div style={{ display:"flex", gap:6 }}>
-                      <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
-                      <input placeholder="Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                        style={{ width:110, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, textAlign:"center" }} />
-                    </div>
+                    {(() => {
+                      // Leichter Lila-Tint für alle Eingabefelder im Kontakt-Block
+                      // Pflichtfelder-Fehlerstate (rot) hat Vorrang
+                      const inputBg = (isRequired, isEmpty) => {
+                        if (isRequired && isEmpty && adminSubmitAttempted) return "#fdf6f6";
+                        return `${BRAND.lila}04`;
+                      };
+                      const inputBorder = (isRequired, isEmpty) => {
+                        if (isRequired && isEmpty && adminSubmitAttempted) return "#c44";
+                        return "#e8d8e4";
+                      };
+                      return (<>
+                        <input placeholder="Name *" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
+                          style={{ width:"100%", padding:"10px 12px", border:`1px solid ${inputBorder(true, !(adminForm.groupName||"").trim())}`, background: inputBg(true, !(adminForm.groupName||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
+                        <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
+                        <div style={{ display:"flex", gap:6 }}>
+                          <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
+                            style={{ flex:1, padding:"10px 12px", border:`1px solid ${inputBorder(true, !(adminForm.customerPhone||"").trim())}`, background: inputBg(true, !(adminForm.customerPhone||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
+                          <input placeholder="Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
+                            style={{ width:110, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, textAlign:"center", background:`${BRAND.lila}04` }} />
+                        </div>
+                      </>);
+                    })()}
                   </div>
                   {/* Nachricht-Karte: nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
                   {hasCustomerMessage && (
@@ -4188,7 +4202,7 @@ export default function App() {
                         Nachricht vom Kunden
                       </div>
                       <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
                     </div>
                   )}
                   </>
@@ -4213,19 +4227,24 @@ export default function App() {
                   <>
                     {/* Gruppe & Kontakt-Karte (lila — Kontakt-Bereich) */}
                     <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                      <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
                         {adminForm.type === "pending" ? "Anfrage – Gruppe & Kontakt" : "Gruppe & Kontakt"}
                       </div>
-                      <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:"#fff" }} />
-                      <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
-                      <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:"#fff" }} />
-                      <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-                      {/* Teilnehmer-Leiste — grün */}
-                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                      {(() => {
+                        const inputBg = (isEmpty) => isEmpty && adminSubmitAttempted ? "#fdf6f6" : `${BRAND.lila}04`;
+                        const inputBorder = (isEmpty) => isEmpty && adminSubmitAttempted ? "#c44" : "#e8d8e4";
+                        return (<>
+                          <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
+                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
+                          <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
+                            style={{ width:"100%", padding:"10px 12px", border:`1px solid ${inputBorder(!(adminForm.contactName||"").trim())}`, background: inputBg(!(adminForm.contactName||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
+                          <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
+                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
+                          <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                            style={{ width:"100%", padding:"10px 12px", border:`1px solid ${inputBorder(!(adminForm.contactPhone||"").trim())}`, background: inputBg(!(adminForm.contactPhone||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                        </>);
+                      })()}                      {/* Teilnehmer-Leiste — grün */}
+                      <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                         <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
                         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
@@ -4237,7 +4256,7 @@ export default function App() {
                         </div>
                       </div>
                       {/* Kärnten-Card-Leiste — grün wie Teilnehmer */}
-                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                      <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                         <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
@@ -4250,7 +4269,7 @@ export default function App() {
                       </div>
                       {/* Führung-Toggle */}
                       <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
                         <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                           {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
@@ -4264,11 +4283,11 @@ export default function App() {
                     {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat — lila */}
                     {!!(adminForm.customerMessage||"").trim() && (
                       <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                        <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                        <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
                           Nachricht vom Kunden
                         </div>
                         <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:"#fff" }} />
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
                       </div>
                     )}
 
@@ -4408,7 +4427,7 @@ export default function App() {
                 <div style={{ background:`${BRAND.moosgruen}14`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}40` }}>
                   <div style={{ fontSize:11, color:BRAND.moosgruen, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Interne Notiz <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                   <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))}
-                    style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
+                    style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.moosgruen}06` }} />
                 </div>
 
                 {/* Vereinbarter Preis - bei Veranstaltungen & Serien, nicht bei Gruppenführungen & internen Terminen */}
@@ -4440,11 +4459,11 @@ export default function App() {
                     }));
                   };
                   return (
-                    <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                    <div style={{ background:`${BRAND.lila}08`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.lila}25` }}>
                       <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Vereinbarter Preis</div>
                       <div style={{ position:"relative", marginBottom:10 }}>
                         <input placeholder="0,00" value={adminForm.price} onChange={e => setAdminForm(f=>({...f, price:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                          style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
                         <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color: BRAND.lila, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
                       </div>
                       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
@@ -4994,7 +5013,7 @@ export default function App() {
                         <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))}
                           style={reqStyle(missingPhone, false)} />
                         {/* Teilnehmer-Leiste direkt unter Telefon — grün hervorgehoben, im Kartenrahmen */}
-                        <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12 }}>
                           <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                             <button onClick={() => setFormData(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
@@ -5009,7 +5028,7 @@ export default function App() {
                           <div style={{ fontSize:11, color:"#c44", marginTop:4 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
                         )}
                         {/* „davon mit Kärnten Card" — grün wie Teilnehmer, direkt unter Teilnehmer */}
-                        <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                        <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                           <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                             <button onClick={() => setFormData(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
@@ -5022,7 +5041,7 @@ export default function App() {
                         </div>
                         {/* Führung-Toggle direkt unter Teilnehmer */}
                         <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
-                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
                           <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                             {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                           </div>
