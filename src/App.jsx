@@ -4159,26 +4159,33 @@ export default function App() {
                 {(adminForm.type === "booked" || adminForm.type === "pending") && adminForm.eventType !== "gruppenfuehrung" && (() => {
                   const et = eventTypes.find(t => t.id === adminForm.eventType);
                   const accent = et?.color || BRAND.lila;
+                  const hasCustomerMessage = !!(adminForm.customerMessage||"").trim();
                   return (
+                  <>
                   <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                    <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
-                      {adminForm.type === "pending" ? "Anfrage – Kontakt" : "Kontakt"}
-                    </div>
-                    <input placeholder="Name * (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
+                    <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Kontakt</div>
+                    <input placeholder="Name *" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
-                    <div style={{ display:"flex", gap:6, marginBottom:6, flexDirection: winW < 600 ? "column" : "row" }}>
+                    <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
+                      style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
+                    <div style={{ display:"flex", gap:6 }}>
                       <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
                         style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
-                      <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
+                      <input placeholder="Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
+                        style={{ width:110, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, textAlign:"center" }} />
                     </div>
-                    <input placeholder="Anzahl Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                      style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom: adminForm.type === "pending" ? 6 : 0, color:BRAND.aubergine, textAlign:"center" }} />
-                    {adminForm.type === "pending" && (
-                      <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:56, resize:"none", color:BRAND.aubergine, lineHeight:1.5 }} />
-                    )}
                   </div>
+                  {/* Nachricht-Karte: nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
+                  {hasCustomerMessage && (
+                    <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                        Nachricht vom Kunden
+                      </div>
+                      <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
+                    </div>
+                  )}
+                  </>
                   );
                 })()}
 
@@ -4224,11 +4231,17 @@ export default function App() {
                       </div>
                       <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
                         style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-                      {adminForm.type === "pending" && (
-                        <textarea placeholder="Nachricht / Wünsche des Kunden" value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:50, resize:"none", marginTop:6, color:BRAND.aubergine, lineHeight:1.5 }} />
-                      )}
                     </div>
+                    {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
+                    {!!(adminForm.customerMessage||"").trim() && (
+                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                        <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                          Nachricht vom Kunden
+                        </div>
+                        <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
+                      </div>
+                    )}
 
                     {/* Café im Paradiesglashaus */}
                     <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
@@ -5623,7 +5636,7 @@ export default function App() {
         const [yy,mm,dd] = publicDayPicker.dateKey.split("-").map(Number);
         const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
         return (
-          <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.55)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={() => setPublicDayPicker(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:18, width:"100%", maxWidth:560, maxHeight: winW <= 600 ? "90dvh" : "85vh", overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.35)", display:"flex", flexDirection:"column" }}>
               <div style={{ padding:"22px 26px 18px", borderBottom:"1px solid #f0e8ee", display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, flexShrink:0 }}>
                 <div>
@@ -5701,7 +5714,7 @@ export default function App() {
         };
         const segs = formatWeek();
         return (
-          <div onClick={() => setPublicDayInfo(null)} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={() => setPublicDayInfo(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
             <div onClick={e => e.stopPropagation()}
               style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:400, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", padding:"24px 24px 22px", position:"relative" }}>
               <button onClick={() => setPublicDayInfo(null)}
@@ -5761,7 +5774,7 @@ export default function App() {
               const telPlain = v.contactPhone ? v.contactPhone.replace(/\s/g,"") : "";
               const address = "Emmersdorfer Straße 86, 9061 Klagenfurt am Wörthersee";
               return (
-                <div onClick={() => { navigateHome(); }} style={{ position:"fixed", inset:0, background:"rgba(40,10,40,0.45)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+                <div onClick={() => { navigateHome(); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(3px)", WebkitBackdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
                   <div onClick={e => e.stopPropagation()}
                     style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:480, overflow:"hidden", boxShadow:"0 24px 60px rgba(0,0,0,0.25)", maxHeight: winW <= 600 ? "90dvh" : "85dvh", display:"flex", flexDirection:"column", transform: publicDetailPullY ? `translateY(${publicDetailPullY}px)` : "none", transition: publicDetailPullY ? "none" : "transform .2s ease", opacity: publicDetailPullY ? Math.max(0.3, 1 - publicDetailPullY/400) : 1 }}>
                     {/* Touch-Zone fuer Swipe-to-close (nur Mobile), liegt ueber dem Headerbild */}
