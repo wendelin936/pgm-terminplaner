@@ -4150,7 +4150,9 @@ export default function App() {
                     )}
                   </div>
 
-                  <input placeholder={adminForm.type==="blocked" ? "Bezeichnung (z.B. Urlaub)" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
+                  {adminForm.eventType !== "gruppenfuehrung" && (
+                    <input placeholder={adminForm.type==="blocked" ? "Bezeichnung (z.B. Urlaub)" : "Bezeichnung (z.B. Hochzeit Müller)"} value={adminForm.label} onChange={e => setAdminForm(f=>({...f, label:e.target.value}))} style={inputStyle} />
+                  )}
                   </>
                   );
                 })()}
@@ -4921,31 +4923,15 @@ export default function App() {
 
                   {isGroup ? (
                     <>
-                      {/* 1. Teilnehmer-Leiste (grün transparent) */}
-                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:6, marginTop:8 }}>
-                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
-                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                          <button onClick={() => setFormData(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
-                            style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
-                          <input type="number" min="0" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))}
-                            style={{ width:52, textAlign:"center", padding:"6px 0", border:`1px solid ${formData.guests && guestsTooLow ? "#c44" : BRAND.moosgruen}`, borderRadius:7, fontSize:15, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
-                          <button onClick={() => setFormData(f => ({ ...f, guests: String((Number(f.guests)||0) + 1) }))}
-                            style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
-                        </div>
-                      </div>
-                      {formData.guests && guestsTooLow && (
-                        <div style={{ fontSize:11, color:"#c44", marginTop:-2, marginBottom:6 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
-                      )}
-
-                      {/* 2. Zeit-Leiste (lila) */}
-                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, flexWrap:"wrap" }}>
+                      {/* Zeit-Leiste */}
+                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, marginTop:8, flexWrap:"wrap" }}>
                         <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Von</span>
                         <TimeInput value={String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourHour:nh, tourMin:nm})); }} />
                         <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Bis</span>
                         <TimeInput value={String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourEndHour:nh, tourEndMin:nm})); }} />
                       </div>
 
-                      {/* 4. Gruppe & Kontakt-Karte */}
+                      {/* Gruppe & Kontakt-Karte — mit Teilnehmer unter Telefon */}
                       <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                         <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Gruppe & Kontakt</div>
                         <input placeholder="Gruppenname *" value={formData.name} onChange={e => setFormData(f=>({...f, name:e.target.value}))}
@@ -4957,6 +4943,21 @@ export default function App() {
                         {sa && invalidEmail && <div style={{ fontSize:11, color:"#c44", marginTop:-6, marginBottom:8 }}>Bitte gültige E-Mail-Adresse eingeben</div>}
                         <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))}
                           style={reqStyle(missingPhone, false)} />
+                        {/* Teilnehmer-Leiste direkt unter Telefon — grün hervorgehoben, im Kartenrahmen */}
+                        <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12 }}>
+                          <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                            <button onClick={() => setFormData(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
+                              style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                            <input type="number" min="0" value={formData.guests} onChange={e => setFormData(f=>({...f, guests:e.target.value}))}
+                              style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${formData.guests && guestsTooLow ? "#c44" : BRAND.moosgruen}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                            <button onClick={() => setFormData(f => ({ ...f, guests: String((Number(f.guests)||0) + 1) }))}
+                              style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                          </div>
+                        </div>
+                        {formData.guests && guestsTooLow && (
+                          <div style={{ fontSize:11, color:"#c44", marginTop:4 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
+                        )}
                       </div>
 
                       {/* 5. Café im Paradiesglashaus */}
