@@ -70,11 +70,26 @@ const DEFAULT_OPENING_HOURS = {
 // Schema: /event/{slug} und /event/{slug}/{yyyy-mm-dd}
 // Die v.id ist bereits slug-artig (yoga-julia, iris-pfingstrosen, …) → direkt als Slug nutzen
 // ============================================================
+// ROUTING — öffentliche URLs für SEO
+// Routen:
+//   /                                → Home
+//   /veranstaltungen                 → Veranstaltungsliste (Kunden-Modal)
+//   /event/{slug}                    → einzelne Veranstaltung
+//   /event/{slug}/{yyyy-mm-dd}       → Veranstaltung mit konkretem Termin
+//   /buchen                          → Location-Buchen (Typ-Auswahl)
+//   /buchen/{typeSlug}               → direkt zu einem Typ (hochzeit, firmenfeier, …)
+// ============================================================
 function parseEventRoute(pathname) {
-  if (!pathname) return { type: "home" };
+  if (!pathname || pathname === "/") return { type: "home" };
+  // /veranstaltungen
+  if (/^\/veranstaltungen\/?$/.test(pathname)) return { type: "veranstaltungen" };
+  // /buchen, /buchen/{typeSlug}
+  const buchenMatch = pathname.match(/^\/buchen(?:\/([^\/]+))?\/?$/);
+  if (buchenMatch) return { type: "buchen", typeSlug: buchenMatch[1] || null };
+  // /event/{slug} + /event/{slug}/{date}
   const m = pathname.match(/^\/event\/([^\/]+)(?:\/(\d{4}-\d{2}-\d{2}))?\/?$/);
-  if (!m) return { type: "home" };
-  return { type: m[2] ? "event-date" : "event", slug: m[1], date: m[2] || null };
+  if (m) return { type: m[2] ? "event-date" : "event", slug: m[1], date: m[2] || null };
+  return { type: "home" };
 }
 function buildEventPath(v, focusDate) {
   if (!v || !v.id) return "/";
@@ -966,11 +981,25 @@ export default function App() {
       if (v) {
         setPublicEventDetail(route.type === "event-date" ? { veranstaltung: v, focusDate: route.date } : { veranstaltung: v });
       } else {
-        // Unbekannter Slug → zurück auf Home (replace, damit keine kaputte URL in der History bleibt)
+        // Unbekannter Slug → zurück auf Home
         try { window.history.replaceState({}, "", "/"); } catch {}
       }
+    } else if (route.type === "veranstaltungen") {
+      setModalView("publicEvents");
+    } else if (route.type === "buchen") {
+      setSelectedDate(null);
+      // Falls ein Typ-Slug mitgeliefert wurde, diesen direkt vor-auswählen
+      if (route.typeSlug && (eventTypes || []).some(t => t.id === route.typeSlug)) {
+        setFormData(f => ({ ...f, type: route.typeSlug, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
+        setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear());
+        setModalView("pickDate");
+      } else {
+        // Ungültiger Typ → URL korrigieren, sonst nur buchen-Overlay
+        if (route.typeSlug) { try { window.history.replaceState({}, "", "/buchen"); } catch {} }
+        setModalView("selectType");
+      }
     }
-  }, [loading, veranstaltungen]);
+  }, [loading, veranstaltungen, eventTypes]);
 
   // Browser Back/Forward → State aus URL neu synchronisieren
   useEffect(() => {
@@ -979,10 +1008,26 @@ export default function App() {
       if (route.type === "home") {
         setPublicEventDetail(null);
         setPublicDetailPullY(0);
+        setModalView(null);
+        setPublicDayPicker(null);
+      } else if (route.type === "veranstaltungen") {
+        setPublicEventDetail(null);
+        setModalView("publicEvents");
+      } else if (route.type === "buchen") {
+        setPublicEventDetail(null);
+        setSelectedDate(null);
+        if (route.typeSlug && (eventTypes || []).some(t => t.id === route.typeSlug)) {
+          setFormData(f => ({ ...f, type: route.typeSlug }));
+          setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear());
+          setModalView("pickDate");
+        } else {
+          setModalView("selectType");
+        }
       } else {
         const v = (veranstaltungen || []).find(x => x.id === route.slug);
         if (v) {
           setPublicEventDetail(route.type === "event-date" ? { veranstaltung: v, focusDate: route.date } : { veranstaltung: v });
+          setModalView(null);
         } else {
           setPublicEventDetail(null);
         }
@@ -990,7 +1035,7 @@ export default function App() {
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [veranstaltungen]);
+  }, [veranstaltungen, eventTypes]);
 
   // Navigation-Helper: Detail öffnen + URL pushen
   const navigateToEvent = useCallback((v, focusDate) => {
@@ -1006,7 +1051,39 @@ export default function App() {
     setPublicEventDetail(focusDate ? { veranstaltung: v, focusDate } : { veranstaltung: v });
   }, []);
 
-  // Navigation-Helper: Detail schließen + URL zurück auf /
+  // Navigation: Veranstaltungsliste öffnen (/veranstaltungen)
+  const navigateToVeranstaltungen = useCallback(() => {
+    try {
+      if (window.location.pathname !== "/veranstaltungen") {
+        window.history.pushState({}, "", "/veranstaltungen");
+      }
+    } catch {}
+    setPublicEventDetail(null);
+    setModalView("publicEvents");
+  }, []);
+
+  // Navigation: Buchen-Modal öffnen (/buchen oder /buchen/{typeSlug})
+  const navigateToBuchen = useCallback((typeSlug) => {
+    const path = typeSlug ? `/buchen/${typeSlug}` : "/buchen";
+    try {
+      if (window.location.pathname !== path) {
+        window.history.pushState({}, "", path);
+      }
+    } catch {}
+    setPublicEventDetail(null);
+    setSelectedDate(null);
+    if (typeSlug) {
+      setFormData(f => ({ ...f, type: typeSlug, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
+      setSubmitAttempted(false);
+      setShowTypeSelect(false);
+      setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear());
+      setModalView("pickDate");
+    } else {
+      setModalView("selectType");
+    }
+  }, []);
+
+  // Navigation-Helper: Detail/Modal schließen + URL zurück auf /
   const navigateHome = useCallback(() => {
     try {
       if (window.location.pathname !== "/") {
@@ -1022,31 +1099,57 @@ export default function App() {
     const BRAND_NAME = "Paradiesgarten Mattuschka";
     const BASE_DESC = "Ihr Veranstaltungsort in Klagenfurt am Wörthersee – Hochzeiten, Firmenfeiern, Seminare und Veranstaltungen im historischen Paradiesgarten.";
     const v = publicEventDetail?.veranstaltung;
-    if (!v) {
+    // Priorität 1: einzelne Veranstaltung (Detail-Modal offen)
+    if (v) {
+      const focusDate = publicEventDetail.focusDate;
+      const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
+      const baseVDesc = clean(v.description) || `${v.title} im Paradiesgarten Mattuschka, Klagenfurt am Wörthersee.`;
+      if (focusDate) {
+        const d = fmtDate(focusDate);
+        const entry = (v.dates || []).find(x => x.date === focusDate);
+        const timeInfo = entry && !entry.allDay && entry.startTime && entry.endTime ? ` (${entry.startTime}–${entry.endTime} Uhr)` : "";
+        setRouteMeta({
+          title: `${v.title} am ${d}${timeInfo} – ${BRAND_NAME}`,
+          description: `${v.title} am ${d}${timeInfo} im Paradiesgarten Mattuschka. ${baseVDesc}`.slice(0, 300),
+        });
+      } else {
+        setRouteMeta({
+          title: `${v.title} – ${BRAND_NAME}`,
+          description: baseVDesc.slice(0, 300),
+        });
+      }
+      return;
+    }
+    // Priorität 2: Modals mit eigener Route
+    if (modalView === "publicEvents") {
       setRouteMeta({
-        title: `${BRAND_NAME} – Veranstaltungen & Termine`,
-        description: BASE_DESC,
+        title: `Veranstaltungen – ${BRAND_NAME}`,
+        description: `Aktuelle Veranstaltungen im Paradiesgarten Mattuschka: Yoga, Konzerte, Blütenschauen und mehr in Klagenfurt am Wörthersee.`,
       });
       return;
     }
-    const focusDate = publicEventDetail.focusDate;
-    const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
-    const baseVDesc = clean(v.description) || `${v.title} im Paradiesgarten Mattuschka, Klagenfurt am Wörthersee.`;
-    if (focusDate) {
-      const d = fmtDate(focusDate);
-      const entry = (v.dates || []).find(x => x.date === focusDate);
-      const timeInfo = entry && !entry.allDay && entry.startTime && entry.endTime ? ` (${entry.startTime}–${entry.endTime} Uhr)` : "";
-      setRouteMeta({
-        title: `${v.title} am ${d}${timeInfo} – ${BRAND_NAME}`,
-        description: `${v.title} am ${d}${timeInfo} im Paradiesgarten Mattuschka. ${baseVDesc}`.slice(0, 300),
-      });
-    } else {
-      setRouteMeta({
-        title: `${v.title} – ${BRAND_NAME}`,
-        description: baseVDesc.slice(0, 300),
-      });
+    if (modalView === "selectType" || modalView === "pickDate" || modalView === "form") {
+      // Bei Typ-Vorauswahl: spezifischer Titel
+      const chosenType = (eventTypes || []).find(t => t.id === formData?.type);
+      if (chosenType && (modalView === "pickDate" || modalView === "form")) {
+        setRouteMeta({
+          title: `${chosenType.label} anfragen – ${BRAND_NAME}`,
+          description: `${chosenType.label} im Paradiesgarten Mattuschka: ${chosenType.desc || "Ihr Veranstaltungsort in Klagenfurt am Wörthersee."}`,
+        });
+      } else {
+        setRouteMeta({
+          title: `Location buchen – ${BRAND_NAME}`,
+          description: `Hochzeiten, Firmenfeiern, Seminare, Gruppenbesuche – fragen Sie Ihre Veranstaltung im Paradiesgarten Mattuschka in Klagenfurt am Wörthersee an.`,
+        });
+      }
+      return;
     }
-  }, [publicEventDetail?.veranstaltung?.id, publicEventDetail?.focusDate, publicEventDetail?.veranstaltung?.title, publicEventDetail?.veranstaltung?.description]);
+    // Default / Home
+    setRouteMeta({
+      title: `${BRAND_NAME} – Veranstaltungen & Termine`,
+      description: BASE_DESC,
+    });
+  }, [publicEventDetail?.veranstaltung?.id, publicEventDetail?.focusDate, publicEventDetail?.veranstaltung?.title, publicEventDetail?.veranstaltung?.description, modalView, formData?.type, eventTypes]);
 
   const saveEvents = useCallback(async (updated, opts = {}) => {
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
@@ -1867,7 +1970,7 @@ export default function App() {
             {!isDesk && (
               <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px", zIndex:3 }}>
                 <div style={{ display:"flex", gap:10 }}>
-                  <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
+                  <button onClick={(e) => { e.stopPropagation(); navigateToVeranstaltungen(); }}
                     style={{ flex:1, minWidth:0, background: "rgba(0,154,147,0.95)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.3, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ flexShrink:0 }}>
                       <rect x="2.5" y="3.5" width="11" height="10" rx="1.4" stroke="currentColor" strokeWidth="1.6"/>
@@ -1875,7 +1978,7 @@ export default function App() {
                     </svg>
                     <span style={{ overflow:"hidden", textOverflow:"ellipsis" }}>Veranstaltungen</span>
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
+                  <button onClick={(e) => { e.stopPropagation(); navigateToBuchen(); }}
                     style={{ flex: winW < 400 ? "0 0 auto" : 1, background: "rgba(88,8,74,0.95)", color:"#fff", border:"none", borderRadius:10, padding:"14px 14px", fontSize:14, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", justifyContent:"center", gap:7, letterSpacing:0.4, fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
                     {winW < 400 ? "Buchen" : "Location buchen"}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
@@ -1914,7 +2017,7 @@ export default function App() {
                 <div style={{ fontSize: big ? 16 : 14, color:"rgba(255,255,255,0.85)", marginTop:4, textShadow:"0 1px 4px rgba(0,0,0,0.3)" }}>Ihr Veranstaltungsort in Klagenfurt am Wörthersee</div>
               </div>
               <div style={{ display:"flex", gap:12, alignItems:"stretch", flexShrink:0, pointerEvents:"auto" }}>
-                <button onClick={(e) => { e.stopPropagation(); setModalView("publicEvents"); }}
+                <button onClick={(e) => { e.stopPropagation(); navigateToVeranstaltungen(); }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,128,122,1)"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(0,100,95,0.4)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,154,147,0.95)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,100,95,0.3)"; }}
                   style={{ background: "rgba(0,154,147,0.95)", color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 26px" : "15px 22px", fontSize: big ? 17 : 15, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.3, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(0,100,95,0.3)" }}>
@@ -1924,7 +2027,7 @@ export default function App() {
                   </svg>
                   Veranstaltungen
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); setSelectedDate(null); setModalView("selectType"); }}
+                <button onClick={(e) => { e.stopPropagation(); navigateToBuchen(); }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(61,5,53,1)"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(60,5,50,0.45)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "rgba(88,8,74,0.95)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(60,5,50,0.35)"; }}
                   style={{ background: "rgba(88,8,74,0.95)", color:"#fff", border:"none", borderRadius:12, padding: big ? "17px 28px" : "15px 24px", fontSize: big ? 17 : 16, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:10, letterSpacing:0.4, transition:"all .2s ease", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(60,5,50,0.35)" }}>
@@ -2055,7 +2158,7 @@ export default function App() {
                   aspectRatio:"1",
                   border: isToday ? `2.5px solid ${adminTheme.todayColor}` : (isPast && ev) ? "1px solid #e8e0e5" : isPending ? `2.5px solid ${adminTheme.pendingColor}` : customerBooked ? `1.5px solid ${BRAND.lila}90` : isBlockedAdminAllDay ? `1px solid ${adminTheme.blockedColor}30` : ev && isAdmin && !ev.isSeries ? `1.5px solid ${statusColor}` : "1px solid #e8e0e5",
                   borderRadius: winW > 900 ? 10 : 8,
-                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${statusColor}35 6px 10px), ${statusColor}20` : `${statusColor}0c`) : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
+                  background: isBlockedAdminAllDay ? `repeating-linear-gradient(-45deg, transparent 0 6px, ${adminTheme.blockedColor}35 6px 10px)` : isSeriesAdmin ? "#fff" : customerBooked ? `${BRAND.lila}55` : ev && isAdmin && !ev.isSeries && ev.status !== "pending" ? (ev.allDay ? `repeating-linear-gradient(-45deg, transparent 0 9px, ${statusColor}18 9px 11px), ${statusColor}20` : `${statusColor}0c`) : isToday ? `${adminTheme.todayColor}10` : (isPast ? "#f5f3f4" : "#fff"),
                   cursor: isPast && !ev ? "default" : isPast && ev && isAdmin ? "pointer" : customerBooked ? "default" : "pointer", position:"relative", display:"flex", flexDirection:"column",
                   alignItems:"center", justifyContent:"center", opacity: isPast ? 0.5 : 1, transition:"all .15s", padding: isAdmin ? 2 : 3, paddingTop: hol && !ev && winW > 900 ? 14 : (isAdmin ? 2 : 3),
                   overflow:"hidden",
@@ -3819,6 +3922,11 @@ export default function App() {
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {eventTypes.map(et => (
                     <button key={et.id} onClick={() => {
+                      // URL auf /buchen/{typeSlug} pushen, damit Back-Button funktioniert + SEO-Route entsteht
+                      try {
+                        const newPath = `/buchen/${et.id}`;
+                        if (window.location.pathname !== newPath) window.history.pushState({}, "", newPath);
+                      } catch {}
                       setFormData(f => ({ ...f, type: et.id, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
                       setSubmitAttempted(false);
                       setShowTypeSelect(false);
@@ -4053,11 +4161,11 @@ export default function App() {
                     </div>
                     <input placeholder="Name * (z.B. Klara Winkler)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
-                    <div style={{ display:"flex", gap:6, marginBottom:6 }}>
-                      <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                    <div style={{ display:"flex", gap:6, marginBottom:6, flexDirection: winW < 600 ? "column" : "row" }}>
                       <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
-                        style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                        style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.customerPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.customerPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
+                      <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
+                        style={{ flex:1, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
                     </div>
                     <input placeholder="Anzahl Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
                       style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom: adminForm.type === "pending" ? 6 : 0, color:BRAND.aubergine, textAlign:"center" }} />
