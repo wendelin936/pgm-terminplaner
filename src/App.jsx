@@ -4142,7 +4142,7 @@ export default function App() {
                     {/* TYP */}
                     {canEditType ? (
                       <div onClick={() => toggleChip("type")}
-                        style={{ background: et ? `${typColor}${typColor === BRAND.moosgruen ? "0a" : "15"}` : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: chipPopup === "type" ? `1px solid ${typColor}80` : (et ? `1px solid ${typColor}${typColor === BRAND.moosgruen ? "25" : "30"}` : "1px solid transparent"), transition:"all .15s" }}>
+                        style={{ background: et ? `${typColor}15` : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor:"pointer", border: chipPopup === "type" ? `1px solid ${typColor}80` : (et ? `1px solid ${typColor}30` : "1px solid transparent"), transition:"all .15s" }}>
                         <div style={{ fontSize:10, color: et ? typColor : "#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Typ</div>
                         <div style={{ fontSize:14, fontWeight:600, color: et ? typColor : "#888", marginTop:4 }}>{et?.label || "— wählen"}</div>
                       </div>
@@ -4244,7 +4244,7 @@ export default function App() {
                             style={{ width:"100%", padding:"10px 12px", border:`1px solid ${inputBorder(!(adminForm.contactPhone||"").trim())}`, background: inputBg(!(adminForm.contactPhone||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                         </>);
                       })()}                      {/* Teilnehmer-Leiste — grün */}
-                      <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                      <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                         <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
                         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
@@ -4256,7 +4256,7 @@ export default function App() {
                         </div>
                       </div>
                       {/* Kärnten-Card-Leiste — grün wie Teilnehmer */}
-                      <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                      <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                         <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
@@ -4269,7 +4269,7 @@ export default function App() {
                       </div>
                       {/* Führung-Toggle */}
                       <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}15`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
                         <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                           {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
@@ -5013,7 +5013,7 @@ export default function App() {
                         <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))}
                           style={reqStyle(missingPhone, false)} />
                         {/* Teilnehmer-Leiste direkt unter Telefon — grün hervorgehoben, im Kartenrahmen */}
-                        <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12 }}>
                           <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                             <button onClick={() => setFormData(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
@@ -5028,7 +5028,7 @@ export default function App() {
                           <div style={{ fontSize:11, color:"#c44", marginTop:4 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
                         )}
                         {/* „davon mit Kärnten Card" — grün wie Teilnehmer, direkt unter Teilnehmer */}
-                        <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                        <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                           <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                             <button onClick={() => setFormData(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
@@ -5041,7 +5041,7 @@ export default function App() {
                         </div>
                         {/* Führung-Toggle direkt unter Teilnehmer */}
                         <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
-                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}15`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
                           <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                             {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                           </div>
