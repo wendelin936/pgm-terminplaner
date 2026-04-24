@@ -3910,7 +3910,8 @@ export default function App() {
               }, { passive: true });
               el._dismiss = () => { setModalView(null); setEditingType(null); };
             }}
-            style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch", willChange:"transform" }}>
+            style={{ background:"#fff", borderRadius: winW < 520 ? "16px 16px 0 0" : 16, padding: winW < 520 ? "24px 16px" : "28px 24px", maxWidth: winW > 900 ? 540 : 460, width:"100%", maxHeight: winW < 520 ? "90vh" : "85vh", overflow:"auto", boxShadow:"0 24px 60px rgba(0,0,0,0.15)", touchAction:"pan-y", overscrollBehavior:"contain", WebkitOverflowScrolling:"touch", willChange:"transform", scrollbarWidth:"none", msOverflowStyle:"none" }}
+            className="no-scrollbar">
 
             {/* Pull handle for mobile */}
             {winW < 520 && (
@@ -4167,8 +4168,8 @@ export default function App() {
                   const hasCustomerMessage = !!(adminForm.customerMessage||"").trim();
                   return (
                   <>
-                  <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                    <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Kontakt</div>
+                  <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Kontakt</div>
                     <input placeholder="Name *" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
                     <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
@@ -4182,8 +4183,8 @@ export default function App() {
                   </div>
                   {/* Nachricht-Karte: nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
                   {hasCustomerMessage && (
-                    <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                      <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                    <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
                         Nachricht vom Kunden
                       </div>
                       <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
@@ -4211,7 +4212,7 @@ export default function App() {
                   return (
                   <>
                     {/* Gruppe & Kontakt-Karte (lila — Kontakt-Bereich) */}
-                    <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                       <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
                         {adminForm.type === "pending" ? "Anfrage – Gruppe & Kontakt" : "Gruppe & Kontakt"}
                       </div>
@@ -4235,16 +4236,16 @@ export default function App() {
                             style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                         </div>
                       </div>
-                      {/* Kärnten-Card-Leiste — lila-Akzent */}
-                      <div style={{ background:`${BRAND.lila}14`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
-                        <span style={{ fontSize:10, color:BRAND.lila, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
+                      {/* Kärnten-Card-Leiste — grün wie Teilnehmer */}
+                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
-                            style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                            style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
                           <input type="number" min="0" value={adminForm.kaerntenCardCount||""} onChange={e => setAdminForm(f=>({...f, kaerntenCardCount:e.target.value}))}
-                            placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.lila}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                            placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.moosgruen}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
                           <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.min(Number(f.guests)||9999, (Number(f.kaerntenCardCount)||0) + 1)) }))}
-                            style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                            style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                         </div>
                       </div>
                       {/* Führung-Toggle */}
@@ -4262,7 +4263,7 @@ export default function App() {
                     </div>
                     {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat — lila */}
                     {!!(adminForm.customerMessage||"").trim() && (
-                      <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                         <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
                           Nachricht vom Kunden
                         </div>
@@ -4310,14 +4311,19 @@ export default function App() {
                       {/* Kostenauflistung */}
                       {nP > 0 && (
                         <div style={{ background:"#f8f4f8", borderRadius:10, padding:"10px 12px" }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:nKcard > 0 ? 3 : 6 }}>
-                            <span>Eintritt ({nP}× à € {(gt?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
-                            <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cEintritt.toFixed(2).replace(".",",")}</span>
-                          </div>
-                          {nKcard > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:BRAND.lila, marginBottom:6 }}>
-                            <span>− Kärnten Card ({nKcard}× kostenlos)</span>
-                            <span style={{ fontVariantNumeric:"tabular-nums" }}>− € {cKcardDiscount.toFixed(2).replace(".",",")}</span>
-                          </div>}
+                          {(() => {
+                            const nPaying = Math.max(0, nP - nKcard);
+                            const cEintrittPaying = nPaying * (gt?.pricePerPerson || 9);
+                            return (<>
+                              <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:nKcard > 0 ? 3 : 6 }}>
+                                <span>Eintritt ({nPaying}× à € {(gt?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
+                                <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cEintrittPaying.toFixed(2).replace(".",",")}</span>
+                              </div>
+                              {nKcard > 0 && <div style={{ fontSize:12, color:BRAND.moosgruen, marginBottom:6, fontStyle:"italic" }}>
+                                {nKcard}× Kärnten Card (kostenlos)
+                              </div>}
+                            </>);
+                          })()}
                           {nKaffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
                             <span>Kaffee ({nKaffee}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cKaffee.toFixed(2).replace(".",",")}</span>
                           </div>}
@@ -4344,7 +4350,7 @@ export default function App() {
                   const reminderActive = !!adminForm.reminders?.checklist?.enabled;
                   const hasItemReminders = Object.values(adminForm.reminders?.items || {}).some(r => r?.enabled);
                   return (
-                <div style={{ background:`${BRAND.moosgruen}08`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}25` }}>
+                <div style={{ background:`${BRAND.moosgruen}14`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}40` }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                     <div style={{ fontSize:11, color: BRAND.moosgruen, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Checkliste <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                     {clList.length > 0 && (
@@ -4399,7 +4405,7 @@ export default function App() {
                 })()}
 
                 {/* Interne Notiz - D-Stil */}
-                <div style={{ background:`${BRAND.moosgruen}08`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}25` }}>
+                <div style={{ background:`${BRAND.moosgruen}14`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}40` }}>
                   <div style={{ fontSize:11, color:BRAND.moosgruen, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Interne Notiz <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                   <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))}
                     style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
@@ -5002,16 +5008,16 @@ export default function App() {
                         {formData.guests && guestsTooLow && (
                           <div style={{ fontSize:11, color:"#c44", marginTop:4 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
                         )}
-                        {/* „davon mit Kärnten Card" — lila, direkt unter Teilnehmer */}
-                        <div style={{ background:`${BRAND.lila}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
-                          <span style={{ fontSize:10, color:BRAND.lila, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
+                        {/* „davon mit Kärnten Card" — grün wie Teilnehmer, direkt unter Teilnehmer */}
+                        <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                          <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                             <button onClick={() => setFormData(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
-                              style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                              style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
                             <input type="number" min="0" value={formData.kaerntenCardCount||""} onChange={e => setFormData(f=>({...f, kaerntenCardCount:e.target.value}))}
-                              placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.lila}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                              placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.moosgruen}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
                             <button onClick={() => setFormData(f => ({ ...f, kaerntenCardCount: String(Math.min(Number(f.guests)||9999, (Number(f.kaerntenCardCount)||0) + 1)) }))}
-                              style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                              style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                           </div>
                         </div>
                         {/* Führung-Toggle direkt unter Teilnehmer */}
@@ -5067,14 +5073,19 @@ export default function App() {
                         {/* Kostenauflistung */}
                         {nGuests > 0 && (
                           <div style={{ background:"#f8f4f8", borderRadius:10, padding:"10px 12px" }}>
-                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:nKcard > 0 ? 3 : 6 }}>
-                              <span>Eintritt ({nGuests}× à € {(et?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
-                              <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costEntry.toFixed(2).replace(".",",")}</span>
-                            </div>
-                            {nKcard > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:BRAND.lila, marginBottom:6 }}>
-                              <span>− Kärnten Card ({nKcard}× kostenlos)</span>
-                              <span style={{ fontVariantNumeric:"tabular-nums" }}>− € {costKcardDiscount.toFixed(2).replace(".",",")}</span>
-                            </div>}
+                            {(() => {
+                              const nPaying = Math.max(0, nGuests - nKcard);
+                              const costEntryPaying = nPaying * (et?.pricePerPerson || 9);
+                              return (<>
+                                <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:nKcard > 0 ? 3 : 6 }}>
+                                  <span>Eintritt ({nPaying}× à € {(et?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
+                                  <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costEntryPaying.toFixed(2).replace(".",",")}</span>
+                                </div>
+                                {nKcard > 0 && <div style={{ fontSize:12, color:BRAND.moosgruen, marginBottom:6, fontStyle:"italic" }}>
+                                  {nKcard}× Kärnten Card (kostenlos)
+                                </div>}
+                              </>);
+                            })()}
                             {nCoffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
                               <span>Kaffee ({nCoffee}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costCoffee.toFixed(2).replace(".",",")}</span>
                             </div>}
@@ -6101,6 +6112,9 @@ export default function App() {
         html { overflow-x: hidden; }
         * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
         input, textarea, select, button { font-size: 16px; }
+        /* Dezenter Scrollbar: komplett unsichtbar, aber funktional */
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+        .no-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
         @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px) } to { opacity:1; transform:translateX(-50%) translateY(0) } }
         @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
         @keyframes toastProgress { from { width:100% } to { width:0% } }
