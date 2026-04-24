@@ -5125,35 +5125,51 @@ export default function App() {
                         </div>
                       )}
 
-                      {/* Zeit-Leiste (lila) */}
-                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, flexWrap:"wrap" }}>
-                        {(() => {
-                          const updateTime = (hField, mField) => (v) => {
-                            const [nh,nm]=v.split(":").map(Number);
-                            setFormData(f => {
-                              const upd = {...f, [hField]:nh, [mField]:nm};
-                              const sH = hField==="tourHour" ? nh : upd.tourHour;
-                              const sM = hField==="tourMin" ? nm : upd.tourMin;
-                              const eH = hField==="tourEndHour" ? nh : upd.tourEndHour;
-                              const eM = hField==="tourEndMin" ? nm : upd.tourEndMin;
-                              const startMins = sH*60+sM, endMins = eH*60+eM;
-                              let slot = "custom";
-                              if (endMins <= 13*60 && startMins < 13*60) slot = "halfDayAM";
-                              else if (startMins >= 13*60) slot = "halfDayPM";
-                              else if (startMins < 13*60 && endMins > 13*60) slot = "fullDay";
-                              return {...upd, slot};
-                            });
-                          };
-                          return (
-                            <>
-                              <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Von</span>
-                              <TimeInput value={String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0")} accentColor={et?.color} onChange={updateTime("tourHour","tourMin")} />
-                              <span style={{ fontSize:10, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Bis</span>
-                              <TimeInput value={String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0")} accentColor={et?.color} onChange={updateTime("tourEndHour","tourEndMin")} />
-                            </>
-                          );
-                        })()}
-                      </div>
+                      {/* Zeit-Chip — klickbar, öffnet Popup zum Bearbeiten (in Typ-Farbe) */}
+                      {(() => {
+                        const accent = et?.color || BRAND.lila;
+                        const fromT = String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0");
+                        const toT = String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0");
+                        const isOpen = chipPopup === "customerTime";
+                        const updateTime = (hField, mField) => (v) => {
+                          const [nh,nm]=v.split(":").map(Number);
+                          setFormData(f => {
+                            const upd = {...f, [hField]:nh, [mField]:nm};
+                            const sH = hField==="tourHour" ? nh : upd.tourHour;
+                            const sM = hField==="tourMin" ? nm : upd.tourMin;
+                            const eH = hField==="tourEndHour" ? nh : upd.tourEndHour;
+                            const eM = hField==="tourEndMin" ? nm : upd.tourEndMin;
+                            const startMins = sH*60+sM, endMins = eH*60+eM;
+                            let slot = "custom";
+                            if (endMins <= 13*60 && startMins < 13*60) slot = "halfDayAM";
+                            else if (startMins >= 13*60) slot = "halfDayPM";
+                            else if (startMins < 13*60 && endMins > 13*60) slot = "fullDay";
+                            return {...upd, slot};
+                          });
+                        };
+                        return (
+                          <div style={{ marginBottom:12 }}>
+                            <div onClick={() => setChipPopup(p => p === "customerTime" ? null : "customerTime")}
+                              style={{ background: isOpen ? `${accent}20` : `${accent}12`, borderRadius:12, padding:"10px 14px", cursor:"pointer", border: isOpen ? `1px solid ${accent}60` : "1px solid transparent", transition:"all .15s" }}>
+                              <div style={{ fontSize:10, color:accent, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Zeit</div>
+                              <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginTop:4, fontVariantNumeric:"tabular-nums" }}>{fromT} – {toT} Uhr</div>
+                            </div>
+                            {isOpen && (
+                              <div style={{ background:"#fff", border:`1px solid ${accent}40`, borderRadius:12, padding:"14px 16px", marginTop:6 }}>
+                                <div style={{ fontSize:10, color:accent, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:12 }}>Zeit ändern</div>
+                                <div style={{ display:"flex", alignItems:"center", gap:12, justifyContent:"center", marginBottom:12, flexWrap:"wrap" }}>
+                                  <span style={{ fontSize:10, color:accent, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Von</span>
+                                  <TimeInput value={fromT} accentColor={accent} onChange={updateTime("tourHour","tourMin")} />
+                                  <span style={{ fontSize:10, color:accent, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Bis</span>
+                                  <TimeInput value={toT} accentColor={accent} onChange={updateTime("tourEndHour","tourEndMin")} />
+                                </div>
+                                <button onClick={() => setChipPopup(null)}
+                                  style={{ width:"100%", padding:"10px", background:accent, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Übernehmen</button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Kontakt-Karte */}
                       <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
