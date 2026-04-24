@@ -531,7 +531,7 @@ function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onRemi
         const hasRem = !!rem?.enabled;
         const isEditing = editingIdx === i;
         return (
-        <div key={itemKey || `row-${i}`} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", marginBottom:4, background:`${BRAND.moosgruen}03`, borderRadius:6, border:`1px solid ${BRAND.moosgruen}25` }}>
+        <div key={itemKey || `row-${i}`} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", marginBottom:4, background:"#fff", borderRadius:6, border:"1px solid #e8d8e4" }}>
           <div onClick={editable && !isEditing ? () => { const u=[...items]; u[i]={...u[i],done:!u[i].done}; onChange(u); } : undefined}
             style={{ width:18, height:18, borderRadius:4, border:`1.5px solid ${item.done ? BRAND.lila : "#ccc"}`, background: item.done ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: editable && !isEditing ? "pointer" : "default" }}>
             {item.done && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -4427,7 +4427,7 @@ export default function App() {
                 <div style={{ background:`${BRAND.moosgruen}20`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}50` }}>
                   <div style={{ fontSize:11, color:BRAND.moosgruen, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Interne Notiz <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                   <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))}
-                    style={{ width:"100%", padding:"10px 12px", border:`1px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.moosgruen}03` }} />
+                    style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:"#fff" }} />
                 </div>
 
                 {/* Vereinbarter Preis - bei Veranstaltungen & Serien, nicht bei Gruppenführungen & internen Terminen */}
