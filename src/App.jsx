@@ -4325,7 +4325,7 @@ export default function App() {
                   return (
                 <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                    <div style={{ fontSize:11, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Checkliste</div>
+                    <div style={{ fontSize:11, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Checkliste <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                     {clList.length > 0 && (
                       <button onClick={() => setReminderPopup({ type:"checklist" })}
                         title={reminderActive ? `Erinnerung aktiv: ${adminForm.reminders.checklist.daysBefore || 3} Tage vorher um ${adminForm.reminders.checklist.sendAt || "09:00"}` : "Erinnerung einrichten"}
