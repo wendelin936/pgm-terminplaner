@@ -72,28 +72,33 @@ const DEFAULT_OPENING_HOURS = {
 // ============================================================
 // ROUTING — öffentliche URLs für SEO
 // Routen:
-//   /                                → Home
-//   /veranstaltungen                 → Veranstaltungsliste (Kunden-Modal)
-//   /event/{slug}                    → einzelne Veranstaltung
-//   /event/{slug}/{yyyy-mm-dd}       → Veranstaltung mit konkretem Termin
-//   /buchen                          → Location-Buchen (Typ-Auswahl)
-//   /buchen/{typeSlug}               → direkt zu einem Typ (hochzeit, firmenfeier, …)
+//   /                                        → Home
+//   /veranstaltungen                         → Veranstaltungsliste
+//   /veranstaltungen/{slug}                  → einzelne Veranstaltung
+//   /veranstaltungen/{slug}/{yyyy-mm-dd}     → mit konkretem Termin
+//   /buchen                                  → Location-Buchen (Typ-Auswahl)
+//   /buchen/{typeSlug}                       → direkt zu einem Typ
+//   /event/{slug}[...]                       → LEGACY — wird auf /veranstaltungen/{slug} redirected
 // ============================================================
 function parseEventRoute(pathname) {
   if (!pathname || pathname === "/") return { type: "home" };
-  // /veranstaltungen
-  if (/^\/veranstaltungen\/?$/.test(pathname)) return { type: "veranstaltungen" };
+  // /veranstaltungen — entweder Liste, einzelne oder mit Datum
+  const vMatch = pathname.match(/^\/veranstaltungen(?:\/([^\/]+)(?:\/(\d{4}-\d{2}-\d{2}))?)?\/?$/);
+  if (vMatch) {
+    if (!vMatch[1]) return { type: "veranstaltungen" };
+    return { type: vMatch[2] ? "event-date" : "event", slug: vMatch[1], date: vMatch[2] || null };
+  }
   // /buchen, /buchen/{typeSlug}
   const buchenMatch = pathname.match(/^\/buchen(?:\/([^\/]+))?\/?$/);
   if (buchenMatch) return { type: "buchen", typeSlug: buchenMatch[1] || null };
-  // /event/{slug} + /event/{slug}/{date}
-  const m = pathname.match(/^\/event\/([^\/]+)(?:\/(\d{4}-\d{2}-\d{2}))?\/?$/);
-  if (m) return { type: m[2] ? "event-date" : "event", slug: m[1], date: m[2] || null };
+  // Legacy /event/{slug}[...]  — wird beim Initial-Load auf /veranstaltungen/... redirected
+  const legacyMatch = pathname.match(/^\/event\/([^\/]+)(?:\/(\d{4}-\d{2}-\d{2}))?\/?$/);
+  if (legacyMatch) return { type: legacyMatch[2] ? "event-date" : "event", slug: legacyMatch[1], date: legacyMatch[2] || null, legacy: true };
   return { type: "home" };
 }
 function buildEventPath(v, focusDate) {
   if (!v || !v.id) return "/";
-  return focusDate ? `/event/${v.id}/${focusDate}` : `/event/${v.id}`;
+  return focusDate ? `/veranstaltungen/${v.id}/${focusDate}` : `/veranstaltungen/${v.id}`;
 }
 // Meta-Tags (title + description + canonical) dynamisch setzen — rein clientseitig,
 // wird aber von Google, Bing, Facebook etc. beim Crawlen ausgewertet sobald JS ausgeführt wird.
@@ -979,9 +984,12 @@ export default function App() {
     if (route.type === "event" || route.type === "event-date") {
       const v = (veranstaltungen || []).find(x => x.id === route.slug);
       if (v) {
+        // Legacy /event/... → auf /veranstaltungen/... replacen (kein neuer History-Eintrag)
+        if (route.legacy) {
+          try { window.history.replaceState({}, "", buildEventPath(v, route.date)); } catch {}
+        }
         setPublicEventDetail(route.type === "event-date" ? { veranstaltung: v, focusDate: route.date } : { veranstaltung: v });
       } else {
-        // Unbekannter Slug → zurück auf Home
         try { window.history.replaceState({}, "", "/"); } catch {}
       }
     } else if (route.type === "veranstaltungen") {
@@ -1325,12 +1333,9 @@ export default function App() {
   };
 
   const handleCardClick = (typeId) => {
-    setFormData({ name:"", email:"", phone:"", type: typeId, slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0, contactName:"" });
-    setShowTypeSelect(false);
-    setSubmitAttempted(false);
-    setPickerMonth(today.getMonth());
-    setPickerYear(today.getFullYear());
-    setModalView("pickDate");
+    // Nutzt navigateToBuchen, damit /buchen/{typeId} in die URL kommt
+    // (wird weiter unten im Component definiert — wir rufen sie über den Ref-Workaround auf)
+    navigateToBuchen(typeId);
   };
 
   const handlePickerDateClick = (day) => {
