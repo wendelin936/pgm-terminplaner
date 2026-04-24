@@ -46,27 +46,27 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://buchen.derparadiesgarten.at/event/yoga-julia</loc>
+    <loc>https://buchen.derparadiesgarten.at/veranstaltungen/yoga-julia</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://buchen.derparadiesgarten.at/event/iris-pfingstrosen</loc>
+    <loc>https://buchen.derparadiesgarten.at/veranstaltungen/iris-pfingstrosen</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://buchen.derparadiesgarten.at/event/taglilien-sommer</loc>
+    <loc>https://buchen.derparadiesgarten.at/veranstaltungen/taglilien-sommer</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://buchen.derparadiesgarten.at/event/herbstbluetenzauber</loc>
+    <loc>https://buchen.derparadiesgarten.at/veranstaltungen/herbstbluetenzauber</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://buchen.derparadiesgarten.at/event/lebenskunst</loc>
+    <loc>https://buchen.derparadiesgarten.at/veranstaltungen/lebenskunst</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
