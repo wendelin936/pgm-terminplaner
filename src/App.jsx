@@ -4229,6 +4229,18 @@ export default function App() {
                             style={{ width:26, height:26, border:"none", background:"transparent", fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                         </div>
                       </div>
+                      {/* Führung-Toggle direkt unter Teilnehmer */}
+                      <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginTop:8 }}>
+                        <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                          {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                          <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {gt?.guideCost || 80} pro {gt?.maxPerTour || 20} Teilnehmer</div>
+                        </div>
+                        <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
+                      </label>
                     </div>
                     {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
                     {!!(adminForm.customerMessage||"").trim() && (
@@ -4264,7 +4276,7 @@ export default function App() {
                       {/* Kuchen */}
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
                         <div style={{ flex:1 }}>
-                          <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div>
+                          <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen <span style={{ fontSize:11, color:"#999", fontWeight:400 }}>(nur auf Vorbestellung)</span></div>
                           <div style={{ fontSize:11, color:"#999" }}>à € {(gt?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -4276,19 +4288,6 @@ export default function App() {
                             style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                         </div>
                       </div>
-
-                      {/* Führung-Toggle */}
-                      <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginBottom: nP > 0 ? 10 : 0 }}>
-                        <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
-                          {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
-                          <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {gt?.guideCost || 80} pro {gt?.maxPerTour || 20} Teilnehmer</div>
-                        </div>
-                        <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
-                      </label>
 
                       {/* Kostenauflistung */}
                       {nP > 0 && (
@@ -4923,11 +4922,11 @@ export default function App() {
 
                   {isGroup ? (
                     <>
-                      {/* Zeit-Leiste */}
-                      <div style={{ background:"#faf7fa", borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, marginTop:8, flexWrap:"wrap" }}>
-                        <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Von</span>
+                      {/* Zeit-Leiste — grün hinterlegt, anklickbar */}
+                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, marginTop:8, flexWrap:"wrap" }}>
+                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Von</span>
                         <TimeInput value={String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourHour:nh, tourMin:nm})); }} />
-                        <span style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Bis</span>
+                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Bis</span>
                         <TimeInput value={String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourEndHour:nh, tourEndMin:nm})); }} />
                       </div>
 
@@ -4958,6 +4957,18 @@ export default function App() {
                         {formData.guests && guestsTooLow && (
                           <div style={{ fontSize:11, color:"#c44", marginTop:4 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
                         )}
+                        {/* Führung-Toggle direkt unter Teilnehmer */}
+                        <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
+                          <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                            {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          </div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                            <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {et?.guideCost || 80} pro {et?.maxPerTour || 20} Teilnehmer</div>
+                          </div>
+                          <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {et?.guideCost || 80}</span>
+                        </label>
                       </div>
 
                       {/* 5. Café im Paradiesglashaus */}
@@ -4983,7 +4994,7 @@ export default function App() {
                         {/* Kuchen */}
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
                           <div style={{ flex:1 }}>
-                            <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div>
+                            <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen <span style={{ fontSize:11, color:"#999", fontWeight:400 }}>(nur auf Vorbestellung)</span></div>
                             <div style={{ fontSize:11, color:"#999" }}>à € {(et?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
                           </div>
                           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -4995,19 +5006,6 @@ export default function App() {
                               style={{ width:28, height:28, border:"1px solid #e0d5df", background:"#fff", borderRadius:6, fontSize:14, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                           </div>
                         </div>
-
-                        {/* Führung-Toggle */}
-                        <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
-                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginBottom: nGuests > 0 ? 10 : 0 }}>
-                          <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
-                            {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                          </div>
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
-                            <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {et?.guideCost || 80} pro {et?.maxPerTour || 20} Teilnehmer</div>
-                          </div>
-                          <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {et?.guideCost || 80}</span>
-                        </label>
 
                         {/* Kostenauflistung */}
                         {nGuests > 0 && (
