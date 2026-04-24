@@ -4922,13 +4922,34 @@ export default function App() {
 
                   {isGroup ? (
                     <>
-                      {/* Zeit-Leiste — grün hinterlegt, anklickbar */}
-                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:12, marginTop:8, flexWrap:"wrap" }}>
-                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Von</span>
-                        <TimeInput value={String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourHour:nh, tourMin:nm})); }} />
-                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Bis</span>
-                        <TimeInput value={String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0")} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourEndHour:nh, tourEndMin:nm})); }} />
-                      </div>
+                      {/* Zeit-Chip — klickbar, öffnet Popup zum Bearbeiten (grün hinterlegt) */}
+                      {(() => {
+                        const fromT = String(Number(formData.tourHour)||0).padStart(2,"0")+":"+String(Number(formData.tourMin)||0).padStart(2,"0");
+                        const toT = String(Number(formData.tourEndHour)||0).padStart(2,"0")+":"+String(Number(formData.tourEndMin)||0).padStart(2,"0");
+                        const isOpen = chipPopup === "customerTime";
+                        return (
+                          <div style={{ marginBottom:12, marginTop:8 }}>
+                            <div onClick={() => setChipPopup(p => p === "customerTime" ? null : "customerTime")}
+                              style={{ background: isOpen ? `${BRAND.moosgruen}20` : `${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:12, border: isOpen ? `1px solid ${BRAND.moosgruen}60` : "1px solid transparent", transition:"all .15s", flexWrap:"wrap" }}>
+                              <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Zeit</span>
+                              <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, fontVariantNumeric:"tabular-nums", marginLeft:"auto" }}>{fromT} – {toT} Uhr</span>
+                            </div>
+                            {isOpen && (
+                              <div style={{ background:"#fff", border:`1px solid ${BRAND.moosgruen}40`, borderRadius:12, padding:"14px 16px", marginTop:6 }}>
+                                <div style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:12 }}>Zeit ändern</div>
+                                <div style={{ display:"flex", alignItems:"center", gap:12, justifyContent:"center", marginBottom:12, flexWrap:"wrap" }}>
+                                  <span style={{ fontSize:10, color:BRAND.moosgruen, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Von</span>
+                                  <TimeInput value={fromT} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourHour:nh, tourMin:nm})); }} />
+                                  <span style={{ fontSize:10, color:BRAND.moosgruen, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Bis</span>
+                                  <TimeInput value={toT} accentColor={BRAND.moosgruen} onChange={v => { const [nh,nm]=v.split(":").map(Number); setFormData(f=>({...f, tourEndHour:nh, tourEndMin:nm})); }} />
+                                </div>
+                                <button onClick={() => setChipPopup(null)}
+                                  style={{ width:"100%", padding:"10px", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Übernehmen</button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Gruppe & Kontakt-Karte — mit Teilnehmer unter Telefon */}
                       <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
