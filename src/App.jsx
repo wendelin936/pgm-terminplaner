@@ -4930,9 +4930,9 @@ export default function App() {
                         return (
                           <div style={{ marginBottom:12, marginTop:8 }}>
                             <div onClick={() => setChipPopup(p => p === "customerTime" ? null : "customerTime")}
-                              style={{ background: isOpen ? `${BRAND.moosgruen}20` : `${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", cursor:"pointer", display:"flex", alignItems:"center", gap:12, border: isOpen ? `1px solid ${BRAND.moosgruen}60` : "1px solid transparent", transition:"all .15s", flexWrap:"wrap" }}>
-                              <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Zeit</span>
-                              <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, fontVariantNumeric:"tabular-nums", marginLeft:"auto" }}>{fromT} – {toT} Uhr</span>
+                              style={{ background: isOpen ? `${BRAND.moosgruen}20` : `${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", cursor:"pointer", border: isOpen ? `1px solid ${BRAND.moosgruen}60` : "1px solid transparent", transition:"all .15s" }}>
+                              <div style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Zeit</div>
+                              <div style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, marginTop:4, fontVariantNumeric:"tabular-nums" }}>{fromT} – {toT} Uhr</div>
                             </div>
                             {isOpen && (
                               <div style={{ background:"#fff", border:`1px solid ${BRAND.moosgruen}40`, borderRadius:12, padding:"14px 16px", marginTop:6 }}>
