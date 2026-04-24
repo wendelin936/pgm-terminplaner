@@ -786,6 +786,7 @@ export default function App() {
   const [statusCollapsed, setStatusCollapsed] = useState(true); // Status-Buttons (Gebucht/Anfrage/Intern) eingeklappt?
   const [timeCollapsed, setTimeCollapsed] = useState(true); // Zeit + Ganztägig eingeklappt?
   const [chipPopup, setChipPopup] = useState(null); // null | "status" | "date" | "time" | "type"
+  const [adminTab, setAdminTab] = useState("details"); // "details" | "preis" | "intern"
   const [datePopupMonth, setDatePopupMonth] = useState(null);
   const [datePopupYear, setDatePopupYear] = useState(null);
   // Read-only view (für Astrid: von der Bestätigungsmail verlinkt)
@@ -1252,7 +1253,7 @@ export default function App() {
   // ABER editingSubIndex NICHT resetten — das macht openEventInAdmin gezielt
   useEffect(() => { setTypeSelectExpanded(false); }, [modalView, selectedDate]);
   // editingSubIndex nur beim Schließen des Modals zurücksetzen (nicht beim Öffnen!)
-  useEffect(() => { if (modalView === null) { setEditingSubIndex(-1); setReminderPopup(null); setChipPopup(null); } }, [modalView]);
+  useEffect(() => { if (modalView === null) { setEditingSubIndex(-1); setReminderPopup(null); setChipPopup(null); setAdminTab("details"); } }, [modalView]);
   // Beim Öffnen des Admin-Modals: Dashboard-Chips als Übersicht zeigen, Editoren sind initial geschlossen
   useEffect(() => {
     if (modalView !== "admin") return;
@@ -4101,6 +4102,24 @@ export default function App() {
                   );
                 })()}
                 {(isAdmin ? adminTheme.showHolidaysAdmin : adminTheme.showHolidaysCustomer) && holidays[selectedDate] && <div style={{ fontSize:13, color: BRAND.moosgruen, marginBottom:14, fontWeight:500 }}>📅 {holidays[selectedDate]}</div>}
+                {/* Tab-Leiste — nur bei buchbaren Veranstaltungen (booked/pending) */}
+                {(adminForm.type === "booked" || adminForm.type === "pending") && (() => {
+                  const et = eventTypes.find(t => t.id === adminForm.eventType);
+                  const accent = et?.color || BRAND.lila;
+                  const tabs = [ ["details","Details"], ["preis","Preis"], ["intern","Intern"] ];
+                  return (
+                    <div style={{ display:"flex", gap:2, borderBottom:`1px solid ${accent}25`, marginBottom:12 }}>
+                      {tabs.map(([id, label]) => (
+                        <div key={id} onClick={() => setAdminTab(id)}
+                          style={{ padding:"10px 16px", fontSize:13, color: adminTab===id ? accent : "#888", fontWeight: adminTab===id ? 600 : 400, borderBottom: adminTab===id ? `2px solid ${accent}` : "2px solid transparent", cursor:"pointer", marginBottom:"-1px", transition:"all .15s" }}>
+                          {label}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {/* ============ DETAILS-TAB (Block 1): Dashboard + Bezeichnung + Kontakt ============ */}
+                {((adminForm.type !== "booked" && adminForm.type !== "pending") || adminTab === "details") && (<>
                 {/* 2x2 Meta-Chip Dashboard */}
                 {(() => {
                   const et = eventTypes.find(t => t.id === adminForm.eventType);
@@ -4208,6 +4227,8 @@ export default function App() {
                   </>
                   );
                 })()}
+                </>)}
+                {/* ============ END DETAILS-TAB Block 1 ============ */}
 
                 {/* Group tour fields - for Gruppenbesuch (booked + pending) */}
                 {adminForm.eventType === "gruppenfuehrung" && (adminForm.type === "booked" || adminForm.type === "pending") && (() => {
@@ -4225,6 +4246,7 @@ export default function App() {
                   const cGesamt = cEintritt - cKcardDiscount + cKaffee + cKuchen + cFuehrung;
                   return (
                   <>
+                    {adminTab === "details" && (<>
                     {/* Gruppe & Kontakt-Karte (lila — Kontakt-Bereich) */}
                     <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                       <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
@@ -4255,30 +4277,6 @@ export default function App() {
                             style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                         </div>
                       </div>
-                      {/* Kärnten-Card-Leiste — grün wie Teilnehmer */}
-                      <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
-                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
-                          <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
-                            style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
-                          <input type="number" min="0" value={adminForm.kaerntenCardCount||""} onChange={e => setAdminForm(f=>({...f, kaerntenCardCount:e.target.value}))}
-                            placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.moosgruen}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
-                          <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.min(Number(f.guests)||9999, (Number(f.kaerntenCardCount)||0) + 1)) }))}
-                            style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
-                        </div>
-                      </div>
-                      {/* Führung-Toggle */}
-                      <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
-                        <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
-                          {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                        </div>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
-                          <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {gt?.guideCost || 80} pro {gt?.maxPerTour || 20} Teilnehmer</div>
-                        </div>
-                        <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
-                      </label>
                     </div>
                     {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat — lila */}
                     {!!(adminForm.customerMessage||"").trim() && (
@@ -4290,6 +4288,33 @@ export default function App() {
                           style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
                       </div>
                     )}
+                    </>)}
+                    {/* ============ END DETAILS-Teil Gruppenbesuch — PREIS-Teil startet ============ */}
+                    {adminTab === "preis" && (<>
+                    {/* Kärnten-Card-Leiste — grün */}
+                    <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"10px 14px", display:"flex", alignItems:"center", gap:12, marginBottom:6 }}>
+                      <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                        <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
+                          style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                        <input type="number" min="0" value={adminForm.kaerntenCardCount||""} onChange={e => setAdminForm(f=>({...f, kaerntenCardCount:e.target.value}))}
+                          placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.moosgruen}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                        <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.min(Number(f.guests)||9999, (Number(f.kaerntenCardCount)||0) + 1)) }))}
+                          style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                      </div>
+                    </div>
+                    {/* Führung-Toggle — grün */}
+                    <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
+                      style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginBottom:10 }}>
+                      <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                        {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600 }}>Führung mit Gartenexpertin</div>
+                        <div style={{ fontSize:11, color:BRAND.moosgruen, opacity:0.65, marginTop:1 }}>€ {gt?.guideCost || 80} pro {gt?.maxPerTour || 20} Teilnehmer</div>
+                      </div>
+                      <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
+                    </label>
 
                     {/* Café im Paradiesglashaus */}
                     <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
@@ -4359,10 +4384,14 @@ export default function App() {
                         </div>
                       )}
                     </div>
+                    </>)}
+                    {/* ============ END PREIS-Teil Gruppenbesuch ============ */}
                   </>
                   );
                 })()}
 
+                {/* ============ INTERN-TAB: Checkliste + Interne Notiz ============ */}
+                {((adminForm.type !== "booked" && adminForm.type !== "pending") || adminTab === "intern") && (<>
                 {/* Checkliste - D-Stil */}
                 {(() => {
                   const clList = adminForm.checklist || [];
@@ -4429,7 +4458,11 @@ export default function App() {
                   <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))}
                     style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:"#fff" }} />
                 </div>
+                </>)}
+                {/* ============ END INTERN-TAB ============ */}
 
+                {/* ============ PREIS-TAB (für nicht-Gruppenbesuch): Vereinbarter Preis ============ */}
+                {((adminForm.type !== "booked" && adminForm.type !== "pending") || adminTab === "preis") && (<>
                 {/* Vereinbarter Preis - bei Veranstaltungen & Serien, nicht bei Gruppenführungen & internen Terminen */}
                 {((adminForm.type === "booked" || adminForm.type === "pending" || adminForm.isSeries || adminForm.editAllSeries) && adminForm.eventType !== "gruppenfuehrung") && (() => {
                   const CLEANING_FEE = 150;
@@ -4500,7 +4533,11 @@ export default function App() {
                     </div>
                   );
                 })()}
+                </>)}
+                {/* ============ END PREIS-TAB ============ */}
 
+                {/* ============ DETAILS-TAB (Block 2): Public-Toggle + Contact-Person + Serientermin ============ */}
+                {((adminForm.type !== "booked" && adminForm.type !== "pending") || adminTab === "details") && (<>
                 {/* Public toggle - only for internal events, directly above Serientermin */}
                 {/* ENTFERNT: Veranstaltungen werden jetzt über die Kachelverwaltung verwaltet (Top-Bar → Veranstaltungen) */}
 
@@ -4602,6 +4639,8 @@ export default function App() {
                 )}
                 </>
                 )}
+                </>)}
+                {/* ============ END DETAILS-TAB Block 2 ============ */}
 
                 <button onClick={() => handleAdminSave()} style={primaryBtn}>Speichern</button>
 
