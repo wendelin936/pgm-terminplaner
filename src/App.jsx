@@ -165,6 +165,7 @@ function notifyGroupTour(dateKey, ev, subIndex = -1) {
       tourGuide: !!ev.tourGuide,
       cakeCount: ev.cakeCount || 0,
       coffeeCount: ev.coffeeCount || 0,
+      kaerntenCardCount: ev.kaerntenCardCount || "",
       // Für View-Token: Kontext zum Auffinden des Termins
       dateKey: dateKey,
       subIndex: subIndex,
@@ -776,8 +777,8 @@ export default function App() {
   const [fromCalendar, setFromCalendar] = useState(false);
   const [modalView, setModalView] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0, contactName:"" });
-  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false, reminders:{ checklist:null, items:{} } });
+  const [formData, setFormData] = useState({ name:"", email:"", phone:"", type:"hochzeit", slot:"halfDayAM", guests:"", message:"", tourGuide:false, cakeCount:0, coffeeCount:0, kaerntenCardCount:"", tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0, contactName:"" });
+  const [adminForm, setAdminForm] = useState({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, kaerntenCardCount:"", price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false, reminders:{ checklist:null, items:{} } });
   // reminderPopup: { type: "checklist" | "item", itemKey?: string (item-id) }
   const [reminderPopup, setReminderPopup] = useState(null);
   const [editingSubIndex, setEditingSubIndex] = useState(-1); // -1 = Main-Event, sonst Index im subEvents-Array
@@ -998,7 +999,7 @@ export default function App() {
       setSelectedDate(null);
       // Falls ein Typ-Slug mitgeliefert wurde, diesen direkt vor-auswählen
       if (route.typeSlug && (eventTypes || []).some(t => t.id === route.typeSlug)) {
-        setFormData(f => ({ ...f, type: route.typeSlug, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
+        setFormData(f => ({ ...f, type: route.typeSlug, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, kaerntenCardCount:"", tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
         setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear());
         setModalView("pickDate");
       } else {
@@ -1081,7 +1082,7 @@ export default function App() {
     setPublicEventDetail(null);
     setSelectedDate(null);
     if (typeSlug) {
-      setFormData(f => ({ ...f, type: typeSlug, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
+      setFormData(f => ({ ...f, type: typeSlug, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, kaerntenCardCount:"", tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
       setSubmitAttempted(false);
       setShowTypeSelect(false);
       setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear());
@@ -1319,7 +1320,7 @@ export default function App() {
         setFromCalendar(true);
         setModalView("info");
       } else {
-        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
+        setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, kaerntenCardCount:"", price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
         setEditingSubIndex(-1);
         setModalView("admin");
       }
@@ -1386,7 +1387,7 @@ export default function App() {
     const displayName = adminForm.type === "blocked"
       ? (adminForm.contactName || adminForm.groupName || "")
       : (adminForm.groupName || adminForm.contactName || "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, publicIcon: adminForm.publicIcon || "", isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
+    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, publicIcon: adminForm.publicIcon || "", isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, kaerntenCardCount: adminForm.kaerntenCardCount || "", groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -1499,6 +1500,7 @@ export default function App() {
           tourGuide: formData.tourGuide,
           cakeCount: formData.cakeCount || 0,
           coffeeCount: formData.coffeeCount || 0,
+          kaerntenCardCount: formData.kaerntenCardCount || "",
           contactName: formData.contactName || "",
         })
       }).catch(() => {});
@@ -1526,6 +1528,7 @@ export default function App() {
       isSeries: false, seriesDates: [],
       guests: src.guests || "", tourGuide: src.tourGuide || false,
       cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0,
+      kaerntenCardCount: src.kaerntenCardCount || "",
       groupName: src.groupName || src.name || "",
       customerEmail: src.email || "", customerPhone: src.phone || "",
       customerMessage: src.message || "", price: src.price || "",
@@ -1851,7 +1854,7 @@ export default function App() {
                 {/* Café im Paradiesglashaus (nur Gruppenbesuch) */}
                 {isGroupEv && (ev.tourGuide || nKaffee > 0 || nKuchen > 0 || nP > 0) && (
                   <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                    <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
+                    <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
                     {nKaffee > 0 && (
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
                         <div><div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kaffee</div><div style={{ fontSize:11, color:"#999" }}>à € {(et?.coffeePrice || 3.10).toFixed(2).replace(".",",")}</div></div>
@@ -3932,7 +3935,7 @@ export default function App() {
                         const newPath = `/buchen/${et.id}`;
                         if (window.location.pathname !== newPath) window.history.pushState({}, "", newPath);
                       } catch {}
-                      setFormData(f => ({ ...f, type: et.id, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
+                      setFormData(f => ({ ...f, type: et.id, name:"", email:"", phone:"", guests:"", message:"", slot:"halfDayAM", tourGuide:false, cakeCount:0, coffeeCount:0, kaerntenCardCount:"", tourHour:8, tourMin:0, tourEndHour:13, tourEndMin:0 }));
                       setSubmitAttempted(false);
                       setShowTypeSelect(false);
                       if (!selectedDate) { setPickerMonth(today.getMonth()); setPickerYear(today.getFullYear()); }
@@ -4164,7 +4167,7 @@ export default function App() {
                   const hasCustomerMessage = !!(adminForm.customerMessage||"").trim();
                   return (
                   <>
-                  <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                  <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                     <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Kontakt</div>
                     <input placeholder="Name *" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                       style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.groupName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.groupName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
@@ -4179,7 +4182,7 @@ export default function App() {
                   </div>
                   {/* Nachricht-Karte: nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
                   {hasCustomerMessage && (
-                    <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                       <div style={{ fontSize:11, color:accent, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
                         Nachricht vom Kunden
                       </div>
@@ -4195,43 +4198,58 @@ export default function App() {
                 {adminForm.eventType === "gruppenfuehrung" && (adminForm.type === "booked" || adminForm.type === "pending") && (() => {
                   const gt = eventTypes.find(t => t.id === "gruppenfuehrung");
                   const nP = Number(adminForm.guests) || 0;
+                  const nKcard = Math.max(0, Math.min(nP, Number(adminForm.kaerntenCardCount) || 0));
                   const nKaffee = Number(adminForm.coffeeCount) || 0;
                   const nKuchen = Number(adminForm.cakeCount) || 0;
                   const cEintritt = nP * (gt?.pricePerPerson || 9);
+                  const cKcardDiscount = nKcard * (gt?.pricePerPerson || 9);
                   const cKaffee = nKaffee * (gt?.coffeePrice || 3.10);
                   const cKuchen = nKuchen * (gt?.cakePrice || 4.50);
                   const nF = adminForm.tourGuide && nP > 0 ? Math.ceil(nP / (gt?.maxPerTour || 20)) : 0;
                   const cFuehrung = nF * (gt?.guideCost || 80);
-                  const cGesamt = cEintritt + cKaffee + cKuchen + cFuehrung;
+                  const cGesamt = cEintritt - cKcardDiscount + cKaffee + cKuchen + cFuehrung;
                   return (
                   <>
-                    {/* Gruppe & Kontakt-Karte */}
-                    <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                      <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
+                    {/* Gruppe & Kontakt-Karte (lila — Kontakt-Bereich) */}
+                    <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
                         {adminForm.type === "pending" ? "Anfrage – Gruppe & Kontakt" : "Gruppe & Kontakt"}
                       </div>
                       <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:"#fff" }} />
                       <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
                         style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
                       <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
-                      <div style={{ display:"flex", gap:6, alignItems:"stretch" }}>
-                        <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
-                          style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
-                        {/* Teilnehmer-Stepper rechts neben Telefon */}
-                        <div style={{ display:"flex", alignItems:"center", gap:4, border:`1px solid ${!(adminForm.guests||"").toString().trim() || Number(adminForm.guests) <= 0 ? (adminSubmitAttempted ? "#c44" : "#e0d8de") : `${BRAND.moosgruen}60`}`, background:!(adminForm.guests||"").toString().trim() && adminSubmitAttempted ? "#fdf6f6" : "#fff", borderRadius:8, padding:"2px 4px" }} title="Teilnehmer">
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:"#fff" }} />
+                      <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                        style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                      {/* Teilnehmer-Leiste — grün */}
+                      <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                        <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
-                            style={{ width:26, height:26, border:"none", background:"transparent", fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                            style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
                           <input type="number" min="0" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                            placeholder="TN" style={{ width:36, textAlign:"center", padding:"6px 0", border:"none", fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"transparent", outline:"none" }} />
+                            style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.moosgruen}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
                           <button onClick={() => setAdminForm(f => ({ ...f, guests: String((Number(f.guests)||0) + 1) }))}
-                            style={{ width:26, height:26, border:"none", background:"transparent", fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                            style={{ width:28, height:28, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
                         </div>
                       </div>
-                      {/* Führung-Toggle direkt unter Teilnehmer */}
+                      {/* Kärnten-Card-Leiste — lila-Akzent */}
+                      <div style={{ background:`${BRAND.lila}14`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                        <span style={{ fontSize:10, color:BRAND.lila, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                          <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
+                            style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                          <input type="number" min="0" value={adminForm.kaerntenCardCount||""} onChange={e => setAdminForm(f=>({...f, kaerntenCardCount:e.target.value}))}
+                            placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.lila}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                          <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.min(Number(f.guests)||9999, (Number(f.kaerntenCardCount)||0) + 1)) }))}
+                            style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                        </div>
+                      </div>
+                      {/* Führung-Toggle */}
                       <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginTop:8 }}>
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
                         <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                           {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
@@ -4242,20 +4260,20 @@ export default function App() {
                         <span style={{ fontSize:13, color:BRAND.moosgruen, fontWeight:600, fontVariantNumeric:"tabular-nums" }}>€ {gt?.guideCost || 80}</span>
                       </label>
                     </div>
-                    {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
+                    {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat — lila */}
                     {!!(adminForm.customerMessage||"").trim() && (
-                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                        <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
+                      <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                        <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
                           Nachricht vom Kunden
                         </div>
                         <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:"#fff" }} />
                       </div>
                     )}
 
                     {/* Café im Paradiesglashaus */}
                     <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                      <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
+                      <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
 
                       {/* Kaffee */}
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
@@ -4292,11 +4310,14 @@ export default function App() {
                       {/* Kostenauflistung */}
                       {nP > 0 && (
                         <div style={{ background:"#f8f4f8", borderRadius:10, padding:"10px 12px" }}>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:2 }}>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:nKcard > 0 ? 3 : 6 }}>
                             <span>Eintritt ({nP}× à € {(gt?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
                             <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cEintritt.toFixed(2).replace(".",",")}</span>
                           </div>
-                          <div style={{ fontSize:10, color:BRAND.moosgruen, marginBottom:6, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                          {nKcard > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:BRAND.lila, marginBottom:6 }}>
+                            <span>− Kärnten Card ({nKcard}× kostenlos)</span>
+                            <span style={{ fontVariantNumeric:"tabular-nums" }}>− € {cKcardDiscount.toFixed(2).replace(".",",")}</span>
+                          </div>}
                           {nKaffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
                             <span>Kaffee ({nKaffee}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {cKaffee.toFixed(2).replace(".",",")}</span>
                           </div>}
@@ -4323,9 +4344,9 @@ export default function App() {
                   const reminderActive = !!adminForm.reminders?.checklist?.enabled;
                   const hasItemReminders = Object.values(adminForm.reminders?.items || {}).some(r => r?.enabled);
                   return (
-                <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
+                <div style={{ background:`${BRAND.moosgruen}08`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}25` }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                    <div style={{ fontSize:11, color: BRAND.lila, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Checkliste <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
+                    <div style={{ fontSize:11, color: BRAND.moosgruen, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Checkliste <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                     {clList.length > 0 && (
                       <button onClick={() => setReminderPopup({ type:"checklist" })}
                         title={reminderActive ? `Erinnerung aktiv: ${adminForm.reminders.checklist.daysBefore || 3} Tage vorher um ${adminForm.reminders.checklist.sendAt || "09:00"}` : "Erinnerung einrichten"}
@@ -4356,7 +4377,8 @@ export default function App() {
                     onClick={e => { const inp = e.currentTarget.querySelector("input"); if(inp) inp.focus(); }}>
                     <span style={{ color:"#ccc", fontSize:16, fontWeight:300, flexShrink:0, width:18, textAlign:"center" }}>+</span>
                     <input placeholder="Hinzufügen…" value={adminForm.newCheckText||""} onChange={e => setAdminForm(f=>({...f, newCheckText:e.target.value}))}
-                      onKeyDown={e => { if (e.key==="Enter" && adminForm.newCheckText?.trim()) {
+                      onKeyDown={e => { if (e.key==="Enter" && adminForm.newCheckText?.trim()) { e.currentTarget.blur(); }}}
+                      onBlur={() => { if (adminForm.newCheckText?.trim()) {
                         setAdminForm(f => {
                           const text = (f.newCheckText||"").trim();
                           if (!text) return f;
@@ -4377,8 +4399,8 @@ export default function App() {
                 })()}
 
                 {/* Interne Notiz - D-Stil */}
-                <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", marginBottom:10, border:"1px solid #f0e8ee" }}>
-                  <div style={{ fontSize:11, color:"#999", fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Interne Notiz</div>
+                <div style={{ background:`${BRAND.moosgruen}08`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}25` }}>
+                  <div style={{ fontSize:11, color:BRAND.moosgruen, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Interne Notiz <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                   <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))}
                     style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5 }} />
                 </div>
@@ -4884,14 +4906,16 @@ export default function App() {
               const et = eventTypes.find(e => e.id === formData.type);
               const isGroup = et?.isGroupTour;
               const nGuests = Number(formData.guests) || 0;
+              const nKcard = Math.max(0, Math.min(nGuests, Number(formData.kaerntenCardCount) || 0));
               const nCake = Number(formData.cakeCount) || 0;
               const nCoffee = Number(formData.coffeeCount) || 0;
               const costEntry = nGuests * (et?.pricePerPerson || 9);
+              const costKcardDiscount = nKcard * (et?.pricePerPerson || 9);
               const costCake = nCake * (et?.cakePrice || 4.5);
               const costCoffee = nCoffee * (et?.coffeePrice || 3.1);
               const nTours = formData.tourGuide && nGuests > 0 ? Math.ceil(nGuests / (et?.maxPerTour || 20)) : 0;
               const costGuide = nTours * (et?.guideCost || 80);
-              const costTotal = costEntry + costCake + costCoffee + costGuide;
+              const costTotal = costEntry - costKcardDiscount + costCake + costCoffee + costGuide;
               const price = isGroup ? 0 : (formData.slot.startsWith("halfDay") ? et?.halfDay : et?.fullDay);
               const missingName = !formData.name.trim();
               const missingEmail = !formData.email.trim();
@@ -4978,6 +5002,18 @@ export default function App() {
                         {formData.guests && guestsTooLow && (
                           <div style={{ fontSize:11, color:"#c44", marginTop:4 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
                         )}
+                        {/* „davon mit Kärnten Card" — lila, direkt unter Teilnehmer */}
+                        <div style={{ background:`${BRAND.lila}12`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                          <span style={{ fontSize:10, color:BRAND.lila, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
+                            <button onClick={() => setFormData(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
+                              style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                            <input type="number" min="0" value={formData.kaerntenCardCount||""} onChange={e => setFormData(f=>({...f, kaerntenCardCount:e.target.value}))}
+                              placeholder="0" style={{ width:48, textAlign:"center", padding:"5px 0", border:`1px solid ${BRAND.lila}`, borderRadius:7, fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
+                            <button onClick={() => setFormData(f => ({ ...f, kaerntenCardCount: String(Math.min(Number(f.guests)||9999, (Number(f.kaerntenCardCount)||0) + 1)) }))}
+                              style={{ width:28, height:28, border:`1px solid ${BRAND.lila}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                          </div>
+                        </div>
                         {/* Führung-Toggle direkt unter Teilnehmer */}
                         <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
                           style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}12`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
@@ -4994,7 +5030,7 @@ export default function App() {
 
                       {/* 5. Café im Paradiesglashaus */}
                       <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                        <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
+                        <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
 
                         {/* Kaffee */}
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
@@ -5031,11 +5067,14 @@ export default function App() {
                         {/* Kostenauflistung */}
                         {nGuests > 0 && (
                           <div style={{ background:"#f8f4f8", borderRadius:10, padding:"10px 12px" }}>
-                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:2 }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:nKcard > 0 ? 3 : 6 }}>
                               <span>Eintritt ({nGuests}× à € {(et?.pricePerPerson || 9).toFixed(2).replace(".",",")})</span>
                               <span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costEntry.toFixed(2).replace(".",",")}</span>
                             </div>
-                            <div style={{ fontSize:10, color:BRAND.moosgruen, marginBottom:6, fontStyle:"italic" }}>mit Kärnten Card kostenlos</div>
+                            {nKcard > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:BRAND.lila, marginBottom:6 }}>
+                              <span>− Kärnten Card ({nKcard}× kostenlos)</span>
+                              <span style={{ fontVariantNumeric:"tabular-nums" }}>− € {costKcardDiscount.toFixed(2).replace(".",",")}</span>
+                            </div>}
                             {nCoffee > 0 && <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, color:"#999", marginBottom:3 }}>
                               <span>Kaffee ({nCoffee}×)</span><span style={{ fontVariantNumeric:"tabular-nums" }}>€ {costCoffee.toFixed(2).replace(".",",")}</span>
                             </div>}
@@ -5265,7 +5304,7 @@ export default function App() {
                         const editSub = () => {
                           const src = sub._isMain ? ev : sub;
                           setEditingSubIndex(sub._isMain ? -1 : subIndex);
-                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, publicIcon: src.publicIcon || "yoga", isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "", price: src.price || "", paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "", cleaningFee: !!src.cleaningFee, reminders: src.reminders || { checklist:null, items:{} } });
+                          setAdminForm({ type: src.status || "booked", label: src.label || "", note: src.note || "", startTime: src.startTime || "08:00", endTime: src.endTime || "22:00", adminNote: src.adminNote || "", eventType: src.type || "", allDay: src.allDay || false, checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })), contactName: src.contactName || "", contactPhone: src.contactPhone || "", contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "", publicText: src.publicText || "", isPublic: src.isPublic || false, publicIcon: src.publicIcon || "yoga", isSeries: false, seriesDates: [], guests: src.guests || "", tourGuide: src.tourGuide || false, cakeCount: src.cakeCount || 0, coffeeCount: src.coffeeCount || 0, kaerntenCardCount: src.kaerntenCardCount || "", groupName: src.groupName || src.name || "", customerEmail: src.email || "", customerPhone: src.phone || "", customerMessage: src.message || "", price: src.price || "", paymentStatus: src.paymentStatus || "open", partialAmount: src.partialAmount || "", cleaningFee: !!src.cleaningFee, reminders: src.reminders || { checklist:null, items:{} } });
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
                         return (
@@ -5392,7 +5431,7 @@ export default function App() {
                   )}
                   {isAdmin && !ev && veranstAtDay.length > 0 && (
                     <button onClick={() => {
-                      setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
+                      setAdminForm({ type:"booked", label:"", note:"", startTime:"08:00", endTime:"22:00", adminNote:"", eventType:"", allDay:false, checklist:[], contactName:"", contactPhone:"", contactAddress:"", publicText:"", isPublic:false, publicIcon:"yoga", isSeries:false, seriesDates:[], seriesId:"", editAllSeries:false, guests:"", tourGuide:false, cakeCount:0, coffeeCount:0, kaerntenCardCount:"", price:"", paymentStatus:"open", partialAmount:"", cleaningFee:false });
                       setEditingSubIndex(-1); setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                     }}
                       onMouseEnter={e => { e.currentTarget.style.background=`${BRAND.lila}20`; }} onMouseLeave={e => { e.currentTarget.style.background=`${BRAND.lila}10`; }}
