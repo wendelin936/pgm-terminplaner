@@ -531,7 +531,7 @@ function ChecklistNote({ items=[], onChange, editable=true, reminders={}, onRemi
         const hasRem = !!rem?.enabled;
         const isEditing = editingIdx === i;
         return (
-        <div key={itemKey || `row-${i}`} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 0" }}>
+        <div key={itemKey || `row-${i}`} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", marginBottom:4, background:"#fff", borderRadius:6, border:"1px solid #e8d8e4" }}>
           <div onClick={editable && !isEditing ? () => { const u=[...items]; u[i]={...u[i],done:!u[i].done}; onChange(u); } : undefined}
             style={{ width:18, height:18, borderRadius:4, border:`1.5px solid ${item.done ? BRAND.lila : "#ccc"}`, background: item.done ? BRAND.lila : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor: editable && !isEditing ? "pointer" : "default" }}>
             {item.done && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -1856,13 +1856,13 @@ export default function App() {
                   <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                     <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
                     {nKaffee > 0 && (
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#fff", borderRadius:10, marginBottom:6 }}>
                         <div><div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kaffee</div><div style={{ fontSize:11, color:"#999" }}>à € {(et?.coffeePrice || 3.10).toFixed(2).replace(".",",")}</div></div>
                         <div style={{ fontSize:16, fontWeight:600, color:BRAND.aubergine }}>{nKaffee}×</div>
                       </div>
                     )}
                     {nKuchen > 0 && (
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#fff", borderRadius:10, marginBottom:6 }}>
                         <div><div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen</div><div style={{ fontSize:11, color:"#999" }}>à € {(et?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div></div>
                         <div style={{ fontSize:16, fontWeight:600, color:BRAND.aubergine }}>{nKuchen}×</div>
                       </div>
@@ -4168,7 +4168,7 @@ export default function App() {
                   const hasCustomerMessage = !!(adminForm.customerMessage||"").trim();
                   return (
                   <>
-                  <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                  <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                     <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>Kontakt</div>
                     {(() => {
                       // Leichter Lila-Tint für alle Eingabefelder im Kontakt-Block
@@ -4185,24 +4185,24 @@ export default function App() {
                         <input placeholder="Name *" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                           style={{ width:"100%", padding:"10px 12px", border:`1px solid ${inputBorder(true, !(adminForm.groupName||"").trim())}`, background: inputBg(true, !(adminForm.groupName||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
                         <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:"#fff" }} />
                         <div style={{ display:"flex", gap:6 }}>
                           <input placeholder="Telefon *" value={adminForm.customerPhone||""} onChange={e => setAdminForm(f=>({...f, customerPhone:e.target.value}))}
                             style={{ flex:1, padding:"10px 12px", border:`1px solid ${inputBorder(true, !(adminForm.customerPhone||"").trim())}`, background: inputBg(true, !(adminForm.customerPhone||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
                           <input placeholder="Gäste" type="number" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                            style={{ width:110, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, textAlign:"center", background:`${BRAND.lila}04` }} />
+                            style={{ width:110, padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, textAlign:"center", background:"#fff" }} />
                         </div>
                       </>);
                     })()}
                   </div>
                   {/* Nachricht-Karte: nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
                   {hasCustomerMessage && (
-                    <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                       <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
                         Nachricht vom Kunden
                       </div>
                       <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:"#fff" }} />
                     </div>
                   )}
                   </>
@@ -4226,7 +4226,7 @@ export default function App() {
                   return (
                   <>
                     {/* Gruppe & Kontakt-Karte (lila — Kontakt-Bereich) */}
-                    <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                       <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
                         {adminForm.type === "pending" ? "Anfrage – Gruppe & Kontakt" : "Gruppe & Kontakt"}
                       </div>
@@ -4235,16 +4235,16 @@ export default function App() {
                         const inputBorder = (isEmpty) => isEmpty && adminSubmitAttempted ? "#c44" : "#e8d8e4";
                         return (<>
                           <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
-                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
+                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:"#fff" }} />
                           <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
                             style={{ width:"100%", padding:"10px 12px", border:`1px solid ${inputBorder(!(adminForm.contactName||"").trim())}`, background: inputBg(!(adminForm.contactName||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
                           <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
+                            style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine, background:"#fff" }} />
                           <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
                             style={{ width:"100%", padding:"10px 12px", border:`1px solid ${inputBorder(!(adminForm.contactPhone||"").trim())}`, background: inputBg(!(adminForm.contactPhone||"").trim()), borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                         </>);
                       })()}                      {/* Teilnehmer-Leiste — grün */}
-                      <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                      <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                         <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
                         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
@@ -4256,7 +4256,7 @@ export default function App() {
                         </div>
                       </div>
                       {/* Kärnten-Card-Leiste — grün wie Teilnehmer */}
-                      <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                      <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                         <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                         <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                           <button onClick={() => setAdminForm(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
@@ -4269,7 +4269,7 @@ export default function App() {
                       </div>
                       {/* Führung-Toggle */}
                       <label onClick={() => setAdminForm(f=>({...f, tourGuide:!f.tourGuide}))}
-                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}15`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
                         <div style={{ width:20, height:20, borderRadius:5, background: adminForm.tourGuide ? BRAND.moosgruen : "#fff", border: adminForm.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                           {adminForm.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
@@ -4282,21 +4282,21 @@ export default function App() {
                     </div>
                     {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat — lila */}
                     {!!(adminForm.customerMessage||"").trim() && (
-                      <div style={{ background:`${BRAND.lila}14`, border:`1px solid ${BRAND.lila}40`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                         <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
                           Nachricht vom Kunden
                         </div>
                         <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:"#fff" }} />
                       </div>
                     )}
 
                     {/* Café im Paradiesglashaus */}
-                    <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                    <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                       <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
 
                       {/* Kaffee */}
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#fff", borderRadius:10, marginBottom:6 }}>
                         <div style={{ flex:1 }}>
                           <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kaffee</div>
                           <div style={{ fontSize:11, color:"#999" }}>à € {(gt?.coffeePrice || 3.10).toFixed(2).replace(".",",")}</div>
@@ -4312,7 +4312,7 @@ export default function App() {
                       </div>
 
                       {/* Kuchen */}
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#fff", borderRadius:10, marginBottom:6 }}>
                         <div style={{ flex:1 }}>
                           <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen <span style={{ fontSize:11, color:"#999", fontWeight:400 }}>(nur auf Vorbestellung)</span></div>
                           <div style={{ fontSize:11, color:"#999" }}>à € {(gt?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
@@ -4369,7 +4369,7 @@ export default function App() {
                   const reminderActive = !!adminForm.reminders?.checklist?.enabled;
                   const hasItemReminders = Object.values(adminForm.reminders?.items || {}).some(r => r?.enabled);
                   return (
-                <div style={{ background:`${BRAND.moosgruen}14`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}40` }}>
+                <div style={{ background:`${BRAND.moosgruen}20`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}50` }}>
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                     <div style={{ fontSize:11, color: BRAND.moosgruen, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5 }}>Checkliste <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                     {clList.length > 0 && (
@@ -4424,10 +4424,10 @@ export default function App() {
                 })()}
 
                 {/* Interne Notiz - D-Stil */}
-                <div style={{ background:`${BRAND.moosgruen}14`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}40` }}>
+                <div style={{ background:`${BRAND.moosgruen}20`, borderRadius:14, padding:"14px 16px", marginBottom:10, border:`1px solid ${BRAND.moosgruen}50` }}>
                   <div style={{ fontSize:11, color:BRAND.moosgruen, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:8 }}>Interne Notiz <span style={{ color:"#aaa", letterSpacing:0.5, textTransform:"none", fontWeight:400 }}>(intern)</span></div>
                   <textarea placeholder="Notizen zu diesem Termin…" value={adminForm.adminNote} onChange={e => setAdminForm(f=>({...f, adminNote:e.target.value}))}
-                    style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.moosgruen}06` }} />
+                    style={{ width:"100%", padding:"10px 12px", border:`1px solid ${BRAND.moosgruen}30`, borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", height:64, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:"#fff" }} />
                 </div>
 
                 {/* Vereinbarter Preis - bei Veranstaltungen & Serien, nicht bei Gruppenführungen & internen Terminen */}
@@ -4463,7 +4463,7 @@ export default function App() {
                       <div style={{ fontSize:11, color:BRAND.lila, fontWeight:600, display:"block", textTransform:"uppercase", letterSpacing:1.5, marginBottom:10 }}>Vereinbarter Preis</div>
                       <div style={{ position:"relative", marginBottom:10 }}>
                         <input placeholder="0,00" value={adminForm.price} onChange={e => setAdminForm(f=>({...f, price:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, background:`${BRAND.lila}04` }} />
+                          style={{ width:"100%", padding:"10px 30px 10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, background:"#fff" }} />
                         <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color: BRAND.lila, fontWeight:600, fontSize:14, pointerEvents:"none" }}>€</span>
                       </div>
                       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
@@ -5013,7 +5013,7 @@ export default function App() {
                         <input placeholder="Telefon *" value={formData.phone} onChange={e => setFormData(f=>({...f, phone:e.target.value}))}
                           style={reqStyle(missingPhone, false)} />
                         {/* Teilnehmer-Leiste direkt unter Telefon — grün hervorgehoben, im Kartenrahmen */}
-                        <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12 }}>
                           <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>Teilnehmer *</span>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                             <button onClick={() => setFormData(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
@@ -5028,7 +5028,7 @@ export default function App() {
                           <div style={{ fontSize:11, color:"#c44", marginTop:4 }}>Mindestens {et?.minPersons || 10} Teilnehmer erforderlich</div>
                         )}
                         {/* „davon mit Kärnten Card" — grün wie Teilnehmer, direkt unter Teilnehmer */}
-                        <div style={{ background:`${BRAND.moosgruen}15`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
+                        <div style={{ background:`${BRAND.moosgruen}0a`, borderRadius:10, padding:"8px 12px", display:"flex", alignItems:"center", gap:12, marginTop:6 }}>
                           <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600, flexShrink:0 }}>davon mit Kärnten Card</span>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
                             <button onClick={() => setFormData(f => ({ ...f, kaerntenCardCount: String(Math.max(0, (Number(f.kaerntenCardCount)||0) - 1)) }))}
@@ -5041,7 +5041,7 @@ export default function App() {
                         </div>
                         {/* Führung-Toggle direkt unter Teilnehmer */}
                         <label onClick={() => setFormData(f=>({...f, tourGuide:!f.tourGuide}))}
-                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}15`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
+                          style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:`${BRAND.moosgruen}0a`, borderRadius:10, cursor:"pointer", marginTop:6 }}>
                           <div style={{ width:20, height:20, borderRadius:5, background: formData.tourGuide ? BRAND.moosgruen : "#fff", border: formData.tourGuide ? "none" : `1.5px solid ${BRAND.moosgruen}60`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
                             {formData.tourGuide && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5L9.5 3.5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                           </div>
@@ -5054,11 +5054,11 @@ export default function App() {
                       </div>
 
                       {/* 5. Café im Paradiesglashaus */}
-                      <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
+                      <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                         <div style={{ fontSize:11, color:BRAND.lila, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:12 }}>Café im Paradiesglashaus</div>
 
                         {/* Kaffee */}
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#fff", borderRadius:10, marginBottom:6 }}>
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kaffee</div>
                             <div style={{ fontSize:11, color:"#999" }}>à € {(et?.coffeePrice || 3.10).toFixed(2).replace(".",",")}</div>
@@ -5074,7 +5074,7 @@ export default function App() {
                         </div>
 
                         {/* Kuchen */}
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#f8f4f8", borderRadius:10, marginBottom:6 }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"#fff", borderRadius:10, marginBottom:6 }}>
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500 }}>Kuchen <span style={{ fontSize:11, color:"#999", fontWeight:400 }}>(nur auf Vorbestellung)</span></div>
                             <div style={{ fontSize:11, color:"#999" }}>à € {(et?.cakePrice || 4.50).toFixed(2).replace(".",",")}</div>
