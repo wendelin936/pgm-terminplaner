@@ -4203,19 +4203,6 @@ export default function App() {
                   const cGesamt = cEintritt + cKaffee + cKuchen + cFuehrung;
                   return (
                   <>
-                    {/* Teilnehmer-Leiste */}
-                    <div style={{ background:`${BRAND.moosgruen}12`, borderRadius:12, padding:"10px 14px", display:"flex", alignItems:"center", gap:14, marginBottom:10 }}>
-                      <span style={{ fontSize:10, color:BRAND.moosgruen, textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Teilnehmer *</span>
-                      <div style={{ display:"flex", alignItems:"center", gap:8, marginLeft:"auto" }}>
-                        <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
-                          style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
-                        <input type="number" min="0" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
-                          style={{ width:52, textAlign:"center", padding:"6px 0", border:`1px solid ${BRAND.moosgruen}`, borderRadius:7, fontSize:15, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"#fff" }} />
-                        <button onClick={() => setAdminForm(f => ({ ...f, guests: String((Number(f.guests)||0) + 1) }))}
-                          style={{ width:30, height:30, border:`1px solid ${BRAND.moosgruen}`, background:"#fff", borderRadius:7, fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
-                      </div>
-                    </div>
-
                     {/* Gruppe & Kontakt-Karte */}
                     <div style={{ background:"#fff", border:"1px solid #f0e8ee", borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
                       <div style={{ fontSize:11, color:BRAND.moosgruen, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:10 }}>
@@ -4223,14 +4210,23 @@ export default function App() {
                       </div>
                       <input placeholder="Gruppenname (z.B. Volksschule St. Ruprecht)" value={adminForm.groupName||""} onChange={e => setAdminForm(f=>({...f, groupName:e.target.value}))}
                         style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
-                      <div style={{ display:"flex", gap:6, marginBottom:6 }}>
-                        <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
-                          style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-                        <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
-                          style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
-                      </div>
+                      <input placeholder="Ansprechpartner *" value={adminForm.contactName||""} onChange={e => setAdminForm(f=>({...f, contactName:e.target.value}))}
+                        style={{ width:"100%", padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactName||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactName||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
                       <input placeholder="E-Mail" value={adminForm.customerEmail||""} onChange={e => setAdminForm(f=>({...f, customerEmail:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", marginBottom:6, color:BRAND.aubergine }} />
+                      <div style={{ display:"flex", gap:6, alignItems:"stretch" }}>
+                        <input placeholder="Telefon *" value={adminForm.contactPhone||""} onChange={e => setAdminForm(f=>({...f, contactPhone:e.target.value}))}
+                          style={{ flex:1, padding:"10px 12px", border:`1px solid ${reqAdmin(!(adminForm.contactPhone||"").trim()).borderColor}`, background: reqAdmin(!(adminForm.contactPhone||"").trim()).background, borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine, minWidth:0 }} />
+                        {/* Teilnehmer-Stepper rechts neben Telefon */}
+                        <div style={{ display:"flex", alignItems:"center", gap:4, border:`1px solid ${!(adminForm.guests||"").toString().trim() || Number(adminForm.guests) <= 0 ? (adminSubmitAttempted ? "#c44" : "#e0d8de") : `${BRAND.moosgruen}60`}`, background:!(adminForm.guests||"").toString().trim() && adminSubmitAttempted ? "#fdf6f6" : "#fff", borderRadius:8, padding:"2px 4px" }} title="Teilnehmer">
+                          <button onClick={() => setAdminForm(f => ({ ...f, guests: String(Math.max(0, (Number(f.guests)||0) - 1)) }))}
+                            style={{ width:26, height:26, border:"none", background:"transparent", fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>−</button>
+                          <input type="number" min="0" value={adminForm.guests||""} onChange={e => setAdminForm(f=>({...f, guests:e.target.value}))}
+                            placeholder="TN" style={{ width:36, textAlign:"center", padding:"6px 0", border:"none", fontSize:14, color:BRAND.aubergine, fontWeight:600, fontFamily:"inherit", background:"transparent", outline:"none" }} />
+                          <button onClick={() => setAdminForm(f => ({ ...f, guests: String((Number(f.guests)||0) + 1) }))}
+                            style={{ width:26, height:26, border:"none", background:"transparent", fontSize:16, color:BRAND.moosgruen, cursor:"pointer", fontFamily:"inherit", lineHeight:1, padding:0 }}>+</button>
+                        </div>
+                      </div>
                     </div>
                     {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
                     {!!(adminForm.customerMessage||"").trim() && (
