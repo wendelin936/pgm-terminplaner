@@ -121,12 +121,13 @@ function setRouteMeta({ title, description }) {
 // Termine blockieren den Kalender NICHT, sondern ergänzen ihn nur mit dem V-Marker.
 // Ein Date-Eintrag mit gleicher seriesId gehört zu einer Serie und wird gemeinsam bearbeitet/gelöscht.
 // imageKey wird aus /assets/<filename> geladen; wenn leer, fallback auf Gradient+Icon.
+// imagePosition: CSS object-position (z.B. "50% 25%") — Kunde kann den Bildausschnitt im Admin verschieben
 const DEFAULT_VERANSTALTUNGEN = [
-  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga_mit_julia.jpeg", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
-  { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau",  title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "iris_cover.jpg",      iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
-  { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "taglilie_cover.jpg",  iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
-  { id: "herbstbluetenzauber", title: "Herbstblütenzauber",               title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "herbst_cover.png",    iconPattern: "leaf",   openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
-  { id: "lebenskunst",         title: 'Workshop "Lebenskunst"',           title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "",                    iconPattern: "sound",  openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "yoga-julia",          title: "Yoga mit Julia W.",                title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "Yoga_mit_julia.jpeg", imagePosition: "50% 25%", iconPattern: "yoga",   openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "iris-pfingstrosen",   title: "Irisblüten- & Pfingstrosenschau",  title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "iris_cover.jpg",      imagePosition: "50% 50%", iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "taglilien-sommer",    title: "Taglilien- & Sommerprachtstauden", title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "taglilie_cover.jpg",  imagePosition: "50% 50%", iconPattern: "flower", openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "herbstbluetenzauber", title: "Herbstblütenzauber",               title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "herbst_cover.png",    imagePosition: "50% 50%", iconPattern: "leaf",   openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
+  { id: "lebenskunst",         title: 'Workshop "Lebenskunst"',           title_locked: false, description: "", contactName: "", contactPhone: "", imageKey: "",                    imagePosition: "50% 50%", iconPattern: "sound",  openingHours: DEFAULT_OPENING_HOURS, publicPrice: "", publicPriceLabel: "Eintritt", kaertnerCardFree: false, adminPrice: "", adminPaymentStatus: "open", adminPartialAmount: "", dates: [] },
 ];
 // Korrekturen für früher gespeicherte, falsche Bildnamen (werden beim Laden automatisch migriert)
 const VERANSTALTUNG_IMAGE_CORRECTIONS = {
@@ -973,7 +974,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; const base = { publicPrice: sv.publicPrice || "", publicPriceLabel: sv.publicPriceLabel || "Eintritt", kaertnerCardFree: !!sv.kaertnerCardFree, adminPrice: sv.adminPrice || "", adminPaymentStatus: sv.adminPaymentStatus || "open", adminPartialAmount: sv.adminPartialAmount || "" }; if (!d) return { ...sv, ...base, imageKey: correctedKey }; return { ...sv, ...base, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); lastSyncedVeranstaltungen.current = merged; if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { lastSyncedVeranstaltungen.current = DEFAULT_VERANSTALTUNGEN; try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; const base = { publicPrice: sv.publicPrice || "", publicPriceLabel: sv.publicPriceLabel || "Eintritt", kaertnerCardFree: !!sv.kaertnerCardFree, adminPrice: sv.adminPrice || "", adminPaymentStatus: sv.adminPaymentStatus || "open", adminPartialAmount: sv.adminPartialAmount || "", imagePosition: sv.imagePosition || "50% 50%" }; if (!d) return { ...sv, ...base, imageKey: correctedKey }; return { ...sv, ...base, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); lastSyncedVeranstaltungen.current = merged; if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { lastSyncedVeranstaltungen.current = DEFAULT_VERANSTALTUNGEN; try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
   // ============================================================
   // ROUTING — Sync zwischen URL und publicEventDetail
   // ============================================================
@@ -2693,7 +2694,7 @@ export default function App() {
           const startEdit = (v) => { setEditingVeranstaltungId(v.id); setVeranstaltungDraft(JSON.parse(JSON.stringify(v))); };
           const startNew = () => {
             setEditingVeranstaltungId("new");
-            setVeranstaltungDraft({ id:"", title:"", description:"", contactName:"", contactPhone:"", imageKey:"", iconPattern:"yoga", openingHours: DEFAULT_OPENING_HOURS, publicPrice:"", kaertnerCardFree:false, adminPrice:"", adminPaymentStatus:"open", adminPartialAmount:"", dates:[] });
+            setVeranstaltungDraft({ id:"", title:"", description:"", contactName:"", contactPhone:"", imageKey:"", imagePosition:"50% 50%", iconPattern:"yoga", openingHours: DEFAULT_OPENING_HOURS, publicPrice:"", kaertnerCardFree:false, adminPrice:"", adminPaymentStatus:"open", adminPartialAmount:"", dates:[] });
           };
           const cancelEdit = () => { setEditingVeranstaltungId(null); setVeranstaltungDraft(null); setVeranstaltungDatePicker(null); };
           const closeAll = () => { setShowVeranstaltungenAdmin(false); cancelEdit(); };
@@ -2822,7 +2823,7 @@ export default function App() {
                             </div>
                             <div style={{ position:"relative", background: pat.gradient, height:100, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                               {iconSvg[pat.id]}
-                              {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.id === "yoga-julia" ? "center 25%" : "center" }} />}
+                              {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.imagePosition || (v.id === "yoga-julia" ? "50% 25%" : "50% 50%") }} />}
                             </div>
                             <div style={{ padding:"12px 14px" }}>
                               <div style={{ fontSize:14, color:BRAND.aubergine, fontWeight:600, marginBottom:4, lineHeight:1.3 }}>{v.title || "Ohne Titel"}</div>
@@ -2864,7 +2865,7 @@ export default function App() {
                         {draft.imageKey && <img src={`/assets/${draft.imageKey}`} alt=""
                           onLoad={() => setVeranstImageError(false)}
                           onError={ev => { ev.currentTarget.style.display = "none"; setVeranstImageError(true); }}
-                          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: draft.id === "yoga-julia" ? "center 25%" : "center" }} />}
+                          style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: draft.imagePosition || (draft.id === "yoga-julia" ? "50% 25%" : "50% 50%") }} />}
                         {/* kleines Edit-Icon unten rechts */}
                         <div style={{ position:"absolute", bottom:3, right:3, width:18, height:18, borderRadius:"50%", background:"rgba(255,255,255,0.92)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={BRAND.lila} strokeWidth="2.5" strokeLinecap="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -2922,20 +2923,87 @@ export default function App() {
                       </div>
                       <input placeholder="dateiname.jpg" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value.trim() })}
                         style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"monospace", boxSizing:"border-box", marginBottom:8, color:BRAND.aubergine, background:"#fff" }} />
-                      {/* Live-Vorschau */}
-                      {draft.imageKey ? (
-                        <div style={{ position:"relative", height:120, borderRadius:8, overflow:"hidden", background:"#f5f0f5", border:"1px solid #e8d8e4" }}>
-                          <img src={`/assets/${draft.imageKey}`} alt="Vorschau"
-                            onLoad={() => setVeranstImageError(false)}
-                            onError={() => setVeranstImageError(true)}
-                            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: draft.id === "yoga-julia" ? "center 25%" : "center", display: veranstImageError ? "none" : "block" }} />
-                          {veranstImageError && (
-                            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:"#c44", textAlign:"center", padding:12 }}>
-                              Bild nicht gefunden — bitte Dateinamen prüfen oder Datei in <code>public/assets/</code> hochladen.
+                      {/* Live-Vorschau mit Drag-Feature für Bildausschnitt */}
+                      {draft.imageKey ? (() => {
+                        // imagePosition als "X% Y%" parsen, default "50% 50%"
+                        const pos = (draft.imagePosition || "50% 50%").trim();
+                        const m = pos.match(/^(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)%$/);
+                        const posX = m ? Math.round(parseFloat(m[1])) : 50;
+                        const posY = m ? Math.round(parseFloat(m[2])) : 50;
+                        const setPos = (x, y) => {
+                          const cx = Math.max(0, Math.min(100, Math.round(x)));
+                          const cy = Math.max(0, Math.min(100, Math.round(y)));
+                          patchDraft({ imagePosition: `${cx}% ${cy}%` });
+                        };
+                        const handleDrag = (e) => {
+                          const target = e.currentTarget;
+                          const isTouch = e.type === "touchstart";
+                          const startEvent = isTouch ? e.touches[0] : e;
+                          const rect = target.getBoundingClientRect();
+                          const initX = startEvent.clientX;
+                          const initY = startEvent.clientY;
+                          const startPosX = posX;
+                          const startPosY = posY;
+                          const move = (ev) => {
+                            const pt = ev.touches ? ev.touches[0] : ev;
+                            // Sensitivität: ein Vorschau-Pixel = ein Prozent (gespiegelt, weil drag nach unten zeigt nach unten = mehr Y%)
+                            const dx = ((initX - pt.clientX) / rect.width) * 100;
+                            const dy = ((initY - pt.clientY) / rect.height) * 100;
+                            setPos(startPosX + dx, startPosY + dy);
+                          };
+                          const stop = () => {
+                            window.removeEventListener("mousemove", move);
+                            window.removeEventListener("mouseup", stop);
+                            window.removeEventListener("touchmove", move);
+                            window.removeEventListener("touchend", stop);
+                          };
+                          window.addEventListener("mousemove", move);
+                          window.addEventListener("mouseup", stop);
+                          window.addEventListener("touchmove", move, { passive: false });
+                          window.addEventListener("touchend", stop);
+                        };
+                        return (
+                          <>
+                            <div onMouseDown={handleDrag} onTouchStart={handleDrag}
+                              style={{ position:"relative", height:180, borderRadius:8, overflow:"hidden", background:"#f5f0f5", border:"1px solid #e8d8e4", cursor: veranstImageError ? "default" : "move", userSelect:"none", touchAction:"none" }}>
+                              <img src={`/assets/${draft.imageKey}`} alt="Vorschau" draggable={false}
+                                onLoad={() => setVeranstImageError(false)}
+                                onError={() => setVeranstImageError(true)}
+                                style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: `${posX}% ${posY}%`, display: veranstImageError ? "none" : "block", pointerEvents:"none" }} />
+                              {veranstImageError && (
+                                <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:"#c44", textAlign:"center", padding:12 }}>
+                                  Bild nicht gefunden — bitte Dateinamen prüfen oder Datei in <code>public/assets/</code> hochladen.
+                                </div>
+                              )}
+                              {!veranstImageError && (
+                                <div style={{ position:"absolute", left:8, bottom:6, fontSize:10, color:"#fff", textShadow:"0 1px 2px rgba(0,0,0,0.6)", pointerEvents:"none", fontWeight:500, letterSpacing:0.3 }}>
+                                  Bild ziehen, um Ausschnitt zu wählen
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      ) : (
+                            {!veranstImageError && (
+                              <div style={{ marginTop:8 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                                  <span style={{ fontSize:10, color:BRAND.tuerkis, textTransform:"uppercase", letterSpacing:1, fontWeight:600, width:80 }}>Horizontal</span>
+                                  <input type="range" min="0" max="100" step="1" value={posX} onChange={e => setPos(parseInt(e.target.value, 10), posY)}
+                                    style={{ flex:1, accentColor:BRAND.tuerkis }} />
+                                  <span style={{ fontSize:11, color:"#888", fontVariantNumeric:"tabular-nums", width:40, textAlign:"right" }}>{posX}%</span>
+                                </div>
+                                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
+                                  <span style={{ fontSize:10, color:BRAND.tuerkis, textTransform:"uppercase", letterSpacing:1, fontWeight:600, width:80 }}>Vertikal</span>
+                                  <input type="range" min="0" max="100" step="1" value={posY} onChange={e => setPos(posX, parseInt(e.target.value, 10))}
+                                    style={{ flex:1, accentColor:BRAND.tuerkis }} />
+                                  <span style={{ fontSize:11, color:"#888", fontVariantNumeric:"tabular-nums", width:40, textAlign:"right" }}>{posY}%</span>
+                                </div>
+                                <button type="button" onClick={() => setPos(50, 50)}
+                                  style={{ padding:"4px 10px", border:"1px solid #e0d8de", background:"#fff", borderRadius:6, fontSize:11, color:"#888", cursor:"pointer", fontFamily:"inherit" }}>
+                                  Zentrieren
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })() : (
                         <div style={{ fontSize:11, color:"#999", fontStyle:"italic" }}>Kein Bild gesetzt — es wird das Symbol angezeigt.</div>
                       )}
                       {draft.imageKey && (
@@ -5761,7 +5829,7 @@ export default function App() {
                       style={{ background:"#fff", border:"1px solid #e8e0e5", borderRadius:12, overflow:"hidden", cursor:"pointer", transition:"all .2s" }}>
                       <div style={{ position:"relative", background: pat.gradient, height:120, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
                         {iconSVG[pat.id]}
-                        {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.id === "yoga-julia" ? "center 25%" : "center" }} />}
+                        {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.imagePosition || (v.id === "yoga-julia" ? "50% 25%" : "50% 50%") }} />}
                       </div>
                       <div style={{ padding:"12px 14px" }}>
                         {nxt ? (
@@ -5960,7 +6028,7 @@ export default function App() {
                     <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
                     <div style={{ background: pat.gradient, height: winW <= 600 ? 140 : 180, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
-                      {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.id === "yoga-julia" ? "center 25%" : "center" }} />}
+                      {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.imagePosition || (v.id === "yoga-julia" ? "50% 25%" : "50% 50%") }} />}
                       {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
                       <button onClick={() => navigateHome()}
                         style={{ position:"absolute", top:14, right:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine, zIndex:4 }}>
