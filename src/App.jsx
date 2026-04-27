@@ -2965,7 +2965,7 @@ export default function App() {
                         return (
                           <>
                             <div onMouseDown={handleDrag} onTouchStart={handleDrag}
-                              style={{ position:"relative", height:180, borderRadius:8, overflow:"hidden", background:"#f5f0f5", border:"1px solid #e8d8e4", cursor: veranstImageError ? "default" : "move", userSelect:"none", touchAction:"none" }}>
+                              style={{ position:"relative", width:"100%", aspectRatio: winW <= 600 ? "480 / 168" : "480 / 216", borderRadius:8, overflow:"hidden", background:"#f5f0f5", border:"1px solid #e8d8e4", cursor: veranstImageError ? "default" : "move", userSelect:"none", touchAction:"none" }}>
                               <img src={`/assets/${draft.imageKey}`} alt="Vorschau" draggable={false}
                                 onLoad={() => setVeranstImageError(false)}
                                 onError={() => setVeranstImageError(true)}
