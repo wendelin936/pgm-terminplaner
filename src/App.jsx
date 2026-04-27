@@ -2912,7 +2912,39 @@ export default function App() {
                         style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
                     </div>
 
-                    {/* Bild-Dateiname Input entfernt — Titelbild wird per Klick auf das Bild oben geaendert */}
+                    {/* Cover-Bild Dateiname */}
+                    <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:14, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
+                      <div style={{ fontSize:11, color:BRAND.tuerkis, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>
+                        Cover-Bild
+                      </div>
+                      <div style={{ fontSize:11, color:"#999", marginBottom:10, lineHeight:1.5 }}>
+                        Lege das Bild ins GitHub-Repo unter <code style={{ background:"#fff", padding:"1px 5px", borderRadius:3, color:BRAND.aubergine, fontSize:11 }}>public/assets/</code> und trage hier den Dateinamen ein (z.B. <code style={{ background:"#fff", padding:"1px 5px", borderRadius:3, color:BRAND.aubergine, fontSize:11 }}>iris_cover.jpg</code>).
+                      </div>
+                      <input placeholder="dateiname.jpg" value={draft.imageKey || ""} onChange={e => patchDraft({ imageKey: e.target.value.trim() })}
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:14, fontFamily:"monospace", boxSizing:"border-box", marginBottom:8, color:BRAND.aubergine, background:"#fff" }} />
+                      {/* Live-Vorschau */}
+                      {draft.imageKey ? (
+                        <div style={{ position:"relative", height:120, borderRadius:8, overflow:"hidden", background:"#f5f0f5", border:"1px solid #e8d8e4" }}>
+                          <img src={`/assets/${draft.imageKey}`} alt="Vorschau"
+                            onLoad={() => setVeranstImageError(false)}
+                            onError={() => setVeranstImageError(true)}
+                            style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: draft.id === "yoga-julia" ? "center 25%" : "center", display: veranstImageError ? "none" : "block" }} />
+                          {veranstImageError && (
+                            <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:"#c44", textAlign:"center", padding:12 }}>
+                              Bild nicht gefunden — bitte Dateinamen prüfen oder Datei in <code>public/assets/</code> hochladen.
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize:11, color:"#999", fontStyle:"italic" }}>Kein Bild gesetzt — es wird das Symbol angezeigt.</div>
+                      )}
+                      {draft.imageKey && (
+                        <button type="button" onClick={() => patchDraft({ imageKey: "" })}
+                          style={{ marginTop:8, padding:"6px 12px", border:"1px solid #e0d8de", background:"#fff", borderRadius:6, fontSize:12, color:"#888", cursor:"pointer", fontFamily:"inherit" }}>
+                          Bild entfernen
+                        </button>
+                      )}
+                    </div>
 
                     {/* Eintritt für Kunden (öffentlich sichtbar) */}
                     <div style={{ background:`${BRAND.tuerkis}08`, borderRadius:12, padding:"14px 16px", marginBottom:12, border:`1px solid ${BRAND.tuerkis}20`, borderLeft:`3px solid ${BRAND.tuerkis}` }}>
