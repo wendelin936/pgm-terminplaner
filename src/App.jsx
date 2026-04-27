@@ -1105,6 +1105,31 @@ export default function App() {
     setPublicDetailPullY(0);
   }, []);
 
+  // Smart-Back: nutzt Browser-History wenn möglich (bringt User auf vorigen Screen zurück, z.B. Veranstaltungsliste),
+  // sonst Fallback nach Home. Funktioniert sowohl wenn User die Veranstaltung über die Liste geöffnet hat,
+  // als auch wenn er direkt über die URL kam.
+  const navigateBack = useCallback(() => {
+    try {
+      // history.length ist nicht verlässlich, aber bei direktem Aufruf via URL ist sie typischerweise 1-2.
+      // Wir versuchen back(); der popstate-Handler synct den State. Falls das aus irgendeinem Grund nicht
+      // funktioniert, schließen wir das Detail manuell als Fallback nach kurzem Timeout.
+      const before = window.location.pathname;
+      window.history.back();
+      // Fallback falls back() nichts macht (z.B. weil keine History da ist)
+      setTimeout(() => {
+        if (window.location.pathname === before) {
+          // History hat nicht reagiert → Home-Fallback
+          if (window.location.pathname !== "/") window.history.replaceState({}, "", "/");
+          setPublicEventDetail(null);
+          setPublicDetailPullY(0);
+        }
+      }, 100);
+    } catch {
+      setPublicEventDetail(null);
+      setPublicDetailPullY(0);
+    }
+  }, []);
+
   // Meta-Tags (title, description, canonical) bei Route-Änderung aktualisieren
   useEffect(() => {
     const BRAND_NAME = "Paradiesgarten Mattuschka";
@@ -6032,7 +6057,7 @@ export default function App() {
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.imagePosition || (v.id === "yoga-julia" ? "50% 25%" : "50% 50%") }} />}
                       {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
-                      <button onClick={() => navigateHome()} title="Zurück"
+                      <button onClick={() => navigateBack()} title="Zurück"
                         style={{ position:"absolute", top:14, left:14, background:"rgba(255,255,255,0.92)", border:"none", borderRadius:"50%", width:34, height:34, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BRAND.aubergine, zIndex:4 }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
                       </button>
@@ -6233,8 +6258,8 @@ export default function App() {
                         {v.contactPhone && telPlain && <a href={`tel:${telPlain}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
                         {v.contactEmail && v.contactEmail.trim() && <a href={`mailto:${v.contactEmail.trim()}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactEmail.trim()}</a>}
                         <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer"
-                          style={{ fontSize:13, color:"#777", textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2 }}>
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke="#888" strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke="#888" strokeWidth="1.3"/></svg>
+                          style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2, fontWeight:500 }}>
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke={publicTheme.accentColor} strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke={publicTheme.accentColor} strokeWidth="1.3"/></svg>
                           <span>{address}</span>
                         </a>
                       </div>
