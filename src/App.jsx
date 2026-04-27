@@ -6026,7 +6026,7 @@ export default function App() {
                         style={{ position:"absolute", top:0, left:0, right:60, height:48, zIndex:3, touchAction:"none" }} />
                     )}
                     <div style={{ flex:1, minHeight:0, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-                    <div style={{ background: pat.gradient, height: winW <= 600 ? 140 : 180, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                    <div style={{ background: pat.gradient, height: winW <= 600 ? 168 : 216, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
                       <div style={{ width:64, height:64 }}>{iconSVG[pat.id]}</div>
                       {v.imageKey && <img src={`/assets/${v.imageKey}`} alt="" onError={ev => { ev.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", objectPosition: v.imagePosition || (v.id === "yoga-julia" ? "50% 25%" : "50% 50%") }} />}
                       {winW <= 600 && <div style={{ position:"absolute", top:8, left:"50%", transform:"translateX(-50%)", width:40, height:4, borderRadius:2, background:"rgba(255,255,255,0.7)", zIndex:2, pointerEvents:"none" }} />}
