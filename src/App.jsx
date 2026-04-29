@@ -1220,7 +1220,13 @@ export default function App() {
     }
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
-    try { await saveData("events", JSON.stringify(withIds)); } catch {}
+    // saveData-Fehler nicht mehr verschlucken — explizit loggen, damit man im Browser sieht ob Firestore-Rules blocken
+    try {
+      await saveData("events", JSON.stringify(withIds));
+    } catch (err) {
+      console.error("[saveEvents] saveData hat fehlgeschlagen:", err);
+      console.error("[saveEvents] Wahrscheinlich hindern die Firestore-Rules das Schreiben. Bitte Rules in Firebase Console prüfen.");
+    }
     // Google Calendar Sync läuft im Hintergrund silent — kein Toast mehr bei jeder Änderung.
     // Toasts gibt es nur noch bei Bestätigen, Herabstufen oder Löschen (siehe handleAdminAction / handleAdminSave).
     const oldSnapshot = lastSyncedEvents.current || {};
@@ -6258,7 +6264,7 @@ export default function App() {
                         {v.contactPhone && telPlain && <a href={`tel:${telPlain}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactPhone}</a>}
                         {v.contactEmail && v.contactEmail.trim() && <a href={`mailto:${v.contactEmail.trim()}`} style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", fontWeight:500 }}>{v.contactEmail.trim()}</a>}
                         <a href="https://maps.app.goo.gl/6yjJjW56xoTENYbAA" target="_blank" rel="noopener noreferrer"
-                          style={{ fontSize:13, color: publicTheme.accentColor, textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2, fontWeight:500 }}>
+                          style={{ fontSize:13, color:"#777", textDecoration:"none", display:"flex", alignItems:"flex-start", gap:6, marginTop:2 }}>
                           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ marginTop:2, flexShrink:0 }}><path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3 4.5 8 4.5 8s4.5-5 4.5-8c0-2.5-2-4.5-4.5-4.5z" stroke={publicTheme.accentColor} strokeWidth="1.3"/><circle cx="8" cy="6" r="1.5" stroke={publicTheme.accentColor} strokeWidth="1.3"/></svg>
                           <span>{address}</span>
                         </a>
