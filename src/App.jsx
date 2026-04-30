@@ -1478,7 +1478,7 @@ export default function App() {
     }
   };
 
-  const handleCustomerSubmit = () => {
+  const handleCustomerSubmit = async () => {
     const et = eventTypes.find(e => e.id === formData.type);
     const isGroup = et?.isGroupTour;
     const valid = formData.name.trim() && formData.email.trim() && /\S+@\S+\.\S+/.test(formData.email)
@@ -1499,45 +1499,67 @@ export default function App() {
       const slotName = slotNames[formData.slot] || "";
       slotLabel = slotName ? `${slotName} (${startTime}–${endTime})` : `${startTime} – ${endTime}`;
     }
-    // Bei Gruppenbesuch: formData.name ist Gruppenname, contactName ist Ansprechpartner
-    const pendingEntry = isGroup
-      ? { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData, groupName: formData.name }
-      : { status:"pending", label: et?.label, type: formData.type, slotLabel, startTime, endTime, ...formData };
-    const updated = { ...events };
-    const existing = updated[selectedDate];
-    if (existing && existing.status !== "deleted") {
-      // Don't overwrite — add as subEvent
-      updated[selectedDate] = { ...existing, subEvents: [...(existing.subEvents || []), pendingEntry] };
-    } else {
-      updated[selectedDate] = pendingEntry;
+
+    // Anfrage an Cloudflare Worker schicken (Worker schreibt nach Firestore + sendet E-Mail)
+    // Vorteil: Kunden brauchen keine Firestore-Write-Berechtigung.
+    const [yy, mm, dd] = selectedDate.split("-").map(Number);
+    const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
+    const payload = {
+      // Felder fürs Schreiben in Firestore
+      selectedDate,
+      type: formData.type,
+      typeLabel: et?.label || formData.type,
+      slotLabel, startTime, endTime,
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      guests: String(formData.guests || ""),
+      message: formData.message || "",
+      tourGuide: !!formData.tourGuide,
+      cakeCount: Number(formData.cakeCount) || 0,
+      coffeeCount: Number(formData.coffeeCount) || 0,
+      kaerntenCardCount: String(formData.kaerntenCardCount || ""),
+      contactName: formData.contactName || "",
+      slot: formData.slot || "",
+      tourHour: formData.tourHour,
+      tourMin: formData.tourMin,
+      tourEndHour: formData.tourEndHour,
+      tourEndMin: formData.tourEndMin,
+      // Felder für die E-Mail-Benachrichtigung
+      date: `${dayName}, ${dd}.${mm}.${yy}`,
+    };
+
+    try {
+      const res = await fetch(EMAIL_WORKER_URL.replace(/\/$/, "") + "/anfrage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        const reason = json.error || `HTTP ${res.status}`;
+        console.error("[handleCustomerSubmit] Worker-Fehler:", reason);
+        setToast({
+          msg: "Anfrage konnte nicht gesendet werden",
+          detail: `Bitte rufen Sie uns an: +43 463 49119 (${reason})`,
+          color: "#c44"
+        });
+        return;
+      }
+    } catch (err) {
+      console.error("[handleCustomerSubmit] Netzwerkfehler:", err);
+      setToast({
+        msg: "Anfrage konnte nicht gesendet werden",
+        detail: "Bitte prüfen Sie Ihre Internetverbindung oder rufen Sie uns an: +43 463 49119",
+        color: "#c44"
+      });
+      return;
     }
-    saveEvents(updated);
+
+    // Erfolg — UI auf "gesendet" stellen
     setSubmitAttempted(false);
     setModalView(null);
     setSuccessModal(true);
-    // Send email notification
-    try {
-      const [yy,mm,dd] = selectedDate.split("-").map(Number);
-      const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
-      fetch(EMAIL_WORKER_URL, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: `${dayName}, ${dd}.${mm}.${yy}`,
-          type: et?.label || formData.type,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone || "–",
-          guests: formData.guests || "–",
-          slot: slotLabel,
-          message: formData.message || "",
-          tourGuide: formData.tourGuide,
-          cakeCount: formData.cakeCount || 0,
-          coffeeCount: formData.coffeeCount || 0,
-          kaerntenCardCount: formData.kaerntenCardCount || "",
-          contactName: formData.contactName || "",
-        })
-      }).catch(() => {});
-    } catch {}
   };
 
   // Öffnet einen Termin direkt im Admin-Bearbeiten-Modal (statt über Info-View-Zwischenschritt)
