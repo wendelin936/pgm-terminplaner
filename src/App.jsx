@@ -3122,8 +3122,10 @@ export default function App() {
                             Noch keine Termine — legen Sie oben einen Einzel- oder Serientermin an.
                           </div>
                         ) : (() => {
+                        // Reihenfolge der Eingabe beibehalten (NICHT sortieren) — sonst springen die <input>-Felder
+                        // wenn der User ein Datum ändert das zu einer Umsortierung führen würde.
                         // Nach seriesId gruppieren; Einzelne bekommen jeweils eigenen Block
-                        const sorted = [...(draft.dates||[])].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+                        const sorted = [...(draft.dates||[])];
                         const groups = [];
                         const seenSeries = new Set();
                         for (const d of sorted) {
