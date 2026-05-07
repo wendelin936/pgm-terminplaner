@@ -879,6 +879,7 @@ export default function App() {
   const [editingVeranstaltungId, setEditingVeranstaltungId] = useState(null); // null | id-string ("new" fuer neu anlegen)
   const [expandedVeranstSeries, setExpandedVeranstSeries] = useState({});
   const [editingSeriesInfo, setEditingSeriesInfo] = useState(null); // { seriesId, startTime, endTime, allDay }
+  const [editingChipDateId, setEditingChipDateId] = useState(null); // ID des Termin-Chips, dessen Datum gerade inline geändert wird
   const [draggedVeranstId, setDraggedVeranstId] = useState(null);
   const [dragOverVeranstId, setDragOverVeranstId] = useState(null);
   const [showAllDates, setShowAllDates] = useState(false); // "Alle Termine anzeigen" im Detail-Modal
@@ -3237,9 +3238,21 @@ export default function App() {
                                           const [yy,mm,dd] = e.date.split("-").map(Number);
                                           const wd = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
                                           const isPast = e.date < todayKey;
+                                          const isEditing = editingChipDateId === e.id;
                                           return (
                                             <div key={e.id} style={{ display:"inline-flex", alignItems:"center", gap:4, fontSize:11, padding:"3px 4px 3px 7px", background:isPast ? "#f5f3f4" : `${BRAND.tuerkis}08`, color: isPast ? "#aaa" : BRAND.aubergine, borderRadius:4, fontWeight:500 }}>
-                                              <span>{wd} {dd}.{mm}.{yy}</span>
+                                              {isEditing ? (
+                                                <input type="date" value={e.date} autoFocus
+                                                  onChange={ev => updateDateField(e.id, { date: ev.target.value })}
+                                                  onBlur={() => setEditingChipDateId(null)}
+                                                  onKeyDown={ev => { if (ev.key === "Enter" || ev.key === "Escape") setEditingChipDateId(null); }}
+                                                  style={{ padding:"2px 4px", border:`1px solid ${BRAND.tuerkis}60`, borderRadius:3, fontSize:11, fontFamily:"inherit", background:"#fff", color: BRAND.aubergine }} />
+                                              ) : (
+                                                <button onClick={() => setEditingChipDateId(e.id)} title="Datum ändern"
+                                                  style={{ background:"none", border:"none", padding:0, cursor:"pointer", fontSize:"inherit", color:"inherit", fontFamily:"inherit", fontWeight:"inherit" }}>
+                                                  {wd} {dd}.{mm}.{yy}
+                                                </button>
+                                              )}
                                               <button onClick={() => removeSingleSeriesDate(e.id)} title="Diesen Termin entfernen"
                                                 onMouseEnter={ev => { ev.currentTarget.style.background = "#fdeaea"; ev.currentTarget.style.color = "#c44"; }}
                                                 onMouseLeave={ev => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.color = "#aaa"; }}
