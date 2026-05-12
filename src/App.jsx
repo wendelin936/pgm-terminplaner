@@ -859,6 +859,11 @@ export default function App() {
   const [showPrices, setShowPrices] = useState(false);
   const [showDesign, setShowDesign] = useState(false);
   const [showDesignAdmin, setShowDesignAdmin] = useState(false);
+  // Umsatz-Modal: PIN-Eingabe und das geöffnete Modal selbst sind getrennt — PIN muss jedes Mal neu eingegeben werden
+  const [revenuePinModal, setRevenuePinModal] = useState(false); // PIN-Dialog
+  const [revenuePinInput, setRevenuePinInput] = useState("");
+  const [revenuePinError, setRevenuePinError] = useState(false);
+  const [revenueModalYear, setRevenueModalYear] = useState(null); // null oder Jahr (Number) wenn Modal offen
   const [showBackups, setShowBackups] = useState(false);
   const [backupsIndex, setBackupsIndex] = useState([]);
   const [openedBackup, setOpenedBackup] = useState(null); // { date, events }
@@ -1755,6 +1760,19 @@ export default function App() {
           </h1>
         </div>
         {isAdmin && (
+          <>
+            {/* Vertikaler Trennstrich + €-Symbol mit PIN-Schutz für Umsatz-Ansicht */}
+            <div style={{ width:1, height:24, background:"rgba(255,255,255,0.25)", marginRight:10, marginLeft: winW < 520 ? 4 : 8, flexShrink:0 }} />
+            <button onClick={() => { setRevenuePinInput(""); setRevenuePinError(false); setRevenuePinModal(true); }}
+              title="Umsatz-Übersicht"
+              style={{ background:"none", border:"none", color:"#fff", fontSize: winW < 520 ? 18 : 21, fontWeight:600, cursor:"pointer", padding:"4px 10px", borderRadius:6, marginRight:8, transition:"background .15s", lineHeight:1, flexShrink:0 }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
+              onMouseLeave={e => e.currentTarget.style.background = "none"}>
+              €
+            </button>
+          </>
+        )}
+        {isAdmin && (
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
             {/* 3 Admin-Action-Buttons: Desktop mit Label, Mobile nur Icon */}
             {(() => {
@@ -1973,6 +1991,133 @@ export default function App() {
                   Schließen
                 </button>
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* PIN-Eingabe für Umsatz-Übersicht */}
+      {revenuePinModal && (
+        <div onClick={() => setRevenuePinModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"28px 24px", maxWidth:320, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ textAlign:"center", marginBottom:18 }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>€</div>
+              <div style={{ fontSize:16, fontWeight:700, color:BRAND.aubergine, marginBottom:4 }}>Umsatz-Übersicht</div>
+              <div style={{ fontSize:12, color:"#999" }}>PIN eingeben</div>
+            </div>
+            <input type="password" inputMode="numeric" autoComplete="off" autoFocus value={revenuePinInput}
+              onChange={e => { setRevenuePinInput(e.target.value); setRevenuePinError(false); }}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  if (revenuePinInput === "7389") {
+                    setRevenuePinModal(false);
+                    setRevenuePinInput("");
+                    setRevenueModalYear(new Date().getFullYear());
+                  } else {
+                    setRevenuePinError(true);
+                  }
+                }
+              }}
+              style={{ width:"100%", padding:"12px 14px", border:`1.5px solid ${revenuePinError ? "#c44" : "#e0d8de"}`, borderRadius:8, fontSize:18, textAlign:"center", letterSpacing:8, marginBottom:6, outline:"none", fontFamily:"inherit", boxSizing:"border-box", color:BRAND.aubergine }} />
+            {revenuePinError && <div style={{ fontSize:12, color:"#c44", textAlign:"center", marginBottom:8 }}>Falscher PIN</div>}
+            <button onClick={() => {
+                if (revenuePinInput === "7389") {
+                  setRevenuePinModal(false);
+                  setRevenuePinInput("");
+                  setRevenueModalYear(new Date().getFullYear());
+                } else { setRevenuePinError(true); }
+              }}
+              style={{ width:"100%", padding:"12px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:8, fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:1, marginTop:8 }}>OK</button>
+            <button onClick={() => setRevenuePinModal(false)}
+              style={{ width:"100%", padding:10, border:"none", background:"transparent", color:"#aaa", cursor:"pointer", fontSize:13, marginTop:4, borderRadius:8 }}>Abbrechen</button>
+          </div>
+        </div>
+      )}
+
+      {/* Umsatz-Modal: zeigt Summe aller booked Events des gewählten Jahres */}
+      {revenueModalYear !== null && (() => {
+        const year = revenueModalYear;
+        const currentYear = new Date().getFullYear();
+        // Sammle alle gebuchten Events des Jahres (inkl. subEvents)
+        const items = [];
+        Object.entries(events || {}).forEach(([dateKey, ev]) => {
+          if (!ev || !dateKey.startsWith(year + "-")) return;
+          if (ev.status === "booked" && ev.price) {
+            const p = parseFloat(String(ev.price).replace(",", "."));
+            if (!isNaN(p) && p > 0) items.push({ dateKey, name: ev.groupName || ev.name || ev.label || ev.contactName || "—", label: ev.label || ev.type || "Buchung", price: p });
+          }
+          if (Array.isArray(ev.subEvents)) {
+            ev.subEvents.forEach(s => {
+              if (s?.status === "booked" && s?.price) {
+                const p = parseFloat(String(s.price).replace(",", "."));
+                if (!isNaN(p) && p > 0) items.push({ dateKey, name: s.groupName || s.name || s.label || s.contactName || "—", label: s.label || s.type || "Buchung", price: p });
+              }
+            });
+          }
+        });
+        items.sort((a,b) => a.dateKey.localeCompare(b.dateKey));
+        const total = items.reduce((acc, it) => acc + it.price, 0);
+        const fmt = (n) => n.toLocaleString("de-AT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        return (
+          <div onClick={() => setRevenueModalYear(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)", zIndex:300, display:"flex", alignItems:"flex-start", justifyContent:"center", padding: winW > 600 ? "32px 16px" : "0", overflowY:"auto" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius: winW > 600 ? 16 : 0, padding:"22px 22px 26px", maxWidth:520, width:"100%", boxShadow:"0 24px 60px rgba(0,0,0,0.2)", minHeight: winW > 600 ? "auto" : "100dvh", position:"relative" }}>
+              {/* Header mit Jahres-Toggle */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:18 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ fontSize:24, lineHeight:1, color:BRAND.aubergine }}>€</div>
+                  <div>
+                    <div style={{ fontSize:11, color:"#999", letterSpacing:1.5, textTransform:"uppercase", fontWeight:600 }}>Umsatz</div>
+                    <div style={{ fontSize:18, fontWeight:700, color:BRAND.aubergine, lineHeight:1.2 }}>Jahr {year}</div>
+                  </div>
+                </div>
+                <button onClick={() => setRevenueModalYear(null)}
+                  style={{ background:"none", border:"none", color:"#999", cursor:"pointer", padding:6, display:"flex", alignItems:"center", borderRadius:6 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "#f5f3f4"; e.currentTarget.style.color = BRAND.aubergine; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#999"; }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6l-12 12"/></svg>
+                </button>
+              </div>
+
+              {/* Jahr-Umschalter */}
+              <div style={{ display:"flex", gap:6, marginBottom:18 }}>
+                <button onClick={() => setRevenueModalYear(currentYear)}
+                  style={{ flex:1, padding:"8px 0", border: year === currentYear ? `1.5px solid ${BRAND.aubergine}` : "1.5px solid #e0d8de", background: year === currentYear ? `${BRAND.aubergine}10` : "#fff", color: year === currentYear ? BRAND.aubergine : "#888", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all .15s" }}>
+                  Aktuelles Jahr ({currentYear})
+                </button>
+                <button onClick={() => setRevenueModalYear(currentYear - 1)}
+                  style={{ flex:1, padding:"8px 0", border: year === currentYear - 1 ? `1.5px solid ${BRAND.aubergine}` : "1.5px solid #e0d8de", background: year === currentYear - 1 ? `${BRAND.aubergine}10` : "#fff", color: year === currentYear - 1 ? BRAND.aubergine : "#888", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all .15s" }}>
+                  Letztes Jahr ({currentYear - 1})
+                </button>
+              </div>
+
+              {/* Total-Karte */}
+              <div style={{ background:`linear-gradient(135deg, ${BRAND.aubergine}, #6a1058)`, color:"#fff", padding:"20px 22px", borderRadius:14, marginBottom:16 }}>
+                <div style={{ fontSize:11, opacity:0.7, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600 }}>Gesamtumsatz</div>
+                <div style={{ fontSize:32, fontWeight:700, marginTop:4, letterSpacing:0.5 }}>€ {fmt(total)}</div>
+                <div style={{ fontSize:12, opacity:0.7, marginTop:4 }}>{items.length} {items.length === 1 ? "Buchung" : "Buchungen"}</div>
+              </div>
+
+              {/* Liste der Buchungen */}
+              {items.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"24px 0", color:"#999", fontSize:13 }}>Keine gebuchten Veranstaltungen mit Preis in {year}.</div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {items.map((it, idx) => {
+                    const [yy,mm,dd] = it.dateKey.split("-").map(Number);
+                    return (
+                      <div key={idx} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#faf7fa", borderRadius:8 }}>
+                        <div style={{ width:50, fontSize:11, color:"#888", fontWeight:600, lineHeight:1.2, flexShrink:0 }}>{String(dd).padStart(2,"0")}.{String(mm).padStart(2,"0")}.</div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.name}</div>
+                          <div style={{ fontSize:11, color:"#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.label}</div>
+                        </div>
+                        <div style={{ fontSize:13, fontWeight:700, color:BRAND.aubergine, flexShrink:0 }}>€ {fmt(it.price)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         );
