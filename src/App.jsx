@@ -1337,9 +1337,89 @@ export default function App() {
       if (patched) {
         // WICHTIG: Wenn während dieses Syncs ein weiterer saveEvents-Call kam (syncSupersededBy gesetzt),
         // ist unser patched-Stand veraltet. Wir dürfen ihn NICHT zurückschreiben — sonst überschreibt
-        // er den frischen Stand. Stattdessen verwerfen wir den Patch.
+        // er den frischen Stand. ABER: wir müssen die googleEventIds aus patched in den frischen
+        // Stand übertragen, sonst gehen neu erstellte gcalIds verloren (was Folge-Updates und Deletes brechen würde).
         if (syncSupersededBy.current && syncSupersededBy.current !== thisSyncWithIds) {
-          console.log("[saveEvents] sync-patch verworfen — neuerer save ist eingetroffen");
+          console.log("[saveEvents] sync-patch verworfen — neuerer save ist eingetroffen, übertrage aber gcalIds");
+          // gcalIds aus patched in syncSupersededBy übertragen (per localId-Match)
+          const fresh = syncSupersededBy.current;
+          const merged = { ...fresh };
+          let anyMerge = false;
+          for (const [dk, ev] of Object.entries(patched)) {
+            if (!ev || !ev.localId) continue;
+            // Suche im frischen Stand das Event mit gleicher localId und übertrage googleEventId
+            for (const [fdk, fev] of Object.entries(merged)) {
+              if (!fev) continue;
+              if (fev.localId === ev.localId) {
+                if (ev.googleEventId && !fev.googleEventId) {
+                  merged[fdk] = { ...fev, googleEventId: ev.googleEventId };
+                  anyMerge = true;
+                } else if (!ev.googleEventId && fev.googleEventId) {
+                  // patched hat gcalId entfernt (delete-op) — auch im frischen Stand entfernen
+                  const { googleEventId, ...rest } = merged[fdk];
+                  merged[fdk] = rest;
+                  anyMerge = true;
+                }
+                break;
+              }
+              // Auch in subEvents schauen
+              if (Array.isArray(fev.subEvents)) {
+                const sIdx = fev.subEvents.findIndex(s => s?.localId === ev.localId);
+                if (sIdx >= 0) {
+                  const oldSub = fev.subEvents[sIdx];
+                  if (ev.googleEventId && !oldSub.googleEventId) {
+                    const newSubs = [...fev.subEvents];
+                    newSubs[sIdx] = { ...oldSub, googleEventId: ev.googleEventId };
+                    merged[fdk] = { ...fev, subEvents: newSubs };
+                    anyMerge = true;
+                  } else if (!ev.googleEventId && oldSub.googleEventId) {
+                    const newSubs = [...fev.subEvents];
+                    const { googleEventId, ...rest } = oldSub;
+                    newSubs[sIdx] = rest;
+                    merged[fdk] = { ...fev, subEvents: newSubs };
+                    anyMerge = true;
+                  }
+                  break;
+                }
+              }
+            }
+            // SubEvents in patched durchlaufen
+            if (Array.isArray(ev.subEvents)) {
+              ev.subEvents.forEach(ps => {
+                if (!ps?.localId) return;
+                for (const [fdk, fev] of Object.entries(merged)) {
+                  if (!fev?.subEvents) continue;
+                  const sIdx = fev.subEvents.findIndex(s => s?.localId === ps.localId);
+                  if (sIdx >= 0) {
+                    const oldSub = fev.subEvents[sIdx];
+                    if (ps.googleEventId && !oldSub.googleEventId) {
+                      const newSubs = [...fev.subEvents];
+                      newSubs[sIdx] = { ...oldSub, googleEventId: ps.googleEventId };
+                      merged[fdk] = { ...fev, subEvents: newSubs };
+                      anyMerge = true;
+                    } else if (!ps.googleEventId && oldSub.googleEventId) {
+                      const newSubs = [...fev.subEvents];
+                      const { googleEventId, ...rest } = oldSub;
+                      newSubs[sIdx] = rest;
+                      merged[fdk] = { ...fev, subEvents: newSubs };
+                      anyMerge = true;
+                    }
+                    break;
+                  }
+                }
+              });
+            }
+          }
+          if (anyMerge) {
+            // gemergten Stand in syncSupersededBy zurückschreiben, damit der Re-Sync mit den IDs arbeitet
+            syncSupersededBy.current = merged;
+            // Auch lokal State + Firestore aktualisieren (sonst sieht die App die gcalIds nicht)
+            setEvents(merged);
+            lastSyncedEvents.current = merged;
+            const mergedJson = JSON.stringify(merged);
+            lastSavedEventsJson.current = mergedJson;
+            saveData("events", mergedJson).catch(() => {});
+          }
           return;
         }
         setEvents(patched);
