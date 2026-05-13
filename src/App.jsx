@@ -1329,6 +1329,10 @@ export default function App() {
   // Autosave im Admin-Modal: speichert 1s nach der letzten Eingabe automatisch,
   // aber nur beim Bearbeiten existierender Termine (nicht beim Neu-Anlegen oder addToExisting).
   // Das Modal bleibt offen, der "Speichern"-Button wird nur für den expliziten Abschluss gebraucht.
+  //
+  // AUSNAHME: Status-Wechsel (z.B. von "pending" auf "booked") werden NICHT automatisch gespeichert.
+  // Bei solchen Statusänderungen muss der User bewusst auf "Speichern" klicken, damit der Termin
+  // nicht versehentlich von "Anfrage" auf "Gebucht" springt.
   useEffect(() => {
     if (loading) return; // Nie autosaven während Events noch laden
     if (modalView !== "admin" || !selectedDate) return;
@@ -1342,6 +1346,12 @@ export default function App() {
     const subExists = editingSubIndex >= 0 && existing?.subEvents?.[editingSubIndex];
     const seriesEdit = adminForm.editAllSeries;
     if (!mainExists && !subExists && !seriesEdit) return; // Neu-Anlage - kein Autosave
+    // Status-Vergleich: Nur autosaven, wenn der Status in Form und DB identisch ist
+    const storedStatus = subExists ? existing.subEvents[editingSubIndex].status : existing?.status;
+    if (storedStatus && adminForm.type && storedStatus !== adminForm.type) {
+      // Status wurde im Form geändert (z.B. pending → booked) — Speichern nur per Button
+      return;
+    }
     const timer = setTimeout(() => { handleAdminSave(true); }, 1000);
     return () => clearTimeout(timer);
   }, [adminForm, modalView, selectedDate, editingSubIndex, loading]);
