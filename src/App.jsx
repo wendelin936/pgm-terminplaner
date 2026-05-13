@@ -802,6 +802,11 @@ export default function App() {
   // löschen/überschreiben.
   const syncInFlight = useRef(false);
   const syncPending = useRef(false);
+  // Markiert dass während eines laufenden Syncs ein weiterer saveEvents-Call kam.
+  // Hält den frischen `updated`-State vor, mit dem nach dem aktuellen Sync neu gesynct wird.
+  // Wichtig: Der aktuelle Sync darf seinen patched-Stand NICHT zurückschreiben, sonst überschreibt
+  // er den frischen Stand.
+  const syncSupersededBy = useRef(null);
   const lastSyncedVeranstaltungen = useRef([]);
   const backdropMouseDown = useRef(false);
   // Multi-Device-Sync: merkt sich was wir zuletzt selbst geschrieben haben.
@@ -1320,12 +1325,23 @@ export default function App() {
     lastSyncedEvents.current = withIds;
     if (syncInFlight.current) {
       // Ein Sync läuft schon. Marker setzen, dass nach dessen Ende noch ein Sync gemacht werden soll.
+      // Der laufende Sync wird durch syncSupersededBy markiert: sein patched-Result darf nicht
+      // nach Firestore zurückgeschrieben werden, weil withIds inzwischen veraltet ist.
       syncPending.current = true;
+      syncSupersededBy.current = withIds;
       return;
     }
     syncInFlight.current = true;
+    const thisSyncWithIds = withIds; // snapshot für Vergleich nach Sync
     syncEventsDiff(preChangeSnapshot, withIds).then(patched => {
       if (patched) {
+        // WICHTIG: Wenn während dieses Syncs ein weiterer saveEvents-Call kam (syncSupersededBy gesetzt),
+        // ist unser patched-Stand veraltet. Wir dürfen ihn NICHT zurückschreiben — sonst überschreibt
+        // er den frischen Stand. Stattdessen verwerfen wir den Patch.
+        if (syncSupersededBy.current && syncSupersededBy.current !== thisSyncWithIds) {
+          console.log("[saveEvents] sync-patch verworfen — neuerer save ist eingetroffen");
+          return;
+        }
         setEvents(patched);
         lastSyncedEvents.current = patched;
         const patchedJson = JSON.stringify(patched);
@@ -1335,16 +1351,23 @@ export default function App() {
     }).catch(() => {}).finally(() => {
       syncInFlight.current = false;
       // Falls während des Syncs weitere saveEvents reingekommen sind, jetzt nochmal syncen.
-      // Wir nutzen den jetzigen lastSyncedEvents.current als beide Seiten — Diff wird leer sein,
-      // weil keine echte Änderung mehr passiert ist. Das ist OK — der Worker wird einfach nicht angerufen.
-      // Falls aber doch was war (z.B. handleAdminSave hat saveEvents gerufen während Sync lief), nehmen wir
-      // den letzten preChangeSnapshot als alt — leider haben wir den nicht mehr im Scope.
-      // Daher einfacher Ansatz: setze pending zurück, beim nächsten saveEvents wird normal gesynct.
       if (syncPending.current) {
         syncPending.current = false;
+        const supersededState = syncSupersededBy.current;
+        syncSupersededBy.current = null;
+        if (supersededState) {
+          // Re-Sync mit dem frischen Stand asynchron starten (nicht rekursiv innerhalb des Callbacks)
+          setTimeout(() => {
+            // saveEventsRef.current wird oben gesetzt — wir nutzen Ref um Self-Reference zu lösen
+            if (saveEventsRef.current) saveEventsRef.current(supersededState, { noSnapshot: true });
+          }, 0);
+        }
       }
     });
   }, []);
+  // Ref auf saveEvents für rekursive Re-Syncs (nach abgeschlossenem laufenden Sync)
+  const saveEventsRef = useRef(null);
+  useEffect(() => { saveEventsRef.current = saveEvents; }, [saveEvents]);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
 
   const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
