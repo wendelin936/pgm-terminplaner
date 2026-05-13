@@ -1258,6 +1258,8 @@ export default function App() {
   }, [publicEventDetail?.veranstaltung?.id, publicEventDetail?.focusDate, publicEventDetail?.veranstaltung?.title, publicEventDetail?.veranstaltung?.description, modalView, formData?.type, eventTypes]);
 
   const saveEvents = useCallback(async (updated, opts = {}) => {
+    // DEBUG: Wer ruft auf? Stacktrace zeigt die Quelle.
+    console.log("[saveEvents] aufgerufen", new Error("trace").stack?.split("\n").slice(1, 4).join("\n"));
     // SCHUTZ: Nie ein leeres oder fast-leeres Events-Objekt speichern, wenn vorher viele Events da waren.
     // Das verhindert versehentlichen Totalverlust durch Race-Conditions oder State-Bugs.
     // Mit opts.force=true lässt sich der Schutz bewusst umgehen (z.B. bei "Alle wiederherstellen").
