@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { loadData, saveData, subscribeData, adminLogin, adminLogout, onAuthChange, getIdToken } from "./firebase.js";
 import { syncEventsDiff, ensureLocalIds, syncVeranstaltungenDiff, setGcalTokenProvider } from "./gcal-sync.js";
 
@@ -627,53 +628,166 @@ function TimeField({ val, onInc, onDec, onSet, color, max, noClick }) {
 function DrumColumn({ val, items, onChange, color, padLen=2 }) {
   const containerRef = useRef(null);
   const itemH = 36;
-  const isScrolling = useRef(false);
-  const [scrollPos, setScrollPos] = useState(0);
+  // Aktuelle Position (in Pixel-Offset vom Start) — auf die zentrale Position abgebildet
+  const idxOfVal = Math.max(0, items.indexOf(val));
+  const [offset, setOffset] = useState(idxOfVal * itemH);
+  const offsetRef = useRef(offset);
+  offsetRef.current = offset;
+  // Drag-State
+  const drag = useRef({ active: false, startY: 0, startOffset: 0, lastY: 0, lastT: 0, velocity: 0 });
+  const animRef = useRef(null);
 
+  // Sync wenn val von außen geändert wird
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el || isScrolling.current) return;
-    const idx = items.indexOf(val);
-    if (idx >= 0) { el.scrollTop = idx * itemH; setScrollPos(idx * itemH); }
-  }, [val, items]);
+    if (drag.current.active) return;
+    const target = idxOfVal * itemH;
+    setOffset(target);
+  }, [val, idxOfVal]);
 
-  const handleScroll = () => {
-    const el = containerRef.current;
-    if (!el) return;
-    isScrolling.current = true;
-    setScrollPos(el.scrollTop);
-    clearTimeout(el._snapTimer);
-    el._snapTimer = setTimeout(() => {
-      const idx = Math.round(el.scrollTop / itemH);
-      const clamped = Math.max(0, Math.min(items.length - 1, idx));
-      if (items[clamped] !== val) onChange(items[clamped]);
-      isScrolling.current = false;
-    }, 80);
+  const clampOffset = (o) => Math.max(0, Math.min((items.length - 1) * itemH, o));
+
+  const snapToNearest = (currentOffset) => {
+    const idx = Math.round(currentOffset / itemH);
+    const clamped = Math.max(0, Math.min(items.length - 1, idx));
+    const target = clamped * itemH;
+    // Sanft animieren zum Zielwert
+    let start = currentOffset;
+    let startTime = null;
+    const duration = 200;
+    cancelAnimationFrame(animRef.current);
+    const step = (t) => {
+      if (!startTime) startTime = t;
+      const elapsed = t - startTime;
+      const k = Math.min(1, elapsed / duration);
+      const eased = 1 - Math.pow(1 - k, 3); // easeOutCubic
+      const cur = start + (target - start) * eased;
+      setOffset(cur);
+      if (k < 1) {
+        animRef.current = requestAnimationFrame(step);
+      } else {
+        setOffset(target);
+        if (items[clamped] !== val) onChange(items[clamped]);
+      }
+    };
+    animRef.current = requestAnimationFrame(step);
   };
 
-  const centerIdx = scrollPos / itemH;
+  const flick = (initialOffset, velocity) => {
+    // Trägheits-Animation: Geschwindigkeit dekäleriert über Zeit, dann snap
+    let lastT = null;
+    let curOffset = initialOffset;
+    let curVel = velocity; // px/ms
+    const friction = 0.0025; // pro ms²
+    cancelAnimationFrame(animRef.current);
+    const step = (t) => {
+      if (lastT == null) lastT = t;
+      const dt = t - lastT;
+      lastT = t;
+      // Velocity-Update mit Reibung
+      const sign = Math.sign(curVel);
+      const absV = Math.max(0, Math.abs(curVel) - friction * dt);
+      curVel = absV * sign;
+      curOffset = clampOffset(curOffset + curVel * dt);
+      setOffset(curOffset);
+      if (Math.abs(curVel) > 0.05) {
+        animRef.current = requestAnimationFrame(step);
+      } else {
+        snapToNearest(curOffset);
+      }
+    };
+    animRef.current = requestAnimationFrame(step);
+  };
+
+  const onPointerDown = (e) => {
+    cancelAnimationFrame(animRef.current);
+    drag.current.active = true;
+    drag.current.startY = e.clientY;
+    drag.current.startOffset = offsetRef.current;
+    drag.current.lastY = e.clientY;
+    drag.current.lastT = performance.now();
+    drag.current.velocity = 0;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+  };
+  const onPointerMove = (e) => {
+    if (!drag.current.active) return;
+    const dy = e.clientY - drag.current.startY;
+    // Beim Wischen nach OBEN soll die Drum NACH OBEN scrollen → offset größer (höhere Zahl in Mitte)
+    const newOffset = clampOffset(drag.current.startOffset - dy);
+    setOffset(newOffset);
+    // Geschwindigkeit messen
+    const now = performance.now();
+    const dt = now - drag.current.lastT;
+    if (dt > 0) {
+      drag.current.velocity = -(e.clientY - drag.current.lastY) / dt; // px/ms
+    }
+    drag.current.lastY = e.clientY;
+    drag.current.lastT = now;
+  };
+  const onPointerUp = (e) => {
+    if (!drag.current.active) return;
+    drag.current.active = false;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    const v = drag.current.velocity;
+    // Wenn Flick (schnelle Geste) → mit Schwung weitergleiten, sonst direkt snap
+    if (Math.abs(v) > 0.3) {
+      flick(offsetRef.current, v);
+    } else {
+      snapToNearest(offsetRef.current);
+    }
+  };
+
+  // Klick auf einen Wert oben/unten → direkt dorthin
+  const handleItemClick = (idx) => {
+    if (drag.current.active) return;
+    snapToNearest(idx * itemH);
+  };
+
+  // Wheel-Support für Desktop (Mausrad)
+  const onWheel = (e) => {
+    e.preventDefault();
+    cancelAnimationFrame(animRef.current);
+    const newOffset = clampOffset(offsetRef.current + (e.deltaY > 0 ? itemH : -itemH));
+    snapToNearest(newOffset);
+  };
+
+  const centerIdx = offset / itemH;
 
   return (
-    <div style={{ position:"relative", height: itemH * 5, width:56, overflow:"hidden" }}>
+    <div style={{ position:"relative", height: itemH * 5, width:60, overflow:"hidden", touchAction:"none", userSelect:"none" }}>
+      {/* Highlight-Bar in der Mitte */}
+      <div style={{ position:"absolute", top: itemH * 2, left:0, right:0, height: itemH, borderTop:`1px solid ${color}20`, borderBottom:`1px solid ${color}20`, pointerEvents:"none", zIndex:1 }} />
+      {/* Verlauf oben */}
       <div style={{ position:"absolute", top:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
+      {/* Verlauf unten */}
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
-      <div ref={containerRef} onScroll={handleScroll}
-        style={{ height:"100%", overflowY:"scroll", scrollSnapType:"y mandatory", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", msOverflowStyle:"none", paddingTop: itemH * 2, paddingBottom: itemH * 2, overscrollBehavior:"contain", touchAction:"pan-y" }}>
-        <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-        {items.map((item, i) => {
-          const dist = Math.abs(i - centerIdx);
-          const t = Math.max(0, 1 - dist);
-          const sz = 18 + t * 10;
-          const fw = t > 0.5 ? 600 : 300;
-          const op = Math.max(0.3, 1 - dist * 0.35);
-          return (
-            <div key={i} style={{ height:itemH, display:"flex", alignItems:"center", justifyContent:"center", scrollSnapAlign:"center",
-              fontSize:sz, fontWeight:fw, color, opacity:op,
-              fontVariantNumeric:"tabular-nums", userSelect:"none" }}>
-              {String(item).padStart(padLen,"0")}
-            </div>
-          );
-        })}
+      {/* Drag-Bereich */}
+      <div
+        ref={containerRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onWheel={onWheel}
+        style={{ position:"absolute", top:0, left:0, right:0, bottom:0, cursor:"grab", touchAction:"none" }}
+      >
+        <div style={{ position:"absolute", top: itemH * 2 - offset, left:0, right:0, willChange:"transform" }}>
+          {items.map((item, i) => {
+            const dist = Math.abs(i - centerIdx);
+            const t = Math.max(0, 1 - dist);
+            const sz = 18 + t * 10;
+            const fw = t > 0.5 ? 600 : 300;
+            const op = Math.max(0.3, 1 - dist * 0.35);
+            return (
+              <div key={i}
+                onClick={() => handleItemClick(i)}
+                style={{ height:itemH, display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:sz, fontWeight:fw, color, opacity:op,
+                  fontVariantNumeric:"tabular-nums", userSelect:"none", cursor:"pointer" }}>
+                {String(item).padStart(padLen,"0")}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -704,9 +818,9 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
         </div>
       </div>
       {minHint && <div style={{ fontSize:10, color:"#999", marginTop:3 }}>Zeiten in 30-Minuten-Schritten (00 / 30)</div>}
-      {pickerOpen && (
-        <div onClick={() => setPickerOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:200 }}>
+      {pickerOpen && typeof document !== "undefined" && createPortal(
+        <div onClick={() => setPickerOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16, touchAction:"none" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:220 }}>
             <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>Uhrzeit wählen</div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, position:"relative", padding:"8px 0" }}>
               <DrumColumn val={pH} items={hours} onChange={setPH} color={accentColor} />
@@ -714,9 +828,10 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
               <DrumColumn val={pM} items={minutes} onChange={setPM} color={accentColor} />
             </div>
             <button onClick={() => { set(pH, pM); setPickerOpen(false); }}
-              style={{ marginTop:12, background:accentColor, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Übernehmen</button>
+              style={{ marginTop:12, background:accentColor, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5, fontFamily:"inherit" }}>Übernehmen</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -747,17 +862,18 @@ function NumInput({ value, onChange, placeholder, min=0, max=100, color=BRAND.mo
             style={{ width:50, fontSize:15, fontWeight:500, color, border:"none", outline:"none", background:"transparent", fontFamily:"inherit", fontVariantNumeric:"tabular-nums", padding:"2px 0" }} />
         </div>
       )}
-      {open && (
-        <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      {open && typeof document !== "undefined" && createPortal(
+        <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16, touchAction:"none" }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:140 }}>
             {label && <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>{label}</div>}
             <div style={{ display:"flex", justifyContent:"center" }}>
               <DrumColumn val={draft} items={items} onChange={setDraft} color={color} padLen={1} />
             </div>
             <button onClick={() => { onChange(String(draft)); setOpen(false); }}
-              style={{ marginTop:12, background:color, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5 }}>Übernehmen</button>
+              style={{ marginTop:12, background:color, color:"#fff", border:"none", borderRadius:8, padding:"10px 32px", fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:0.5, fontFamily:"inherit" }}>Übernehmen</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
