@@ -1413,13 +1413,16 @@ export default function App() {
           if (anyMerge) {
             // gemergten Stand in syncSupersededBy zurückschreiben, damit der Re-Sync mit den IDs arbeitet
             syncSupersededBy.current = merged;
-            // Auch lokal State + Firestore aktualisieren (sonst sieht die App die gcalIds nicht)
+            // Auch State und Firestore mit gemergten Stand aktualisieren (gcalIds drin)
             setEvents(merged);
-            lastSyncedEvents.current = merged;
             const mergedJson = JSON.stringify(merged);
             lastSavedEventsJson.current = mergedJson;
             saveData("events", mergedJson).catch(() => {});
           }
+          // WICHTIG: lastSyncedEvents.current NICHT auf merged setzen — sonst denkt der Re-Sync der Termin
+          // sei schon synct. Stattdessen auf preChangeSnapshot zurück, damit der Re-Sync den Diff
+          // (pending → booked) korrekt erkennt und einen Create macht.
+          lastSyncedEvents.current = preChangeSnapshot;
           return;
         }
         setEvents(patched);
