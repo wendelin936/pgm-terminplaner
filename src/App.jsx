@@ -658,7 +658,7 @@ function DrumColumn({ val, items, onChange, color, padLen=2 }) {
       <div style={{ position:"absolute", top:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
       <div style={{ position:"absolute", bottom:0, left:0, right:0, height: itemH * 2, background:"linear-gradient(to top, rgba(255,255,255,0.95), rgba(255,255,255,0))", pointerEvents:"none", zIndex:2 }} />
       <div ref={containerRef} onScroll={handleScroll}
-        style={{ height:"100%", overflowY:"scroll", scrollSnapType:"y mandatory", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", msOverflowStyle:"none", paddingTop: itemH * 2, paddingBottom: itemH * 2 }}>
+        style={{ height:"100%", overflowY:"scroll", scrollSnapType:"y mandatory", WebkitOverflowScrolling:"touch", scrollbarWidth:"none", msOverflowStyle:"none", paddingTop: itemH * 2, paddingBottom: itemH * 2, overscrollBehavior:"contain", touchAction:"pan-y" }}>
         <style>{`div::-webkit-scrollbar { display: none; }`}</style>
         {items.map((item, i) => {
           const dist = Math.abs(i - centerIdx);
@@ -705,7 +705,7 @@ function TimeInput({ value, onChange, accentColor=BRAND.aubergine }) {
       </div>
       {minHint && <div style={{ fontSize:10, color:"#999", marginTop:3 }}>Zeiten in 30-Minuten-Schritten (00 / 30)</div>}
       {pickerOpen && (
-        <div onClick={() => setPickerOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div onClick={() => setPickerOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:200 }}>
             <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:12 }}>Uhrzeit wählen</div>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:4, position:"relative", padding:"8px 0" }}>
@@ -748,7 +748,7 @@ function NumInput({ value, onChange, placeholder, min=0, max=100, color=BRAND.mo
         </div>
       )}
       {open && (
-        <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:1200, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:3000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, padding:"20px 24px", boxShadow:"0 16px 48px rgba(0,0,0,0.2)", textAlign:"center", minWidth:140 }}>
             {label && <div style={{ fontSize:12, color:"#999", fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>{label}</div>}
             <div style={{ display:"flex", justifyContent:"center" }}>
@@ -5997,11 +5997,20 @@ export default function App() {
                         };
                         return (
                           <div key={idx} style={{ background:"#f9f7fa", borderRadius:8, padding:"12px 14px", marginBottom:8, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                              <div>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, gap:8 }}>
+                              <div style={{ flex:1, minWidth:0 }}>
                                 <span style={{ fontSize:12, fontWeight:700, color:subColor, textTransform:"uppercase", letterSpacing:0.5 }}>{sub.isSeries ? "Serie" : sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : sub.status === "pending" ? "Anfrage" : ""}</span>
                                 {sub.label && <span style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500, marginLeft:8 }}>{sub.label}</span>}
                               </div>
+                              {subIsPending && (
+                                <button onClick={editSub}
+                                  title="Anfrage bearbeiten"
+                                  onMouseEnter={e => { e.currentTarget.style.background = `${BRAND.aprikot}25`; e.currentTarget.style.borderColor = `${BRAND.aprikot}80`; }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = `${BRAND.aprikot}40`; }}
+                                  style={{ background:"#fff", border:`1px solid ${BRAND.aprikot}40`, borderRadius:5, padding:"4px 6px", cursor:"pointer", display:"flex", alignItems:"center", transition:"all .15s", flexShrink:0 }}>
+                                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke={BRAND.aprikot} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                </button>
+                              )}
                             </div>
                             <div style={{ fontSize:12, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}{sub.allDay ? " · Ganztägig" : ""}</div>
                             {sub.name && <div style={{ fontSize:13, color:BRAND.aubergine, marginTop:4, fontWeight:500 }}>👤 {sub.name}</div>}
