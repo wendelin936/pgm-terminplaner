@@ -1611,10 +1611,13 @@ export default function App() {
     setModalView("form");
   };
 
-  const handleAdminSave = (silent = false) => {
+  const handleAdminSave = (silent = false, forceStatus = null) => {
+    // Wenn forceStatus übergeben wird (z.B. "booked" vom Anfrage-Annehmen-Button),
+    // überschreibt er den adminForm.type für diesen Save-Vorgang
+    const effectiveType = forceStatus || adminForm.type;
     // Pflichtfeld-Check bei Kundenbuchungen + Anfragen (type="booked" | "pending")
     // Bei silent=true (Autosave) wird die Validation übersprungen
-    if (!silent && (adminForm.type === "booked" || adminForm.type === "pending")) {
+    if (!silent && (effectiveType === "booked" || effectiveType === "pending")) {
       const isGroup = adminForm.eventType === "gruppenfuehrung";
       if (isGroup) {
         // Gruppenführung: Ansprechpartner + Telefon
@@ -1636,17 +1639,17 @@ export default function App() {
     const prevMain = events[selectedDate];
     const prevSub = editingSubIndex >= 0 ? prevMain?.subEvents?.[editingSubIndex] : null;
     const prevStatus = prevSub?.status ?? prevMain?.status;
-    const isDowngrade = prevStatus === "booked" && adminForm.type === "pending";
+    const isDowngrade = prevStatus === "booked" && effectiveType === "pending";
     const updated = { ...events };
     const st = adminForm.startTime || "08:00";
     const et = adminForm.endTime || "22:00";
     const sid = adminForm.seriesId || (adminForm.isSeries && (adminForm.seriesDates||[]).length > 0 ? `series-${Date.now()}` : "");
     // Anzeige-Name für die Liste: bei internen Terminen hat Ansprechperson (contactName) Vorrang,
     // bei Kundenbuchungen/Anfragen der Kundenname (groupName)
-    const displayName = adminForm.type === "blocked"
+    const displayName = effectiveType === "blocked"
       ? (adminForm.contactName || adminForm.groupName || "")
       : (adminForm.groupName || adminForm.contactName || "");
-    const entry = { status: adminForm.type, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, publicIcon: adminForm.publicIcon || "", isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, kaerntenCardCount: adminForm.kaerntenCardCount || "", groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
+    const entry = { status: effectiveType, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, publicIcon: adminForm.publicIcon || "", isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, kaerntenCardCount: adminForm.kaerntenCardCount || "", groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -1681,7 +1684,7 @@ export default function App() {
     }
     // Gruppenführung-Notification: nur wenn eine Gruppenführung NEU als "booked" angelegt oder von pending auf booked gewechselt wird
     // (nicht bei reinen Edits eines bereits gebuchten Gruppenführungs-Termins, um Doppel-Mails zu vermeiden)
-    if (adminForm.type === "booked" && adminForm.eventType === "gruppenfuehrung" && !adminForm.editAllSeries) {
+    if (effectiveType === "booked" && adminForm.eventType === "gruppenfuehrung" && !adminForm.editAllSeries) {
       let wasAlreadyBooked = false;
       if (editingSubIndex >= 0) {
         const oldSub = events[selectedDate]?.subEvents?.[editingSubIndex];
@@ -1697,6 +1700,8 @@ export default function App() {
     saveEvents(updated);
     if (isDowngrade) {
       showToast("Auf Anfrage gesetzt", `${fmtDateAT(selectedDate)}${entry.label ? " · " + entry.label : ""}${entry.name ? " · " + entry.name : ""}`, false, BRAND.aprikot);
+    } else if (prevStatus === "pending" && effectiveType === "booked") {
+      showToast("Bestätigt", `${fmtDateAT(selectedDate)}${entry.label ? " · " + entry.label : ""}${entry.name ? " · " + entry.name : ""}`, false, BRAND.moosgruen);
     }
     if (!silent) {
       setModalView(null);
@@ -5176,6 +5181,16 @@ export default function App() {
                 )}
                 </>)}
                 {/* ============ END DETAILS-TAB Block 2 ============ */}
+
+                {/* Bei Anfragen: Annehmen-Button direkt vor Speichern, der Status auf booked setzt + speichert */}
+                {adminForm.type === "pending" && (
+                  <button
+                    onClick={() => handleAdminSave(false, "booked")}
+                    style={{ width:"100%", padding:"14px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:8, fontSize:16, fontWeight:600, cursor:"pointer", letterSpacing:1, marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:8, fontFamily:"inherit" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Anfrage annehmen
+                  </button>
+                )}
 
                 <button onClick={() => handleAdminSave()} style={primaryBtn}>Speichern</button>
 
