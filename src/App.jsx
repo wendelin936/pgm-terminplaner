@@ -1204,6 +1204,15 @@ export default function App() {
     // Mit opts.force=true lässt sich der Schutz bewusst umgehen (z.B. bei "Alle wiederherstellen").
     const prevCount = Object.keys(lastSyncedEvents.current || {}).filter(k => lastSyncedEvents.current[k]?.status !== "deleted").length;
     const newCount = Object.keys(updated || {}).filter(k => updated[k]?.status !== "deleted").length;
+    // DEBUG: zeigt Status für relevante Datums-Keys an, damit man Race-Conditions aufspüren kann
+    const dbgKeys = Object.keys(updated || {}).filter(k => {
+      const a = lastSyncedEvents.current?.[k]?.status;
+      const b = updated[k]?.status;
+      return a !== b;
+    });
+    if (dbgKeys.length > 0) {
+      console.log("[saveEvents] Status-Änderungen erkannt:", dbgKeys.map(k => `${k}: ${lastSyncedEvents.current?.[k]?.status} → ${updated[k]?.status}`));
+    }
     if (!opts.force && prevCount >= 5 && newCount === 0) {
       console.warn(`[saveEvents] BLOCKIERT: Versuch ${prevCount} Events auf 0 zu setzen.`);
       setToast({ msg: "⚠ Speichern blockiert", detail: `Schutz hat ${prevCount} Termine vor Totalverlust bewahrt. Seite neu laden und Browser-Konsole prüfen.`, color: "#c44" });
@@ -1512,7 +1521,7 @@ export default function App() {
     }
     saveEvents(updated);
     if (isDowngrade) {
-      showToast("Auf Anfrage gesetzt", `${fmtDateAT(selectedDate)}${entry.label ? " · " + entry.label : ""}${entry.name ? " · " + entry.name : ""}`, true, BRAND.aprikot);
+      showToast("Auf Anfrage gesetzt", `${fmtDateAT(selectedDate)}${entry.label ? " · " + entry.label : ""}${entry.name ? " · " + entry.name : ""}`, false, BRAND.aprikot);
     }
     if (!silent) {
       setModalView(null);
@@ -1690,7 +1699,7 @@ export default function App() {
         day.subEvents = (day.subEvents || []).map((s,i) => i === subIndex ? { ...s, status:"booked" } : s);
         updated[key] = day;
         saveEvents(updated);
-        showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, true, BRAND.moosgruen);
+        showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, false, BRAND.moosgruen);
         // Extra-Notification bei Gruppenführung
         if (sub && sub.type === "gruppenfuehrung") notifyGroupTour(key, { ...sub, status: "booked" }, subIndex);
         return;
@@ -1699,7 +1708,7 @@ export default function App() {
       updated[key] = { ...updated[key], status: "booked" };
       saveEvents(updated);
       setModalView(null);
-      showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, true, BRAND.moosgruen);
+      showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, false, BRAND.moosgruen);
       // Extra-Notification bei Gruppenführung
       if (ev && ev.type === "gruppenfuehrung") notifyGroupTour(key, { ...ev, status: "booked" }, -1);
     }
