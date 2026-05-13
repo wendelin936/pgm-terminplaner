@@ -1972,32 +1972,33 @@ export default function App() {
       <header style={{ background: isAdmin ? BRAND.aubergine : siteTheme.headerBg, color: isAdmin ? "#fff" : siteTheme.headerText, padding: winW < 520 ? "6px 12px" : "8px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position: winW < 1100 ? "sticky" : "relative", top:0, zIndex:50 }}>
         <div onClick={!isAdmin ? () => { if (loggedIn) { setIsAdmin(true); setModalView(null); } else setLoginModal(true); } : undefined}
           style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1, cursor: !isAdmin ? "pointer" : "default" }}>
-          <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: winW < 520 ? (isAdmin ? 17 : 24) : 26, flexShrink:0 }} />
-          <h1 style={{ margin:0, marginLeft: winW < 520 ? (isAdmin ? 6 : 8) : 10, display:"flex", flexDirection: winW < 520 ? "column" : "row", alignItems: winW < 520 ? "flex-start" : "center", minWidth:0 }}>
-            {winW < 520 ? (
-              <>
-                <span style={{ fontSize: isAdmin ? 8 : 11, letterSpacing: isAdmin ? 1.4 : 2, color:"inherit", fontWeight:600, lineHeight:1.2 }}>PARADIESGÄRTEN</span>
-                <span style={{ fontSize: isAdmin ? 8 : 11, letterSpacing: isAdmin ? 1.4 : 2, color:"inherit", fontWeight:300, lineHeight:1.2 }}>MATTUSCHKA</span>
-              </>
-            ) : (
-              <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"inherit" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}> MATTUSCHKA</span></span>
-            )}
-          </h1>
+          {winW < 520 ? (
+            <>
+              <img src="/assets/logo-titelbild.png" alt="Paradiesgärten Mattuschka"
+                style={{ height: isAdmin ? 28 : 36, flexShrink:0, objectFit:"contain" }} />
+              {/* h1 für Semantik + Screen-Reader behalten, visuell ausgeblendet */}
+              <h1 style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>PARADIESGÄRTEN MATTUSCHKA</h1>
+            </>
+          ) : (
+            <>
+              <img src={PGM_LOGO} alt="Paradiesgärten Mattuschka" style={{ height: 26, flexShrink:0 }} />
+              <h1 style={{ margin:0, marginLeft: 10, display:"flex", alignItems:"center", minWidth:0 }}>
+                <span style={{ fontSize:14, letterSpacing:2.5, whiteSpace:"nowrap", color:"inherit" }}><span style={{ fontWeight:700 }}>PARADIESGÄRTEN</span><span style={{ fontWeight:300 }}> MATTUSCHKA</span></span>
+              </h1>
+            </>
+          )}
         </div>
         {isAdmin && (
-          <>
-            {/* €-Symbol mit PIN-Schutz für Umsatz-Ansicht — im Stil der Admin-Buttons */}
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            {/* €-Symbol mit PIN-Schutz für Umsatz-Ansicht — selber Style wie Admin-Buttons */}
             <button onClick={() => { setRevenuePinInput(""); setRevenuePinError(false); setRevenuePinModal(true); }}
               title="Umsatz-Übersicht"
               onMouseEnter={e => { e.currentTarget.style.background="rgba(255,255,255,0.2)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.4)"; }}
               onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.25)"; }}
-              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", width:32, height:32, padding:0, borderRadius:6, cursor:"pointer", fontSize:14, fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", transition:"all .15s", marginLeft:8, marginRight:2, flexShrink:0, fontFamily:"inherit", lineHeight:1 }}>
-              €
+              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", height:32, width: winW < 900 ? 32 : "auto", padding: winW < 900 ? 0 : "0 12px", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:600, letterSpacing:0.3, display:"flex", alignItems:"center", justifyContent:"center", gap:6, transition:"all .15s", fontFamily:"inherit", lineHeight:1 }}>
+              <span style={{ color:BRAND.mintgruen, fontSize:14, fontWeight:700, display:"flex", alignItems:"center" }}>€</span>
+              {winW >= 900 && <span>Umsatz</span>}
             </button>
-          </>
-        )}
-        {isAdmin && (
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
             {/* 3 Admin-Action-Buttons: Desktop mit Label, Mobile nur Icon */}
             {(() => {
               const isSmall = winW < 900;
@@ -2230,7 +2231,17 @@ export default function App() {
               <div style={{ fontSize:12, color:"#999" }}>PIN eingeben</div>
             </div>
             <input type="password" inputMode="numeric" autoComplete="off" autoFocus value={revenuePinInput}
-              onChange={e => { setRevenuePinInput(e.target.value); setRevenuePinError(false); }}
+              onChange={e => {
+                const val = e.target.value;
+                setRevenuePinInput(val);
+                setRevenuePinError(false);
+                // Auto-Submit bei korrektem PIN — kein OK-Klick nötig
+                if (val === "7389") {
+                  setRevenuePinModal(false);
+                  setRevenuePinInput("");
+                  setRevenueModalYear(new Date().getFullYear());
+                }
+              }}
               onKeyDown={e => {
                 if (e.key === "Enter") {
                   if (revenuePinInput === "7389") {
@@ -4713,20 +4724,22 @@ export default function App() {
                     <div onClick={canEditStatus ? () => toggleChip("status") : undefined}
                       style={{ position:"relative", background: chipPopup === "status" ? "#ece3ea" : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor: canEditStatus ? "pointer" : "default", border: chipPopup === "status" ? `1px solid ${statusMeta.color}60` : "1px solid transparent", transition:"all .15s" }}>
                       <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Status</div>
-                      <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, minWidth:0 }}>
-                        <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
-                        <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{statusMeta.label}</span>
-                      </div>
-                      {adminForm.type === "pending" && canEditStatus && (
-                        <div
-                          onClick={(e) => { e.stopPropagation(); handleAdminSave(false, "booked"); }}
-                          onMouseEnter={e => { e.currentTarget.style.background = "#007a44"; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = BRAND.moosgruen; }}
-                          style={{ marginTop:8, padding:"7px 10px", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.3, transition:"background .15s", display:"flex", alignItems:"center", justifyContent:"center", gap:5, lineHeight:1, fontFamily:"inherit" }}>
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          Annehmen
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, marginTop:4, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:6, minWidth:0, flex:"0 1 auto" }}>
+                          <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
+                          <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{statusMeta.label}</span>
                         </div>
-                      )}
+                        {adminForm.type === "pending" && canEditStatus && (
+                          <div
+                            onClick={(e) => { e.stopPropagation(); handleAdminSave(false, "booked"); }}
+                            onMouseEnter={e => { e.currentTarget.style.background = `${BRAND.mintgruen}40`; e.currentTarget.style.borderColor = `${BRAND.mintgruen}80`; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = `${BRAND.mintgruen}25`; e.currentTarget.style.borderColor = `${BRAND.mintgruen}50`; }}
+                            style={{ padding:"4px 9px", background:`${BRAND.mintgruen}25`, color:"#2e7d4f", border:`1px solid ${BRAND.mintgruen}50`, borderRadius:5, fontSize:11, fontWeight:600, cursor:"pointer", letterSpacing:0.2, transition:"all .15s", display:"inline-flex", alignItems:"center", gap:4, lineHeight:1, fontFamily:"inherit", flexShrink:0 }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Annehmen
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* DATUM */}
                     <div onClick={() => { if (chipPopup !== "date") { setDatePopupMonth(mm-1); setDatePopupYear(yy); } toggleChip("date"); }}
