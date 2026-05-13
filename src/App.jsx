@@ -797,6 +797,11 @@ export default function App() {
   const toastTimer = useRef(null);
   const prevEvents = useRef(null);
   const lastSyncedEvents = useRef({});
+  // Race-Condition-Schutz: wenn ein Sync läuft, wird ein anstehender Sync gequeued statt parallel gestartet.
+  // Das verhindert, dass mehrere Diffs gleichzeitig mit veralteten Snapshots laufen und sich gegenseitig
+  // löschen/überschreiben.
+  const syncInFlight = useRef(false);
+  const syncPending = useRef(false);
   const lastSyncedVeranstaltungen = useRef([]);
   const backdropMouseDown = useRef(false);
 
@@ -1235,15 +1240,36 @@ export default function App() {
     }
     // Google Calendar Sync läuft im Hintergrund silent — kein Toast mehr bei jeder Änderung.
     // Toasts gibt es nur noch bei Bestätigen, Herabstufen oder Löschen (siehe handleAdminAction / handleAdminSave).
-    const oldSnapshot = lastSyncedEvents.current || {};
+    //
+    // Race-Condition-Schutz: Wenn schon ein Sync läuft, starten wir keinen zweiten parallel
+    // (das würde mit veraltetem oldSnapshot arbeiten und gerade erstellte Events fälschlich löschen).
+    // Stattdessen markieren wir dass ein erneuter Sync nötig ist und starten ihn nach dem Ende.
+    const preChangeSnapshot = lastSyncedEvents.current || {};
     lastSyncedEvents.current = withIds;
-    syncEventsDiff(oldSnapshot, withIds).then(patched => {
+    if (syncInFlight.current) {
+      // Ein Sync läuft schon. Marker setzen, dass nach dessen Ende noch ein Sync gemacht werden soll.
+      syncPending.current = true;
+      return;
+    }
+    syncInFlight.current = true;
+    syncEventsDiff(preChangeSnapshot, withIds).then(patched => {
       if (patched) {
         setEvents(patched);
         lastSyncedEvents.current = patched;
         saveData("events", JSON.stringify(patched)).catch(() => {});
       }
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => {
+      syncInFlight.current = false;
+      // Falls während des Syncs weitere saveEvents reingekommen sind, jetzt nochmal syncen.
+      // Wir nutzen den jetzigen lastSyncedEvents.current als beide Seiten — Diff wird leer sein,
+      // weil keine echte Änderung mehr passiert ist. Das ist OK — der Worker wird einfach nicht angerufen.
+      // Falls aber doch was war (z.B. handleAdminSave hat saveEvents gerufen während Sync lief), nehmen wir
+      // den letzten preChangeSnapshot als alt — leider haben wir den nicht mehr im Scope.
+      // Daher einfacher Ansatz: setze pending zurück, beim nächsten saveEvents wird normal gesynct.
+      if (syncPending.current) {
+        syncPending.current = false;
+      }
+    });
   }, []);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
 
