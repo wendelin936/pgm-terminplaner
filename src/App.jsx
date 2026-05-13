@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { loadData, saveData, adminLogin, adminLogout, onAuthChange, getIdToken } from "./firebase.js";
+import { loadData, saveData, subscribeData, adminLogin, adminLogout, onAuthChange, getIdToken } from "./firebase.js";
 import { syncEventsDiff, ensureLocalIds, syncVeranstaltungenDiff, setGcalTokenProvider } from "./gcal-sync.js";
 
 // Token-Provider für gcal-sync beim Modul-Load einmalig registrieren.
@@ -804,6 +804,10 @@ export default function App() {
   const syncPending = useRef(false);
   const lastSyncedVeranstaltungen = useRef([]);
   const backdropMouseDown = useRef(false);
+  // Multi-Device-Sync: merkt sich was wir zuletzt selbst geschrieben haben.
+  // So kann der Realtime-Listener Echo-Updates (= unser eigenes Save) ignorieren.
+  const lastSavedEventsJson = useRef(null);
+  const lastSavedVeranstaltungenJson = useRef(null);
 
   const showToast = (msg, detail, undoable=false, actionColor=null) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -986,6 +990,61 @@ export default function App() {
     return unsub;
   }, []);
   useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; const base = { publicPrice: sv.publicPrice || "", publicPriceLabel: sv.publicPriceLabel || "Eintritt", kaertnerCardFree: !!sv.kaertnerCardFree, adminPrice: sv.adminPrice || "", adminPaymentStatus: sv.adminPaymentStatus || "open", adminPartialAmount: sv.adminPartialAmount || "", imagePosition: sv.imagePosition || "50% 50%", contactEmail: sv.contactEmail || "" }; if (!d) return { ...sv, ...base, imageKey: correctedKey }; return { ...sv, ...base, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); lastSyncedVeranstaltungen.current = merged; if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { lastSyncedVeranstaltungen.current = DEFAULT_VERANSTALTUNGEN; try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
+
+  // ============================================================
+  // REALTIME-LISTENER für Multi-Device-Sync
+  // ============================================================
+  // Wenn mehrere Geräte gleichzeitig eingeloggt sind, bekommen sie via Firestore-Listener
+  // sofort mitgeteilt, wenn auf einem anderen Gerät Events oder Veranstaltungen geändert wurden.
+  // Ohne diesen Listener würde ein Gerät mit veraltetem lokalen State (z.B. nach einem
+  // anderen Gerät hat gerade was geändert) beim nächsten Save den älteren Stand zurückschreiben.
+  //
+  // Echo-Detection: damit wir nicht auf unsere eigenen Saves reagieren, vergleichen wir das
+  // gepushte JSON mit dem zuletzt selbst geschriebenen. Bei Gleichheit ignorieren wir den Push.
+  useEffect(() => {
+    if (loading) return; // erst nach Initial-Load anhängen
+    let cancelled = false;
+    const unsubEvents = subscribeData("events", (value) => {
+      if (cancelled || !value) return;
+      // Wenn das gepushte JSON exakt dem entspricht was wir selbst geschrieben haben → ignorieren (Echo).
+      if (value === lastSavedEventsJson.current) return;
+      try {
+        const parsed = JSON.parse(value);
+        const hydrated = ensureLocalIds(parsed);
+        const hydratedJson = JSON.stringify(hydrated);
+        // Falls schon der aktuelle Stand → nichts tun
+        if (hydratedJson === JSON.stringify(lastSyncedEvents.current || {})) return;
+        // Sicherheits-Check: wenn ein Sync gerade läuft, verzögere die State-Aktualisierung
+        // (sonst könnten Diffs durcheinanderkommen). Wir akzeptieren den Push aber trotzdem
+        // als neuen "Last Synced"-Stand.
+        setEvents(hydrated);
+        lastSyncedEvents.current = hydrated;
+        console.log("[realtime] events von anderem Gerät aktualisiert");
+      } catch (e) {
+        console.warn("[realtime] events parse error:", e);
+      }
+    });
+    const unsubVeranst = subscribeData("veranstaltungen", (value) => {
+      if (cancelled || !value) return;
+      if (value === lastSavedVeranstaltungenJson.current) return;
+      try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) return;
+        const parsedJson = JSON.stringify(parsed);
+        if (parsedJson === JSON.stringify(lastSyncedVeranstaltungen.current || [])) return;
+        setVeranstaltungen(parsed);
+        lastSyncedVeranstaltungen.current = parsed;
+        console.log("[realtime] veranstaltungen von anderem Gerät aktualisiert");
+      } catch (e) {
+        console.warn("[realtime] veranstaltungen parse error:", e);
+      }
+    });
+    return () => {
+      cancelled = true;
+      try { unsubEvents && unsubEvents(); } catch {}
+      try { unsubVeranst && unsubVeranst(); } catch {}
+    };
+  }, [loading]);
   // ============================================================
   // ROUTING — Sync zwischen URL und publicEventDetail
   // ============================================================
@@ -1241,8 +1300,10 @@ export default function App() {
     const withIds = ensureLocalIds(updated);
     setEvents(withIds);
     // saveData-Fehler nicht mehr verschlucken — explizit loggen, damit man im Browser sieht ob Firestore-Rules blocken
+    const withIdsJson = JSON.stringify(withIds);
+    lastSavedEventsJson.current = withIdsJson; // merken für Echo-Detection im Realtime-Listener
     try {
-      await saveData("events", JSON.stringify(withIds));
+      await saveData("events", withIdsJson);
     } catch (err) {
       console.error("[saveEvents] saveData hat fehlgeschlagen:", err);
       console.error("[saveEvents] Wahrscheinlich hindern die Firestore-Rules das Schreiben. Bitte Rules in Firebase Console prüfen.");
@@ -1265,7 +1326,9 @@ export default function App() {
       if (patched) {
         setEvents(patched);
         lastSyncedEvents.current = patched;
-        saveData("events", JSON.stringify(patched)).catch(() => {});
+        const patchedJson = JSON.stringify(patched);
+        lastSavedEventsJson.current = patchedJson;
+        saveData("events", patchedJson).catch(() => {});
       }
     }).catch(() => {}).finally(() => {
       syncInFlight.current = false;
@@ -1289,13 +1352,17 @@ export default function App() {
     const oldSnapshot = lastSyncedVeranstaltungen.current || [];
     lastSyncedVeranstaltungen.current = updated;
     setVeranstaltungen(updated);
-    try { await saveData("veranstaltungen", JSON.stringify(updated)); } catch {}
+    const updatedJson = JSON.stringify(updated);
+    lastSavedVeranstaltungenJson.current = updatedJson;
+    try { await saveData("veranstaltungen", updatedJson); } catch {}
     // Google Calendar Sync im Hintergrund; wenn Rueckgabe googleEventIds patched hat, zurueckschreiben
     syncVeranstaltungenDiff(oldSnapshot, updated).then(patched => {
       if (patched) {
         lastSyncedVeranstaltungen.current = patched;
         setVeranstaltungen(patched);
-        try { saveData("veranstaltungen", JSON.stringify(patched)); } catch {}
+        const patchedJson = JSON.stringify(patched);
+        lastSavedVeranstaltungenJson.current = patchedJson;
+        try { saveData("veranstaltungen", patchedJson); } catch {}
       }
     }).catch(() => {});
   }, []);
