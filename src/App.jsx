@@ -4679,11 +4679,24 @@ export default function App() {
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                     {/* STATUS */}
                     <div onClick={canEditStatus ? () => toggleChip("status") : undefined}
-                      style={{ background: chipPopup === "status" ? "#ece3ea" : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor: canEditStatus ? "pointer" : "default", border: chipPopup === "status" ? `1px solid ${statusMeta.color}60` : "1px solid transparent", transition:"all .15s" }}>
+                      style={{ position:"relative", background: chipPopup === "status" ? "#ece3ea" : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor: canEditStatus ? "pointer" : "default", border: chipPopup === "status" ? `1px solid ${statusMeta.color}60` : "1px solid transparent", transition:"all .15s" }}>
                       <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Status</div>
-                      <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
-                        <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
-                        <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine }}>{statusMeta.label}</span>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6, marginTop:4 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:6, minWidth:0 }}>
+                          <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
+                          <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{statusMeta.label}</span>
+                        </div>
+                        {adminForm.type === "pending" && canEditStatus && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleAdminSave(false, "booked"); }}
+                            title="Anfrage annehmen"
+                            onMouseEnter={e => { e.currentTarget.style.background = BRAND.moosgruen; e.currentTarget.style.color = "#fff"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = BRAND.moosgruen; }}
+                            style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", background:"#fff", color:BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}`, borderRadius:14, fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:0.3, transition:"all .15s", fontFamily:"inherit", flexShrink:0, lineHeight:1 }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Annehmen
+                          </button>
+                        )}
                       </div>
                     </div>
                     {/* DATUM */}
@@ -5181,16 +5194,6 @@ export default function App() {
                 )}
                 </>)}
                 {/* ============ END DETAILS-TAB Block 2 ============ */}
-
-                {/* Bei Anfragen: Annehmen-Button direkt vor Speichern, der Status auf booked setzt + speichert */}
-                {adminForm.type === "pending" && (
-                  <button
-                    onClick={() => handleAdminSave(false, "booked")}
-                    style={{ width:"100%", padding:"14px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:8, fontSize:16, fontWeight:600, cursor:"pointer", letterSpacing:1, marginBottom:8, display:"flex", alignItems:"center", justifyContent:"center", gap:8, fontFamily:"inherit" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Anfrage annehmen
-                  </button>
-                )}
 
                 <button onClick={() => handleAdminSave()} style={primaryBtn}>Speichern</button>
 
