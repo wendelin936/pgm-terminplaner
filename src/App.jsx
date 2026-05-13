@@ -1986,13 +1986,12 @@ export default function App() {
         </div>
         {isAdmin && (
           <>
-            {/* Vertikaler Trennstrich + €-Symbol mit PIN-Schutz für Umsatz-Ansicht */}
-            <div style={{ width:1, height:24, background:"rgba(255,255,255,0.25)", marginRight:10, marginLeft: winW < 520 ? 4 : 8, flexShrink:0 }} />
+            {/* €-Symbol mit PIN-Schutz für Umsatz-Ansicht — im Stil der Admin-Buttons */}
             <button onClick={() => { setRevenuePinInput(""); setRevenuePinError(false); setRevenuePinModal(true); }}
               title="Umsatz-Übersicht"
-              style={{ background:"none", border:"none", color:"#fff", fontSize: winW < 520 ? 18 : 21, fontWeight:600, cursor:"pointer", padding:"4px 10px", borderRadius:6, marginRight:8, transition:"background .15s", lineHeight:1, flexShrink:0 }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
-              onMouseLeave={e => e.currentTarget.style.background = "none"}>
+              onMouseEnter={e => { e.currentTarget.style.background="rgba(255,255,255,0.2)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.4)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor="rgba(255,255,255,0.25)"; }}
+              style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.25)", color:"#fff", width:32, height:32, padding:0, borderRadius:6, cursor:"pointer", fontSize:14, fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", transition:"all .15s", marginLeft:8, marginRight:2, flexShrink:0, fontFamily:"inherit", lineHeight:1 }}>
               €
             </button>
           </>
@@ -2263,22 +2262,41 @@ export default function App() {
       {revenueModalYear !== null && (() => {
         const year = revenueModalYear;
         const currentYear = new Date().getFullYear();
-        // Sammle alle gebuchten Events des Jahres (inkl. subEvents)
+        // Sammle alle gebuchten Events des Jahres (inkl. subEvents) sowie Veranstaltungen mit Preis
         const items = [];
         Object.entries(events || {}).forEach(([dateKey, ev]) => {
           if (!ev || !dateKey.startsWith(year + "-")) return;
           if (ev.status === "booked" && ev.price) {
             const p = parseFloat(String(ev.price).replace(",", "."));
-            if (!isNaN(p) && p > 0) items.push({ dateKey, name: ev.groupName || ev.name || ev.label || ev.contactName || "—", label: ev.label || ev.type || "Buchung", price: p });
+            if (!isNaN(p) && p > 0) items.push({ kind:"event", dateKey, name: ev.groupName || ev.name || ev.label || ev.contactName || "—", label: ev.label || ev.type || "Buchung", price: p });
           }
           if (Array.isArray(ev.subEvents)) {
             ev.subEvents.forEach(s => {
               if (s?.status === "booked" && s?.price) {
                 const p = parseFloat(String(s.price).replace(",", "."));
-                if (!isNaN(p) && p > 0) items.push({ dateKey, name: s.groupName || s.name || s.label || s.contactName || "—", label: s.label || s.type || "Buchung", price: p });
+                if (!isNaN(p) && p > 0) items.push({ kind:"event", dateKey, name: s.groupName || s.name || s.label || s.contactName || "—", label: s.label || s.type || "Buchung", price: p });
               }
             });
           }
+        });
+        // Veranstaltungen: pro Veranstaltung ein aggregierter Eintrag (Preis × Anzahl Termine im Jahr)
+        (veranstaltungen || []).forEach(v => {
+          if (!v || !v.adminPrice) return;
+          const price = parseFloat(String(v.adminPrice).replace(",", "."));
+          if (isNaN(price) || price <= 0) return;
+          const yearDates = (v.dates || []).filter(d => d?.date && String(d.date).startsWith(year + "-"));
+          if (yearDates.length === 0) return;
+          // Frühestes Datum als Sortier-Anker
+          const firstDate = yearDates.map(d => d.date).sort()[0];
+          items.push({
+            kind:"veranstaltung",
+            dateKey: firstDate,
+            name: v.title || "Veranstaltung",
+            label: "Veranstaltung",
+            count: yearDates.length,
+            unitPrice: price,
+            price: price * yearDates.length,
+          });
         });
         items.sort((a,b) => a.dateKey.localeCompare(b.dateKey));
         const total = items.reduce((acc, it) => acc + it.price, 0);
@@ -2320,7 +2338,14 @@ export default function App() {
               <div style={{ background:`linear-gradient(135deg, ${BRAND.aubergine}, #6a1058)`, color:"#fff", padding:"20px 22px", borderRadius:14, marginBottom:16 }}>
                 <div style={{ fontSize:11, opacity:0.7, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600 }}>Gesamtumsatz</div>
                 <div style={{ fontSize:32, fontWeight:700, marginTop:4, letterSpacing:0.5 }}>€ {fmt(total)}</div>
-                <div style={{ fontSize:12, opacity:0.7, marginTop:4 }}>{items.length} {items.length === 1 ? "Buchung" : "Buchungen"}</div>
+                {(() => {
+                  const bookingCount = items.filter(i => i.kind === "event").length;
+                  const veranstCount = items.filter(i => i.kind === "veranstaltung").length;
+                  const parts = [];
+                  if (bookingCount > 0) parts.push(`${bookingCount} ${bookingCount === 1 ? "Buchung" : "Buchungen"}`);
+                  if (veranstCount > 0) parts.push(`${veranstCount} ${veranstCount === 1 ? "Veranstaltung" : "Veranstaltungen"}`);
+                  return <div style={{ fontSize:12, opacity:0.7, marginTop:4 }}>{parts.join(" · ") || "Keine Einträge"}</div>;
+                })()}
               </div>
 
               {/* Liste der Buchungen */}
@@ -2334,8 +2359,15 @@ export default function App() {
                       <div key={idx} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:"#faf7fa", borderRadius:8 }}>
                         <div style={{ width:50, fontSize:11, color:"#888", fontWeight:600, lineHeight:1.2, flexShrink:0 }}>{String(dd).padStart(2,"0")}.{String(mm).padStart(2,"0")}.</div>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.name}</div>
-                          <div style={{ fontSize:11, color:"#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.label}</div>
+                          <div style={{ fontSize:13, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                            {it.name}
+                            {it.kind === "veranstaltung" && (
+                              <span style={{ fontWeight:500, color:"#999", marginLeft:6 }}>({it.count} {it.count === 1 ? "Termin" : "Termine"})</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize:11, color:"#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                            {it.kind === "veranstaltung" ? `Veranstaltung · € ${fmt(it.unitPrice)} pro Termin` : it.label}
+                          </div>
                         </div>
                         <div style={{ fontSize:13, fontWeight:700, color:BRAND.aubergine, flexShrink:0 }}>€ {fmt(it.price)}</div>
                       </div>
@@ -4681,23 +4713,20 @@ export default function App() {
                     <div onClick={canEditStatus ? () => toggleChip("status") : undefined}
                       style={{ position:"relative", background: chipPopup === "status" ? "#ece3ea" : "#f3ecf2", borderRadius:10, padding:"10px 14px", cursor: canEditStatus ? "pointer" : "default", border: chipPopup === "status" ? `1px solid ${statusMeta.color}60` : "1px solid transparent", transition:"all .15s" }}>
                       <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1, fontWeight:600 }}>Status</div>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:6, marginTop:4 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:6, minWidth:0 }}>
-                          <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
-                          <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{statusMeta.label}</span>
-                        </div>
-                        {adminForm.type === "pending" && canEditStatus && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleAdminSave(false, "booked"); }}
-                            title="Anfrage annehmen"
-                            onMouseEnter={e => { e.currentTarget.style.background = BRAND.moosgruen; e.currentTarget.style.color = "#fff"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = BRAND.moosgruen; }}
-                            style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", background:"#fff", color:BRAND.moosgruen, border:`1.5px solid ${BRAND.moosgruen}`, borderRadius:14, fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:0.3, transition:"all .15s", fontFamily:"inherit", flexShrink:0, lineHeight:1 }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            Annehmen
-                          </button>
-                        )}
+                      <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:4, minWidth:0 }}>
+                        <div style={{ width:9, height:9, borderRadius:"50%", background: statusMeta.color, flexShrink:0 }} />
+                        <span style={{ fontSize:14, fontWeight:600, color:BRAND.aubergine, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{statusMeta.label}</span>
                       </div>
+                      {adminForm.type === "pending" && canEditStatus && (
+                        <div
+                          onClick={(e) => { e.stopPropagation(); handleAdminSave(false, "booked"); }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "#007a44"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = BRAND.moosgruen; }}
+                          style={{ marginTop:8, padding:"7px 10px", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:12, fontWeight:600, cursor:"pointer", letterSpacing:0.3, transition:"background .15s", display:"flex", alignItems:"center", justifyContent:"center", gap:5, lineHeight:1, fontFamily:"inherit" }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          Annehmen
+                        </div>
+                      )}
                     </div>
                     {/* DATUM */}
                     <div onClick={() => { if (chipPopup !== "date") { setDatePopupMonth(mm-1); setDatePopupYear(yy); } toggleChip("date"); }}
