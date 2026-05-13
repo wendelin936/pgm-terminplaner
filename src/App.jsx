@@ -2788,17 +2788,27 @@ export default function App() {
 
         {/* Admin: 2. Kommende + Intern/Serie + Vergangene + Gelöschte */}
         {isAdmin && (() => {
+          // Alle Tage mit booked, blocked oder Haupt-Events die SubEvents haben
           const allUpcoming = Object.entries(events).filter(([k,v]) => (v.status === "booked" || v.status === "blocked") && k >= todayKey).sort(([a],[b]) => a.localeCompare(b));
+          // Auch Tage einsammeln, bei denen ein SubEvent booked/blocked ist (auch wenn Haupt-Event pending oder anderes ist)
+          const daysWithRelevantSubs = Object.entries(events).filter(([k,v]) => {
+            if (k < todayKey) return false;
+            if (v.status === "booked" || v.status === "blocked") return false; // schon in allUpcoming
+            return Array.isArray(v.subEvents) && v.subEvents.some(s => s?.status === "booked" || s?.status === "blocked");
+          });
           const subEventRows = [];
-          allUpcoming.forEach(([k,v]) => {
+          [...allUpcoming, ...daysWithRelevantSubs].forEach(([k,v]) => {
             if (v.subEvents) v.subEvents.forEach((sub,i) => {
               if (sub.status === "booked" || sub.status === "blocked") subEventRows.push([k, { ...sub, _subIndex: i }]);
             });
           });
           const bookedOnly = [...allUpcoming.filter(([,v]) => v.status === "booked"), ...subEventRows.filter(([,v]) => v.status === "booked")].sort(([a],[b]) => a.localeCompare(b));
-          const blockedOnly = allUpcoming.filter(([,v]) => v.status === "blocked");
+          // blocked: Haupt-Events mit status blocked PLUS SubEvents mit status blocked
+          const blockedMain = allUpcoming.filter(([,v]) => v.status === "blocked");
+          const blockedSubs = subEventRows.filter(([,v]) => v.status === "blocked");
+          const blockedOnly = [...blockedMain, ...blockedSubs];
           const regularBlocked = blockedOnly.filter(([,v]) => !v.isSeries);
-          const seriesBlocked = blockedOnly.filter(([,v]) => v.isSeries);
+          const seriesBlocked = blockedMain.filter(([,v]) => v.isSeries);
           const internAndSeries = [...regularBlocked, ...seriesBlocked].sort(([a],[b]) => a.localeCompare(b));
 
           // Group series by seriesId
@@ -2916,7 +2926,21 @@ export default function App() {
 
               {/* Vergangene */}
               {(() => {
-                const pastAll = Object.entries(events).filter(([k,v]) => (v.status === "booked" || v.status === "blocked") && k < todayKey).sort(([a],[b]) => b.localeCompare(a));
+                const pastMain = Object.entries(events).filter(([k,v]) => (v.status === "booked" || v.status === "blocked") && k < todayKey);
+                const pastSubs = [];
+                Object.entries(events).forEach(([k,v]) => {
+                  if (k >= todayKey) return;
+                  if (Array.isArray(v.subEvents)) {
+                    v.subEvents.forEach((sub,i) => {
+                      if (sub?.status === "booked" || sub?.status === "blocked") {
+                        // Wenn das Haupt-Event auch booked/blocked ist, würde es separat gezeigt — wir vermeiden Doppel, indem wir Subs nur dann zeigen wenn das Haupt-Event nicht in pastMain ist
+                        // ABER: subEventRows sind ja eigene Zeilen, also zeigen wir sie immer
+                        pastSubs.push([k, { ...sub, _subIndex: i }]);
+                      }
+                    });
+                  }
+                });
+                const pastAll = [...pastMain, ...pastSubs].sort(([a],[b]) => b.localeCompare(a));
                 if (!pastAll.length) return null;
                 return <>
                   {renderSectionHeader("Vergangene Termine", pastAll.length, "#aaa", showPast, setShowPast)}
@@ -5272,7 +5296,7 @@ export default function App() {
                             <div style={{ fontSize:10, color:"#999", textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:12 }}>Status wählen</div>
                             <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                               {(adminForm.addToExisting
-                                ? [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot]]
+                                ? [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern","#009a93"]]
                                 : [["booked","Gebucht",BRAND.lila],["pending","Anfrage",BRAND.aprikot],["blocked","Intern & Serientermin","#009a93"]]
                               ).map(([v,l,c]) => (
                                 <button key={v} onClick={() => { setAdminForm(f=>({...f, type:v})); close(); }}
