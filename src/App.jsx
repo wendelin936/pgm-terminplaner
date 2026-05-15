@@ -1924,8 +1924,12 @@ export default function App() {
       adminNote: src.adminNote || "", eventType: src.type || "",
       allDay: src.allDay || false,
       checklist: (src.checklist || []).map(it => it && typeof it === "object" && it.id ? it : ({ ...(typeof it === "object" ? it : { text: String(it), done:false }), id: `c${Date.now()}_${Math.random().toString(36).slice(2,6)}` })),
-      contactName: src.contactName || "", contactPhone: src.contactPhone || "",
-      contactEmail: src.contactEmail || "", contactAddress: src.contactAddress || "",
+      // Bei Gruppenbesuch: wenn contactPhone leer aber phone vorhanden, dann phone als contactPhone übernehmen.
+      // (Behebt Anfragen, die vom Customer-Worker ohne contactPhone gespeichert wurden.)
+      contactName: src.contactName || "",
+      contactPhone: src.contactPhone || ((src.type === "gruppenfuehrung" || src.type === "Gruppenbesuch" || src.type === "Gruppenführung") ? (src.phone || "") : ""),
+      contactEmail: src.contactEmail || ((src.type === "gruppenfuehrung" || src.type === "Gruppenbesuch" || src.type === "Gruppenführung") ? (src.email || "") : ""),
+      contactAddress: src.contactAddress || "",
       publicText: src.publicText || "", isPublic: src.isPublic || false, publicIcon: src.publicIcon || "yoga",
       isSeries: false, seriesDates: [],
       guests: src.guests || "", tourGuide: src.tourGuide || false,
