@@ -2393,20 +2393,53 @@ export default function App() {
       {revenueModalYear !== null && (() => {
         const year = revenueModalYear;
         const currentYear = new Date().getFullYear();
+        // Helper: Auto-Berechnung für Gruppenbesuche (analog zur Anzeige im readOnly-View)
+        // Kärnten-Card-Personen zahlen keinen Eintritt; Führungs-Kosten anhand max-pro-Tour.
+        const calcGroupTourTotal = (e) => {
+          const et = eventTypes.find(t => t.id === "gruppenfuehrung");
+          const nP = Number(e.guests) || 0;
+          const nKC = Number(e.kaerntenCardCount) || 0;
+          const nPaying = Math.max(0, nP - nKC);
+          const cEintritt = nPaying * (et?.pricePerPerson || 9);
+          const cKaffee = (Number(e.coffeeCount) || 0) * (et?.coffeePrice || 3.10);
+          const cKuchen = (Number(e.cakeCount) || 0) * (et?.cakePrice || 4.50);
+          const nF = e.tourGuide && nP > 0 ? Math.ceil(nP / (et?.maxPerTour || 20)) : 0;
+          const cFuehrung = nF * (et?.guideCost || 80);
+          return cEintritt + cKaffee + cKuchen + cFuehrung;
+        };
         // Sammle alle gebuchten Events des Jahres (inkl. subEvents) sowie Veranstaltungen mit Preis
         const items = [];
+        const addEventEntry = (dateKey, e) => {
+          // Bei Gruppenbesuchen: automatisch berechneten Gesamtbetrag verwenden,
+          // außer der Admin hat manuell einen Preis eingetragen (dann hat das Vorrang)
+          let priceVal = 0;
+          let labelOverride = null;
+          if (e.price) {
+            const p = parseFloat(String(e.price).replace(",", "."));
+            if (!isNaN(p) && p > 0) priceVal = p;
+          }
+          if (priceVal === 0 && e.type === "gruppenfuehrung") {
+            const auto = calcGroupTourTotal(e);
+            if (auto > 0) {
+              priceVal = auto;
+              labelOverride = "Gruppenbesuch (autom. berechnet)";
+            }
+          }
+          if (priceVal <= 0) return;
+          items.push({
+            kind: "event",
+            dateKey,
+            name: e.groupName || e.name || e.label || e.contactName || "—",
+            label: labelOverride || e.label || e.type || "Buchung",
+            price: priceVal,
+          });
+        };
         Object.entries(events || {}).forEach(([dateKey, ev]) => {
           if (!ev || !dateKey.startsWith(year + "-")) return;
-          if (ev.status === "booked" && ev.price) {
-            const p = parseFloat(String(ev.price).replace(",", "."));
-            if (!isNaN(p) && p > 0) items.push({ kind:"event", dateKey, name: ev.groupName || ev.name || ev.label || ev.contactName || "—", label: ev.label || ev.type || "Buchung", price: p });
-          }
+          if (ev.status === "booked") addEventEntry(dateKey, ev);
           if (Array.isArray(ev.subEvents)) {
             ev.subEvents.forEach(s => {
-              if (s?.status === "booked" && s?.price) {
-                const p = parseFloat(String(s.price).replace(",", "."));
-                if (!isNaN(p) && p > 0) items.push({ kind:"event", dateKey, name: s.groupName || s.name || s.label || s.contactName || "—", label: s.label || s.type || "Buchung", price: p });
-              }
+              if (s?.status === "booked") addEventEntry(dateKey, s);
             });
           }
         });
