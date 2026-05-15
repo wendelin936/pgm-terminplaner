@@ -994,6 +994,7 @@ export default function App() {
   const [revenuePinInput, setRevenuePinInput] = useState("");
   const [revenuePinError, setRevenuePinError] = useState(false);
   const [revenueModalYear, setRevenueModalYear] = useState(null); // null oder Jahr (Number) wenn Modal offen
+  const [revenueExcludeGroups, setRevenueExcludeGroups] = useState(false); // Toggle: Gruppenbesuche ausblenden
   const [showBackups, setShowBackups] = useState(false);
   const [backupsIndex, setBackupsIndex] = useState([]);
   const [openedBackup, setOpenedBackup] = useState(null); // { date, events }
@@ -2393,6 +2394,7 @@ export default function App() {
       {revenueModalYear !== null && (() => {
         const year = revenueModalYear;
         const currentYear = new Date().getFullYear();
+        const CLEANING_FEE = 150;
         // Helper: Auto-Berechnung für Gruppenbesuche (analog zur Anzeige im readOnly-View)
         // Kärnten-Card-Personen zahlen keinen Eintritt; Führungs-Kosten anhand max-pro-Tour.
         const calcGroupTourTotal = (e) => {
@@ -2410,6 +2412,9 @@ export default function App() {
         // Sammle alle gebuchten Events des Jahres (inkl. subEvents) sowie Veranstaltungen mit Preis
         const items = [];
         const addEventEntry = (dateKey, e) => {
+          const isGroupTour = e.type === "gruppenfuehrung";
+          // Gruppen-Filter: wenn aktiv, Gruppenbesuche überspringen
+          if (revenueExcludeGroups && isGroupTour) return;
           // Bei Gruppenbesuchen: automatisch berechneten Gesamtbetrag verwenden,
           // außer der Admin hat manuell einen Preis eingetragen (dann hat das Vorrang)
           let priceVal = 0;
@@ -2418,20 +2423,26 @@ export default function App() {
             const p = parseFloat(String(e.price).replace(",", "."));
             if (!isNaN(p) && p > 0) priceVal = p;
           }
-          if (priceVal === 0 && e.type === "gruppenfuehrung") {
+          if (priceVal === 0 && isGroupTour) {
             const auto = calcGroupTourTotal(e);
             if (auto > 0) {
               priceVal = auto;
               labelOverride = "Gruppenbesuch (autom. berechnet)";
             }
           }
-          if (priceVal <= 0) return;
+          // Reinigungspauschale addieren wenn aktiviert
+          const cleaningExtra = e.cleaningFee ? CLEANING_FEE : 0;
+          const totalPrice = priceVal + cleaningExtra;
+          if (totalPrice <= 0) return;
           items.push({
             kind: "event",
+            isGroupTour,
             dateKey,
             name: e.groupName || e.name || e.label || e.contactName || "—",
             label: labelOverride || e.label || e.type || "Buchung",
-            price: priceVal,
+            price: totalPrice,
+            basePrice: priceVal,
+            cleaningFee: cleaningExtra,
           });
         };
         Object.entries(events || {}).forEach(([dateKey, ev]) => {
@@ -2487,7 +2498,7 @@ export default function App() {
               </div>
 
               {/* Jahr-Umschalter */}
-              <div style={{ display:"flex", gap:6, marginBottom:18 }}>
+              <div style={{ display:"flex", gap:6, marginBottom:10 }}>
                 <button onClick={() => setRevenueModalYear(currentYear)}
                   style={{ flex:1, padding:"8px 0", border: year === currentYear ? `1.5px solid ${BRAND.aubergine}` : "1.5px solid #e0d8de", background: year === currentYear ? `${BRAND.aubergine}10` : "#fff", color: year === currentYear ? BRAND.aubergine : "#888", borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all .15s" }}>
                   Aktuelles Jahr ({currentYear})
@@ -2497,6 +2508,15 @@ export default function App() {
                   Letztes Jahr ({currentYear - 1})
                 </button>
               </div>
+
+              {/* Filter-Toggle: Gruppenbesuche ausblenden */}
+              <label onClick={() => setRevenueExcludeGroups(v => !v)}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background: revenueExcludeGroups ? `${BRAND.aubergine}08` : "transparent", borderRadius:6, cursor:"pointer", marginBottom:16, userSelect:"none", transition:"background .15s" }}>
+                <div style={{ width:16, height:16, borderRadius:4, border:`1.5px solid ${revenueExcludeGroups ? BRAND.aubergine : "#ccc"}`, background: revenueExcludeGroups ? BRAND.aubergine : "#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all .15s" }}>
+                  {revenueExcludeGroups && <svg width="10" height="10" viewBox="0 0 14 14"><path d="M3 7l3 3 5-5" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                </div>
+                <span style={{ fontSize:13, color: revenueExcludeGroups ? BRAND.aubergine : "#666", fontWeight: revenueExcludeGroups ? 600 : 400 }}>Gruppenbesuche ausblenden</span>
+              </label>
 
               {/* Total-Karte */}
               <div style={{ background:`linear-gradient(135deg, ${BRAND.aubergine}, #6a1058)`, color:"#fff", padding:"20px 22px", borderRadius:14, marginBottom:16 }}>
@@ -2531,6 +2551,9 @@ export default function App() {
                           </div>
                           <div style={{ fontSize:11, color:"#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                             {it.kind === "veranstaltung" ? `Veranstaltung · € ${fmt(it.unitPrice)} pro Termin` : it.label}
+                            {it.kind === "event" && it.cleaningFee > 0 && (
+                              <span style={{ color: BRAND.aubergine, fontWeight:500 }}> · inkl. Reinigung € {fmt(it.cleaningFee)}</span>
+                            )}
                           </div>
                         </div>
                         <div style={{ fontSize:13, fontWeight:700, color:BRAND.aubergine, flexShrink:0 }}>€ {fmt(it.price)}</div>
