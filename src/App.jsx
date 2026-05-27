@@ -179,6 +179,41 @@ function notifyGroupTour(dateKey, ev, subIndex = -1) {
   } catch {}
 }
 
+// Schickt dem Kunden eine Bestätigungs-E-Mail, sobald seine Anfrage von pending auf booked gesetzt wird.
+// Feuert NUR, wenn eine gültige Kunden-E-Mail hinterlegt ist (sonst kein Versand).
+// Versand über denselben pgm-email-Worker mit kind="customer_confirmation" (Absender: info@derparadiesgarten.at).
+function notifyCustomerBooked(dateKey, ev, typeLabel = "") {
+  try {
+    const to = (ev.email || ev.contactEmail || "").trim();
+    if (!to || !/\S+@\S+\.\S+/.test(to)) return; // keine (gültige) Kunden-Adresse → nichts senden
+    const [yy, mm, dd] = dateKey.split("-").map(Number);
+    const dObj = new Date(yy, mm - 1, dd);
+    const wdShort = ["So","Mo","Di","Mi","Do","Fr","Sa"][dObj.getDay()];
+    const wdLong  = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][dObj.getDay()];
+    const months  = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+    const dateLong  = `${wdLong}, ${dd}. ${months[mm-1]} ${yy}`;
+    const dateShort = `${wdShort}, ${String(dd).padStart(2,"0")}.${String(mm).padStart(2,"0")}.${yy}`;
+    const slot = ev.slotLabel || (ev.startTime && ev.endTime ? `${ev.startTime} – ${ev.endTime}` : (ev.allDay ? "Ganztägig" : ""));
+    const payload = {
+      notifyTo: to,
+      kind: "customer_confirmation",
+      type: typeLabel || ev.label || "",
+      name: ev.contactName || ev.name || ev.groupName || "",
+      guests: ev.guests || "",
+      slot,
+      dateLong,
+      dateShort,
+      tourGuide: !!ev.tourGuide,
+      cakeCount: ev.cakeCount || 0,
+      coffeeCount: ev.coffeeCount || 0,
+    };
+    fetch(EMAIL_WORKER_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  } catch {}
+}
+
 // Dokumente — Pfade anpassen für Deployment (z.B. "/assets/Getraenke.pdf")
 const DOCS = {
   getraenke: "/assets/Getraenke_Kuchenkarte.pdf",
@@ -1819,6 +1854,8 @@ export default function App() {
       showToast("Auf Anfrage gesetzt", `${fmtDateAT(selectedDate)}${entry.label ? " · " + entry.label : ""}${entry.name ? " · " + entry.name : ""}`, false, BRAND.aprikot);
     } else if (prevStatus === "pending" && effectiveType === "booked") {
       showToast("Bestätigt", `${fmtDateAT(selectedDate)}${entry.label ? " · " + entry.label : ""}${entry.name ? " · " + entry.name : ""}`, false, BRAND.moosgruen);
+      // Kunde über die Bestätigung informieren (nur wenn E-Mail hinterlegt)
+      notifyCustomerBooked(selectedDate, entry, eventTypes.find(t => t.id === entry.type)?.label || "");
     }
     if (!silent) {
       setModalView(null);
@@ -2003,6 +2040,7 @@ export default function App() {
         showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, false, BRAND.moosgruen);
         // Extra-Notification bei Gruppenführung
         if (sub && sub.type === "gruppenfuehrung") notifyGroupTour(key, { ...sub, status: "booked" }, subIndex);
+        notifyCustomerBooked(key, { ...sub, status: "booked" }, eventTypes.find(t => t.id === sub?.type)?.label || "");
         return;
       }
       const ev = events[key];
@@ -2012,6 +2050,7 @@ export default function App() {
       showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, false, BRAND.moosgruen);
       // Extra-Notification bei Gruppenführung
       if (ev && ev.type === "gruppenfuehrung") notifyGroupTour(key, { ...ev, status: "booked" }, -1);
+      notifyCustomerBooked(key, { ...ev, status: "booked" }, eventTypes.find(t => t.id === ev?.type)?.label || "");
     }
   };
 
