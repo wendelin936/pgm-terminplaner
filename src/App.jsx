@@ -1913,6 +1913,8 @@ export default function App() {
     // Vorteil: Kunden brauchen keine Firestore-Write-Berechtigung.
     const [yy, mm, dd] = selectedDate.split("-").map(Number);
     const dayName = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(yy,mm-1,dd).getDay()];
+    const wdLong = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][new Date(yy,mm-1,dd).getDay()];
+    const monthsLong = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
     const payload = {
       // Felder fürs Schreiben in Firestore
       selectedDate,
@@ -1936,6 +1938,9 @@ export default function App() {
       tourEndMin: formData.tourEndMin,
       // Felder für die E-Mail-Benachrichtigung
       date: `${dayName}, ${dd}.${mm}.${yy}`,
+      dateLong: `${wdLong}, ${dd}. ${monthsLong[mm-1]} ${yy}`,
+      dateShort: `${dayName}, ${String(dd).padStart(2,"0")}.${String(mm).padStart(2,"0")}.${yy}`,
+      salutation: buildSalutation(formData.contactName || formData.name),
     };
 
     try {
