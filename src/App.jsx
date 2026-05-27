@@ -179,6 +179,28 @@ function notifyGroupTour(dateKey, ev, subIndex = -1) {
   } catch {}
 }
 
+// Vornamen-Geschlechtserkennung für die Anrede (häufige AT/DE-Vornamen).
+// Bekannter Vorname -> "Liebe Frau {Nachname}" / "Lieber Herr {Nachname}".
+// Unbekannt oder uneindeutig (z.B. Toni, Alex, Kim) -> neutrale Anrede, nie falsches Geschlecht.
+const FEMALE_NAMES = new Set("anna maria elisabeth johanna julia sophie sophia lena laura sarah sara lisa katharina christina christine eva claudia sabine andrea petra monika barbara brigitte gabriele gabi susanne ulrike martina daniela nicole melanie jasmin jana lea hannah hanna emma mia marie lara nina theresa teresa magdalena viktoria victoria valentina isabella vanessa jacqueline michaela manuela renate gertrude gertraud helga hildegard ingrid irene edith elfriede herta hermine anneliese waltraud waltraut christa doris karin karoline caroline carolin kerstin kathrin katrin cornelia silvia sylvia birgit bettina beate evelyn alexandra angelika angela anita astrid bianca carmen denise diana elke franziska frieda gisela heidi heike ines iris janine judith klara clara kristina marlene marina melina michelle miriam nadine natalie nadja olivia paula pia rosa rosemarie ruth selina simone sonja stefanie stephanie tanja tina ursula verena veronika wilma yvonne zoe amelie antonia charlotte emilia frida greta ida leonie lina luisa louisa mathilde mathilda romana valerie elena elina maja maya alina anastasia milena margarete margit margarethe".split(" "));
+const MALE_NAMES = new Set("thomas michael andreas christian martin stefan stephan markus marcus wolfgang peter johann hans josef franz georg gerhard manfred helmut herbert karl kurt walter werner wilhelm alfred anton ernst friedrich fritz günther gunter heinrich heinz horst klaus ludwig otto rudolf siegfried alexander daniel david dominik fabian felix florian jakob jan julian kevin lukas lucas manuel marco mario matthias maximilian max moritz nico niklas patrick paul philipp raphael rene robert roland sebastian simon tobias tom jonas leon noah elias samuel jonathan benjamin benedikt gabriel konstantin valentin vincent emil oskar theo johannes ferdinand leopold gregor hubert alois bernhard dietmar ewald gottfried gustav harald leonhard norbert oswald reinhard richard rupert ulrich viktor adrian christoph dieter erwin gerald günter hannes joachim jürgen rainer reinhold".split(" "));
+
+// Baut die Anrede aus dem (vollen) Namen. Geschlecht über den Vornamen, Nachname = letztes Wort.
+function buildSalutation(fullName) {
+  const clean = (fullName || "").trim().replace(/\s+/g, " ");
+  if (!clean) return "Guten Tag";
+  const parts = clean.split(" ");
+  const firstRaw = parts[0].toLowerCase().replace(/[^a-zäöüß-]/g, "");
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  // Doppelnamen wie "Anna-Maria" auch über den ersten Bestandteil prüfen
+  const firstAlt = firstRaw.includes("-") ? firstRaw.split("-")[0] : firstRaw;
+  const isFemale = FEMALE_NAMES.has(firstRaw) || FEMALE_NAMES.has(firstAlt);
+  const isMale = MALE_NAMES.has(firstRaw) || MALE_NAMES.has(firstAlt);
+  if (last && isFemale && !isMale) return `Liebe Frau ${last}`;
+  if (last && isMale && !isFemale) return `Lieber Herr ${last}`;
+  return `Guten Tag ${clean}`; // unbekannt/uneindeutig/kein Nachname -> neutral
+}
+
 // Schickt dem Kunden eine Bestätigungs-E-Mail, sobald seine Anfrage von pending auf booked gesetzt wird.
 // Feuert NUR, wenn eine gültige Kunden-E-Mail hinterlegt ist (sonst kein Versand).
 // Versand über denselben pgm-email-Worker mit kind="customer_confirmation" (Absender: info@derparadiesgarten.at).
@@ -194,11 +216,13 @@ function notifyCustomerBooked(dateKey, ev, typeLabel = "") {
     const dateLong  = `${wdLong}, ${dd}. ${months[mm-1]} ${yy}`;
     const dateShort = `${wdShort}, ${String(dd).padStart(2,"0")}.${String(mm).padStart(2,"0")}.${yy}`;
     const slot = ev.slotLabel || (ev.startTime && ev.endTime ? `${ev.startTime} – ${ev.endTime}` : (ev.allDay ? "Ganztägig" : ""));
+    const personName = ev.contactName || ev.name || "";
     const payload = {
       notifyTo: to,
       kind: "customer_confirmation",
       type: typeLabel || ev.label || "",
-      name: ev.contactName || ev.name || ev.groupName || "",
+      salutation: buildSalutation(personName),
+      name: personName || ev.groupName || "",
       guests: ev.guests || "",
       slot,
       dateLong,
