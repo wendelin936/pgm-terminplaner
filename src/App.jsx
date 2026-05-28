@@ -238,6 +238,20 @@ function notifyCustomerBooked(dateKey, ev, typeLabel = "") {
   } catch {}
 }
 
+// Standard-Erinnerung für gebuchte Gruppenbesuche: Checklisten-Eintrag "Kuchen?"
+// + Erinnerung 1 Woche vorher. Idempotent (legt nichts doppelt an).
+function withGroupCakeReminder(ev) {
+  const checklist = Array.isArray(ev.checklist) ? ev.checklist.slice() : [];
+  const already = checklist.some(it => it && typeof it === "object" && (it.text || "").trim().toLowerCase() === "kuchen?");
+  if (already) return ev;
+  const reminders = ev.reminders ? structuredClone(ev.reminders) : { checklist: null, items: {} };
+  if (!reminders.items) reminders.items = {};
+  const id = `c${Date.now()}_cake${Math.random().toString(36).slice(2,5)}`;
+  checklist.push({ id, text: "Kuchen?", done: false });
+  reminders.items[id] = { enabled: true, daysBefore: 7, sendAt: "09:00", recipients: ["wendelin"] };
+  return { ...ev, checklist, reminders };
+}
+
 // Dokumente — Pfade anpassen für Deployment (z.B. "/assets/Getraenke.pdf")
 const DOCS = {
   getraenke: "/assets/Getraenke_Kuchenkarte.pdf",
@@ -1825,7 +1839,9 @@ export default function App() {
     const displayName = effectiveType === "blocked"
       ? (adminForm.contactName || adminForm.groupName || "")
       : (adminForm.groupName || adminForm.contactName || "");
-    const entry = { status: effectiveType, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, publicIcon: adminForm.publicIcon || "", isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, kaerntenCardCount: adminForm.kaerntenCardCount || "", groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
+    let entry = { status: effectiveType, type: adminForm.eventType || "", label: adminForm.label, note: adminForm.note, startTime: st, endTime: et, adminNote: adminForm.adminNote, allDay: adminForm.allDay, checklist: adminForm.checklist || [], reminders: adminForm.reminders || { checklist:null, items:{} }, slotLabel: adminForm.allDay ? `Ganztägig (${st} – ${et})` : `${st} – ${et}`, contactName: adminForm.contactName || "", contactPhone: adminForm.contactPhone || "", contactEmail: adminForm.contactEmail || "", contactAddress: adminForm.contactAddress || "", publicText: adminForm.publicText || "", isPublic: adminForm.isPublic || false, publicIcon: adminForm.publicIcon || "", isSeries: !!(sid), seriesId: sid, guests: adminForm.guests || "", tourGuide: adminForm.tourGuide || false, cakeCount: adminForm.cakeCount || 0, coffeeCount: adminForm.coffeeCount || 0, kaerntenCardCount: adminForm.kaerntenCardCount || "", groupName: adminForm.groupName || "", name: displayName, email: adminForm.customerEmail || "", phone: adminForm.customerPhone || "", message: adminForm.customerMessage || "", price: adminForm.price || "", paymentStatus: adminForm.paymentStatus || "open", partialAmount: adminForm.partialAmount || "", cleaningFee: !!adminForm.cleaningFee };
+    // Standard-Erinnerung "Kuchen?" 1 Woche vorher, wenn ein Gruppenbesuch auf booked wechselt
+    if (entry.type === "gruppenfuehrung" && prevStatus === "pending" && effectiveType === "booked") entry = withGroupCakeReminder(entry);
     if (adminForm.editAllSeries && adminForm.seriesId) {
       Object.keys(updated).forEach(k => {
         if (updated[k]?.seriesId === adminForm.seriesId) {
@@ -2063,7 +2079,12 @@ export default function App() {
       if (subIndex >= 0) {
         const day = { ...updated[key] };
         const sub = day.subEvents?.[subIndex];
-        day.subEvents = (day.subEvents || []).map((s,i) => i === subIndex ? { ...s, status:"booked" } : s);
+        day.subEvents = (day.subEvents || []).map((s,i) => {
+          if (i !== subIndex) return s;
+          let booked = { ...s, status:"booked" };
+          if (booked.type === "gruppenfuehrung") booked = withGroupCakeReminder(booked);
+          return booked;
+        });
         updated[key] = day;
         saveEvents(updated);
         showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, false, BRAND.moosgruen);
@@ -2073,7 +2094,9 @@ export default function App() {
         return;
       }
       const ev = events[key];
-      updated[key] = { ...updated[key], status: "booked" };
+      let bookedMain = { ...updated[key], status: "booked" };
+      if (bookedMain.type === "gruppenfuehrung") bookedMain = withGroupCakeReminder(bookedMain);
+      updated[key] = bookedMain;
       saveEvents(updated);
       setModalView(null);
       showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, false, BRAND.moosgruen);
