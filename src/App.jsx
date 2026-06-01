@@ -252,6 +252,76 @@ function withGroupCakeReminder(ev) {
   return { ...ev, checklist, reminders };
 }
 
+// Datum YYYY-MM-DD -> "Sa, 12.07.2025" (für Astrid-Mails)
+function fmtMailDate(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  const wd = ["So","Mo","Di","Mi","Do","Fr","Sa"][new Date(y, m - 1, d).getDay()];
+  return `${wd}, ${String(d).padStart(2,"0")}.${String(m).padStart(2,"0")}.${y}`;
+}
+
+// Vergleicht den Ausgangszustand (snap) eines gebuchten Gruppenbesuchs mit dem aktuellen (cur)
+// und liefert die geänderten Felder als [{label, from, to}] zurück.
+function diffGroupTour(snap, cur) {
+  if (!snap) return [];
+  const changes = [];
+  const t = (x) => x.allDay ? "Ganztägig" : (x.startTime && x.endTime ? `${x.startTime}–${x.endTime}` : "");
+  if (snap.dateKey !== cur.dateKey) changes.push({ label: "Datum", from: fmtMailDate(snap.dateKey), to: fmtMailDate(cur.dateKey) });
+  if (t(snap) !== t(cur)) changes.push({ label: "Uhrzeit", from: t(snap) || "—", to: t(cur) || "—" });
+  if (String(snap.guests || "") !== String(cur.guests || "")) changes.push({ label: "Teilnehmer", from: String(snap.guests || "–"), to: String(cur.guests || "–") });
+  if (Number(snap.coffeeCount || 0) !== Number(cur.coffeeCount || 0)) changes.push({ label: "Kaffee", from: `${snap.coffeeCount || 0}×`, to: `${cur.coffeeCount || 0}×` });
+  if (Number(snap.cakeCount || 0) !== Number(cur.cakeCount || 0)) changes.push({ label: "Kuchen", from: `${snap.cakeCount || 0}×`, to: `${cur.cakeCount || 0}×` });
+  if (!!snap.tourGuide !== !!cur.tourGuide) changes.push({ label: "Führung", from: snap.tourGuide ? "mit" : "ohne", to: cur.tourGuide ? "mit" : "ohne" });
+  return changes;
+}
+
+// Storno-Mail an Astrid, wenn ein gebuchter Gruppenbesuch (nach Ablauf des Undo-Fensters) gelöscht wird.
+function notifyGroupTourCancelled(dateKey, ev) {
+  try {
+    const slot = ev.slotLabel || (ev.startTime && ev.endTime ? `${ev.startTime} – ${ev.endTime}` : (ev.allDay ? "Ganztägig" : ""));
+    fetch(EMAIL_WORKER_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        notifyTo: GROUP_TOUR_NOTIFY_EMAIL,
+        kind: "cancelled_group_tour",
+        type: "Gruppenbesuch",
+        date: fmtMailDate(dateKey),
+        slot,
+        groupName: ev.groupName || ev.name || "",
+        name: ev.groupName || ev.name || "",
+        contactName: ev.contactName || "",
+        contactPhone: ev.contactPhone || ev.phone || "",
+        guests: ev.guests || "",
+      }),
+    }).catch(() => {});
+  } catch {}
+}
+
+// Änderungs-Mail an Astrid mit Diff (changes) + aktuellem Stand.
+function notifyGroupTourUpdated(dateKey, ev, changes) {
+  try {
+    const slot = ev.slotLabel || (ev.startTime && ev.endTime ? `${ev.startTime} – ${ev.endTime}` : (ev.allDay ? "Ganztägig" : ""));
+    fetch(EMAIL_WORKER_URL, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        notifyTo: GROUP_TOUR_NOTIFY_EMAIL,
+        kind: "updated_group_tour",
+        type: "Gruppenbesuch",
+        date: fmtMailDate(dateKey),
+        slot,
+        groupName: ev.groupName || ev.name || "",
+        name: ev.groupName || ev.name || "",
+        contactName: ev.contactName || "",
+        contactPhone: ev.contactPhone || ev.phone || "",
+        guests: ev.guests || "",
+        coffeeCount: ev.coffeeCount || 0,
+        cakeCount: ev.cakeCount || 0,
+        tourGuide: !!ev.tourGuide,
+        changes: Array.isArray(changes) ? changes : [],
+      }),
+    }).catch(() => {});
+  } catch {}
+}
+
 // Dokumente — Pfade anpassen für Deployment (z.B. "/assets/Getraenke.pdf")
 const DOCS = {
   getraenke: "/assets/Getraenke_Kuchenkarte.pdf",
@@ -985,6 +1055,8 @@ export default function App() {
   const [toastKey, setToastKey] = useState(0);
   const toastTimer = useRef(null);
   const prevEvents = useRef(null);
+  const groupBookingSnapshot = useRef(null); // Ausgangszustand eines gebuchten Gruppenbesuchs beim Öffnen (für Astrid-Änderungs-Diff)
+  const stornoTimers = useRef([]); // anstehende Storno-Mails (nach Undo-Fenster), per Undo abbrechbar
   const lastSyncedEvents = useRef({});
   // Race-Condition-Schutz: wenn ein Sync läuft, wird ein anstehender Sync gequeued statt parallel gestartet.
   // Das verhindert, dass mehrere Diffs gleichzeitig mit veralteten Snapshots laufen und sich gegenseitig
@@ -1015,7 +1087,20 @@ export default function App() {
       saveEvents(prevEvents.current);
       prevEvents.current = null;
       setToast(null);
+      // anstehende Storno-Mail des jüngsten Löschvorgangs abbrechen
+      const last = stornoTimers.current.pop();
+      if (last) clearTimeout(last.timer);
     }
+  };
+
+  // Storno-Mail an Astrid erst NACH Ablauf des 8s-Undo-Fensters senden (per Undo abbrechbar).
+  const scheduleStorno = (dateKey, evSnapshot) => {
+    const id = `${dateKey}_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
+    const timer = setTimeout(() => {
+      notifyGroupTourCancelled(dateKey, evSnapshot);
+      stornoTimers.current = stornoTimers.current.filter(t => t.id !== id);
+    }, 8500);
+    stornoTimers.current.push({ id, timer });
   };
 
 
@@ -1026,6 +1111,24 @@ export default function App() {
   const [winW, setWinW] = useState(typeof window !== "undefined" ? window.innerWidth : 800);
   const [winH, setWinH] = useState(typeof window !== "undefined" ? window.innerHeight : 800);
   useEffect(() => { const h = () => { setWinW(window.innerWidth); setWinH(window.innerHeight); }; window.addEventListener("resize",h); return () => window.removeEventListener("resize",h); }, []);
+
+  // Beim Öffnen des Admin-Modals: Ausgangszustand eines bereits gebuchten Gruppenbesuchs merken,
+  // damit beim Speichern erkannt wird, was sich geändert hat (für die Astrid-Änderungs-Mail).
+  useEffect(() => {
+    if (modalView !== "admin") { groupBookingSnapshot.current = null; return; }
+    const evRaw = editingSubIndex >= 0 ? events[selectedDate]?.subEvents?.[editingSubIndex] : events[selectedDate];
+    if (evRaw && evRaw.status === "booked" && evRaw.type === "gruppenfuehrung") {
+      groupBookingSnapshot.current = {
+        dateKey: selectedDate,
+        startTime: evRaw.startTime || "", endTime: evRaw.endTime || "", allDay: !!evRaw.allDay,
+        guests: evRaw.guests || "", coffeeCount: evRaw.coffeeCount || 0, cakeCount: evRaw.cakeCount || 0, tourGuide: !!evRaw.tourGuide,
+      };
+    } else {
+      groupBookingSnapshot.current = null;
+    }
+    // bewusst nur von modalView abhängig: Snapshot wird einmalig beim Öffnen erfasst
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalView]);
 
   // Auto-adjust end time if same as or before start time
   useEffect(() => {
@@ -1108,6 +1211,7 @@ export default function App() {
   const [showSeries, setShowSeries] = useState(false);
   const [expandedSeries, setExpandedSeries] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [astridUpdatePrompt, setAstridUpdatePrompt] = useState(null); // {dateKey, changes, mailEv} — Abfrage nach Speichern eines geänderten Gruppenbesuchs
   const [modalPull, setModalPull] = useState(0);
   const [editingField, setEditingField] = useState(null);
   const [editFieldVal, setEditFieldVal] = useState("");
@@ -1887,7 +1991,31 @@ export default function App() {
         const oldMain = events[selectedDate];
         wasAlreadyBooked = oldMain?.status === "booked" && oldMain?.type === "gruppenfuehrung";
       }
-      if (!wasAlreadyBooked) notifyGroupTour(selectedDate, entry, editingSubIndex);
+      if (!wasAlreadyBooked) {
+        notifyGroupTour(selectedDate, entry, editingSubIndex);
+      } else if (!silent && groupBookingSnapshot.current) {
+        // Bereits gebuchter Gruppenbesuch wurde bearbeitet -> bei echter Änderung Astrid-Update anbieten
+        const cur = {
+          dateKey: selectedDate,
+          startTime: adminForm.startTime, endTime: adminForm.endTime, allDay: adminForm.allDay,
+          guests: adminForm.guests, coffeeCount: adminForm.coffeeCount, cakeCount: adminForm.cakeCount, tourGuide: adminForm.tourGuide,
+        };
+        const changes = diffGroupTour(groupBookingSnapshot.current, cur);
+        if (changes.length > 0) {
+          setAstridUpdatePrompt({
+            dateKey: selectedDate,
+            changes,
+            mailEv: {
+              startTime: adminForm.startTime, endTime: adminForm.endTime, allDay: adminForm.allDay,
+              slotLabel: entry.slotLabel,
+              groupName: adminForm.groupName, name: adminForm.groupName,
+              contactName: adminForm.contactName, contactPhone: adminForm.contactPhone,
+              guests: adminForm.guests, coffeeCount: adminForm.coffeeCount, cakeCount: adminForm.cakeCount, tourGuide: adminForm.tourGuide,
+            },
+          });
+          groupBookingSnapshot.current = cur; // Folge-Änderungen ab jetzt vergleichen
+        }
+      }
     }
     saveEvents(updated);
     if (isDowngrade) {
@@ -2056,6 +2184,7 @@ export default function App() {
         updated[key] = day;
         saveEvents(updated);
         setDeleteConfirm(null);
+        if (sub.status === "booked" && sub.type === "gruppenfuehrung") scheduleStorno(key, { ...sub });
         showToast("Gelöscht", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, true, "#c44");
         return;
       }
@@ -2066,6 +2195,7 @@ export default function App() {
         updated[key] = { ...first, subEvents: rest };
       } else {
         updated[key] = { ...updated[key], status: "deleted", previousStatus: ev.status, deletedAt: new Date().toISOString() };
+        if (ev.status === "booked" && ev.type === "gruppenfuehrung") scheduleStorno(key, { ...ev });
       }
       saveEvents(updated);
       setModalView(null);
@@ -4724,6 +4854,39 @@ export default function App() {
         </div>
       )}
 
+      {/* Abfrage nach dem Speichern eines geänderten Gruppenbesuchs: Astrid informieren? */}
+      {astridUpdatePrompt && (
+        <div onClick={() => setAstridUpdatePrompt(null)} style={{ position:"fixed", inset:0, background:"rgba(40,6,33,0.45)", backdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:400, width:"100%", boxShadow:"0 20px 50px rgba(0,0,0,0.25)", overflow:"hidden" }}>
+            <div style={{ height:5, background:BRAND.aprikot }} />
+            <div style={{ padding:"22px 22px 20px" }}>
+              <div style={{ fontSize:17, fontWeight:700, color:BRAND.aubergine }}>Änderungen gespeichert ✓</div>
+              <div style={{ fontSize:14, color:"#666", lineHeight:1.55, marginTop:8 }}>
+                Du hast einen gebuchten Gruppenbesuch geändert. Soll <strong>Astrid</strong> die aktualisierten Infos per E-Mail bekommen? Sie sieht dann genau, was sich geändert hat.
+              </div>
+              <div style={{ background:"#fdf6f1", border:"1px solid #f7ddca", borderRadius:10, padding:"11px 13px", marginTop:14 }}>
+                <div style={{ fontSize:10, color:"#d2691e", letterSpacing:1, textTransform:"uppercase", fontWeight:700, marginBottom:7 }}>Geändert</div>
+                <div style={{ fontSize:13, color:BRAND.aubergine, lineHeight:1.7 }}>
+                  {astridUpdatePrompt.changes.map((c, i) => (
+                    <div key={i}>{c.label}: <span style={{ color:"#bbb", textDecoration:"line-through" }}>{c.from}</span> → <strong style={{ color:"#d2691e" }}>{c.to}</strong></div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:10, marginTop:18 }}>
+                <button onClick={() => {
+                  notifyGroupTourUpdated(astridUpdatePrompt.dateKey, astridUpdatePrompt.mailEv, astridUpdatePrompt.changes);
+                  showToast("Astrid informiert", `${astridUpdatePrompt.changes.length} Änderung${astridUpdatePrompt.changes.length === 1 ? "" : "en"} gesendet`, false, BRAND.tuerkis);
+                  setAstridUpdatePrompt(null);
+                }}
+                  style={{ flex:1, background:BRAND.aubergine, color:"#fff", border:"none", padding:12, borderRadius:9, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Astrid informieren</button>
+                <button onClick={() => setAstridUpdatePrompt(null)}
+                  style={{ flex:1, background:"#f3eef2", color:BRAND.aubergine, border:"none", padding:12, borderRadius:9, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Nicht senden</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal */}
       {(modalView || editingType) && (
         <div
@@ -5529,6 +5692,25 @@ export default function App() {
                 {/* ============ END DETAILS-TAB Block 2 ============ */}
 
                 <button onClick={() => handleAdminSave()} style={primaryBtn}>Speichern</button>
+
+                {adminForm.type === "booked" && adminForm.eventType === "gruppenfuehrung" && (
+                  <button onClick={() => {
+                    const snap = groupBookingSnapshot.current;
+                    const cur = { dateKey: selectedDate, startTime: adminForm.startTime, endTime: adminForm.endTime, allDay: adminForm.allDay, guests: adminForm.guests, coffeeCount: adminForm.coffeeCount, cakeCount: adminForm.cakeCount, tourGuide: adminForm.tourGuide };
+                    const changes = snap ? diffGroupTour(snap, cur) : [];
+                    notifyGroupTourUpdated(selectedDate, {
+                      startTime: adminForm.startTime, endTime: adminForm.endTime, allDay: adminForm.allDay,
+                      groupName: adminForm.groupName, name: adminForm.groupName,
+                      contactName: adminForm.contactName, contactPhone: adminForm.contactPhone,
+                      guests: adminForm.guests, coffeeCount: adminForm.coffeeCount, cakeCount: adminForm.cakeCount, tourGuide: adminForm.tourGuide,
+                    }, changes);
+                    groupBookingSnapshot.current = cur;
+                    showToast("Astrid informiert", changes.length ? `${changes.length} Änderung${changes.length === 1 ? "" : "en"} gesendet` : "Aktuelle Infos gesendet", false, BRAND.tuerkis);
+                  }}
+                    style={{ width:"100%", marginTop:10, padding:"11px", background:"#fff", color:"#d2691e", border:`1.5px solid ${BRAND.aprikot}`, borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+                    ✉ Astrid über Änderungen informieren
+                  </button>
+                )}
 
                 {/* Lösch-Option unten bei existierenden Terminen */}
                 {(() => {
