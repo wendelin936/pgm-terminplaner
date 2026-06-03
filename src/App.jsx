@@ -5784,28 +5784,42 @@ export default function App() {
                                   const isCurrent = kDate === selectedDate;
                                   cells.push(
                                     <button key={d} onClick={() => {
-                                      // Datum verschieben: aktuellen Event zum neuen Datum verlagern
+                                      // Datum verschieben: aktuellen Event zum neuen Datum verlagern,
+                                      // OHNE einen dort bereits vorhandenen Termin zu überschreiben.
                                       if (kDate !== selectedDate) {
                                         const src = events[selectedDate];
                                         if (src) {
                                           const updated = { ...events };
+                                          const targetRaw = updated[kDate];
+                                          const targetOccupied = targetRaw && targetRaw.status !== "deleted";
+                                          let newSubIndex = -1;
                                           // Falls es ein Sub-Event ist, nur den Sub verschieben
                                           if (editingSubIndex >= 0 && src.subEvents) {
                                             const movedSub = src.subEvents[editingSubIndex];
                                             updated[selectedDate] = { ...src, subEvents: src.subEvents.filter((_,i) => i !== editingSubIndex) };
-                                            const existingAtNew = updated[kDate];
-                                            if (existingAtNew && existingAtNew.status !== "deleted") {
-                                              updated[kDate] = { ...existingAtNew, subEvents: [...(existingAtNew.subEvents||[]), movedSub] };
+                                            if (targetOccupied) {
+                                              newSubIndex = (targetRaw.subEvents || []).length;
+                                              updated[kDate] = { ...targetRaw, subEvents: [...(targetRaw.subEvents||[]), movedSub] };
                                             } else {
+                                              newSubIndex = -1;
                                               updated[kDate] = { ...movedSub, subEvents: [] };
                                             }
                                           } else {
-                                            // Haupt-Event verschieben (inkl. subEvents)
-                                            updated[kDate] = src;
+                                            // Haupt-Event (inkl. seiner Sub-Events) verschieben
+                                            if (targetOccupied) {
+                                              // Zieltag belegt -> verschobene(n) Termin(e) anhängen, nichts überschreiben
+                                              const { subEvents: movedSubs, ...movedMain } = src;
+                                              newSubIndex = (targetRaw.subEvents || []).length; // hier landet movedMain
+                                              updated[kDate] = { ...targetRaw, subEvents: [...(targetRaw.subEvents||[]), movedMain, ...(Array.isArray(movedSubs) ? movedSubs : [])] };
+                                            } else {
+                                              newSubIndex = -1;
+                                              updated[kDate] = src;
+                                            }
                                             delete updated[selectedDate];
                                           }
                                           saveEvents(updated);
                                           setSelectedDate(kDate);
+                                          setEditingSubIndex(newSubIndex);
                                         }
                                       }
                                       close();
@@ -6445,14 +6459,17 @@ export default function App() {
                           setEditingTime(null); setSeriesMonth(null); setSeriesYear(null); setModalView("admin");
                         };
                         return (
-                          <div key={idx} style={{ background:"#f9f7fa", borderRadius:8, padding:"12px 14px", marginBottom:8, borderLeft:`3px solid ${subColor}`, position:"relative" }}>
+                          <div key={idx} onClick={editSub} title="Zum Bearbeiten tippen"
+                            onMouseEnter={e => { e.currentTarget.style.background = "#f3eef5"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#f9f7fa"; }}
+                            style={{ background:"#f9f7fa", borderRadius:8, padding:"12px 14px", marginBottom:8, borderLeft:`3px solid ${subColor}`, position:"relative", cursor:"pointer", transition:"background .15s" }}>
                             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, gap:8 }}>
                               <div style={{ flex:1, minWidth:0 }}>
                                 <span style={{ fontSize:12, fontWeight:700, color:subColor, textTransform:"uppercase", letterSpacing:0.5 }}>{sub.isSeries ? "Serie" : sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : sub.status === "pending" ? "Anfrage" : ""}</span>
                                 {sub.label && <span style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500, marginLeft:8 }}>{sub.label}</span>}
                               </div>
                               {subIsPending && (
-                                <button onClick={editSub}
+                                <button onClick={(e) => { e.stopPropagation(); editSub(); }}
                                   title="Anfrage bearbeiten"
                                   onMouseEnter={e => { e.currentTarget.style.background = `${BRAND.aprikot}25`; e.currentTarget.style.borderColor = `${BRAND.aprikot}80`; }}
                                   onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = `${BRAND.aprikot}40`; }}
@@ -6463,8 +6480,8 @@ export default function App() {
                             </div>
                             <div style={{ fontSize:12, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}{sub.allDay ? " · Ganztägig" : ""}</div>
                             {sub.name && <div style={{ fontSize:13, color:BRAND.aubergine, marginTop:4, fontWeight:500 }}>👤 {sub.name}</div>}
-                            {sub.email && <div style={{ fontSize:12, color:"#888", marginTop:1 }}>✉ <a href={`mailto:${sub.email}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
-                            {sub.phone && <div style={{ fontSize:12, color:"#888", marginTop:1 }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
+                            {sub.email && <div style={{ fontSize:12, color:"#888", marginTop:1 }}>✉ <a href={`mailto:${sub.email}`} onClick={e => e.stopPropagation()} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.email}</a></div>}
+                            {sub.phone && <div style={{ fontSize:12, color:"#888", marginTop:1 }}>📞 <a href={`tel:${sub.phone.replace(/\s/g,"")}`} onClick={e => e.stopPropagation()} style={{ color:BRAND.lila, textDecoration:"none" }}>{sub.phone}</a></div>}
                             {sub.guests && <div style={{ fontSize:12, color:"#888", marginTop:2 }}>👥 {sub.guests} {sub.type === "gruppenfuehrung" ? "Teilnehmer" : "Gäste"}</div>}
                             {sub.tourGuide && <div style={{ fontSize:12, color:BRAND.moosgruen, marginTop:2, fontWeight:600 }}>🌿 Mit Führung</div>}
                             {sub.adminNote && <div style={{ fontSize:12, color:"#999", marginTop:5, fontStyle:"italic", lineHeight:1.4 }}>📝 {sub.adminNote}</div>}
@@ -6503,16 +6520,16 @@ export default function App() {
                             <div style={{ display:"flex", gap:8, marginTop:10 }}>
                               {subIsPending ? (
                                 <>
-                                  <button onClick={() => handleAdminAction(selectedDate,"confirm",subIndex)}
+                                  <button onClick={(e) => { e.stopPropagation(); handleAdminAction(selectedDate,"confirm",subIndex); }}
                                     style={{ flex:1, padding:"9px 0", background:BRAND.moosgruen, color:"#fff", border:"none", borderRadius:6, fontSize:13, fontWeight:700, cursor:"pointer", textTransform:"uppercase", letterSpacing:0.5 }}>Annehmen</button>
-                                  <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
+                                  <button onClick={(e) => { e.stopPropagation(); handleAdminAction(selectedDate,"delete",subIndex); }}
                                     style={{ flex:1, padding:"9px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontWeight:600, cursor:"pointer" }}>Ablehnen</button>
                                 </>
                               ) : (
                                 <>
-                                  <button onClick={editSub}
+                                  <button onClick={(e) => { e.stopPropagation(); editSub(); }}
                                     style={{ flex:1, padding:"9px 0", background:BRAND.aubergine, color:"#fff", border:"none", borderRadius:6, fontSize:13, fontWeight:600, cursor:"pointer" }}>Bearbeiten</button>
-                                  <button onClick={() => handleAdminAction(selectedDate,"delete",subIndex)}
+                                  <button onClick={(e) => { e.stopPropagation(); handleAdminAction(selectedDate,"delete",subIndex); }}
                                     onMouseEnter={e => { e.target.style.background="#f8d0d0"; e.target.style.color="#c44"; }}
                                     onMouseLeave={e => { e.target.style.background="#f5f0f4"; e.target.style.color=BRAND.aubergine; }}
                                     style={{ flex:1, padding:"9px 0", background:"#f5f0f4", color:BRAND.aubergine, border:"1px solid #e0d8de", borderRadius:6, fontSize:13, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>Löschen</button>
