@@ -122,9 +122,13 @@ export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
 
   const ops = [];
 
-  // CREATE: in new, nicht in old
+  // CREATE: Event hat (noch) keine gcalId und ist im alten Stand entweder gar nicht
+  // vorhanden ODER war dort ebenfalls ohne gcalId (= ein früherer Create ist fehlgeschlagen).
+  // So wird ein fehlgeschlagener Create beim nächsten Sync zuverlässig nachgeholt, egal
+  // welcher Vergleichs-Stand (oldEvents) gerade verwendet wird. Events MIT gcalId werden
+  // hier nie angefasst (kein Doppel-Create), die laufen über die UPDATE-Logik.
   for (const [localId, entry] of newMap) {
-    if (!oldMap.has(localId) && !newGcalIds.has(localId)) {
+    if (!newGcalIds.has(localId) && (!oldMap.has(localId) || !oldGcalIds.has(localId))) {
       ops.push({
         op: "create",
         localId,
