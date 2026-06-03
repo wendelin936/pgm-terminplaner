@@ -2316,7 +2316,7 @@ export default function App() {
           style={{ display:"flex", alignItems:"center", gap:0, minWidth:0, flex:1, cursor: !isAdmin ? "pointer" : "default" }}>
           {winW < 520 ? (
             <>
-              <img src="/assets/PGM_Logo_Weiss_RGB_3.svg" alt="Paradiesgärten Mattuschka"
+              <img src={isAdmin ? "/assets/logo-titelbild.png" : "/assets/PGM_Logo_Weiss_RGB_3.svg"} alt="Paradiesgärten Mattuschka"
                 style={{ height: isAdmin ? 28 : 36, flexShrink:0, objectFit:"contain" }} />
               {/* h1 für Semantik + Screen-Reader behalten, visuell ausgeblendet */}
               <h1 style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>PARADIESGÄRTEN MATTUSCHKA</h1>
