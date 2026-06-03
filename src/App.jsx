@@ -1713,10 +1713,17 @@ export default function App() {
             lastSavedEventsJson.current = mergedJson;
             saveData("events", mergedJson).catch(() => {});
           }
-          // WICHTIG: lastSyncedEvents.current NICHT auf merged setzen — sonst denkt der Re-Sync der Termin
-          // sei schon synct. Stattdessen auf preChangeSnapshot zurück, damit der Re-Sync den Diff
-          // (pending → booked) korrekt erkennt und einen Create macht.
-          lastSyncedEvents.current = preChangeSnapshot;
+          // WICHTIG: lastSyncedEvents.current = patched (NICHT preChangeSnapshot!).
+          // patched spiegelt den Stand wider, den Google nach DIESEM Sync tatsächlich hat
+          // (z.B. Event wurde auf Tag B verschoben). Der nachgeholte Re-Sync difft dann
+          // patched (= Google-IST, Tag B) gegen den frischen Stand (Tag A) und feuert die
+          // fehlende Update-Op, die das Google-Event zurück auf Tag A schiebt.
+          // Mit preChangeSnapshot (Stand VOR diesem Sync, Tag A) würde der Re-Sync den Diff
+          // verpassen ("Tag A gegen Tag A") und das Google-Event bliebe auf Tag B liegen
+          // — die Geist-Kopie beim schnellen Doppel-Verschieben.
+          // Fehlgeschlagene Creates werden trotzdem nachgeholt, weil die CREATE-Bedingung
+          // in gcal-sync.js auf fehlende gcalId prüft (nicht nur auf "nicht im alten Stand").
+          lastSyncedEvents.current = patched;
           return;
         }
         setEvents(patched);
