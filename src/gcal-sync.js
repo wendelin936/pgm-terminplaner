@@ -134,11 +134,15 @@ export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
     }
   }
 
-  // UPDATE: in beiden, event geändert
+  // UPDATE: in beiden, event geändert ODER auf einen anderen Tag verschoben.
+  // WICHTIG: Das Datum steckt im Key (dateKey), nicht in den Event-Feldern. Ein reiner
+  // Datumswechsel ändert keines der von eventChanged() geprüften Felder — deshalb muss der
+  // Key-Vergleich separat erfolgen, sonst wird die Verschiebung nicht zu Google synchronisiert.
   for (const [localId, entry] of newMap) {
     const oldEntry = oldMap.get(localId);
     const gcalId = newGcalIds.get(localId)?.gcalId;
-    if (oldEntry && gcalId && eventChanged(oldEntry.event, entry.event)) {
+    const movedToNewDate = oldEntry && oldEntry.key !== entry.key;
+    if (oldEntry && gcalId && (movedToNewDate || eventChanged(oldEntry.event, entry.event))) {
       ops.push({
         op: "update",
         localId,
