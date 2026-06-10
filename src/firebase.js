@@ -30,7 +30,32 @@ export async function saveData(key, value) {
     await setDoc(doc(db, "config", key), { value, updatedAt: new Date().toISOString() });
   } catch (e) {
     console.error("Firebase save error:", e);
+    // Fehler weiterwerfen, damit der Aufrufer reagieren kann (z.B. Fehler-Toast im Admin).
+    // Aufrufer, die Fehler bewusst ignorieren wollen, wrappen mit try/catch bzw. .catch().
+    throw e;
   }
+}
+
+// Promise, das auflöst sobald Firebase den Auth-Zustand wiederhergestellt hat
+// (beim Seitenladen ist auth.currentUser anfangs null, auch wenn ein Admin eingeloggt ist).
+let _authReadyPromise = null;
+export function authReady() {
+  if (!_authReadyPromise) {
+    _authReadyPromise = new Promise((resolve) => {
+      const unsub = onAuthStateChanged(auth, () => { unsub(); resolve(); });
+    });
+  }
+  return _authReadyPromise;
+}
+
+// Schreibt nur, wenn ein User eingeloggt ist (Admin). Für Migrations-/Seed-Writes
+// im öffentlichen Lade-Pfad: anonyme Besucher dürfen NIE schreiben — die Migration
+// holt dann eben der nächste eingeloggte Admin-Besuch nach (alle Migrationen sind idempotent).
+export async function saveDataIfAuthed(key, value) {
+  await authReady();
+  if (!auth.currentUser) return false;
+  await saveData(key, value);
+  return true;
 }
 
 // Realtime-Listener: bei jeder Änderung des Dokuments wird callback(value) aufgerufen.
