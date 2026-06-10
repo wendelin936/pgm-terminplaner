@@ -94,7 +94,10 @@ function eventChanged(a, b) {
   const fields = ["status", "type", "label", "name", "email", "phone", "guests",
     "startTime", "endTime", "allDay", "adminNote", "note",
     "contactName", "contactPhone", "groupName",
-    "tourGuide", "cakeCount", "coffeeCount"];
+    "tourGuide", "cakeCount", "coffeeCount",
+    // Diese Felder landen ebenfalls in der Google-Beschreibung (buildCalendarEvent im Worker)
+    // und müssen daher Updates auslösen:
+    "message", "cleaningFee", "price", "paymentStatus", "partialAmount"];
   for (const f of fields) {
     if ((a?.[f] ?? "") !== (b?.[f] ?? "")) return true;
   }
@@ -271,6 +274,38 @@ export async function syncEventsDiff(oldEvents, newEvents, onComplete) {
   if (onComplete) onComplete(stats);
 
   return anyPatched ? patched : null;
+}
+
+// ============================================================
+// EINZEL-EVENT-SYNC (manueller Re-Sync-Button im Admin)
+// Synct genau EINEN Termin zu Google — unabhängig vom Diff.
+// Dank Worker-Idempotenz (create dedupt via localId, update heilt 404)
+// räumt das auch Duplikate auf und repariert verlorene Verknüpfungen.
+// Rückgabe: { ok, gcalId?, deduped?, reason? }
+// ============================================================
+export async function forceSyncSingleEvent(ev, dateKey) {
+  if (!ev || !ev.localId) return { ok: false, reason: "Termin hat keine Sync-ID (einmal normal speichern)" };
+  if (ev.isSeries || ev.seriesId) return { ok: false, reason: "Serientermine werden nicht synchronisiert" };
+  if (ev.status !== "booked" && ev.status !== "blocked") return { ok: false, reason: "Nur gebuchte oder interne Termine werden synchronisiert" };
+  const token = await getAuthToken();
+  if (!token) return { ok: false, reason: "Nicht eingeloggt" };
+  // create statt update: der Worker prüft via localId, ob das Event schon existiert,
+  // aktualisiert es dann und löscht etwaige Duplikate — genau was der Button verspricht.
+  const ops = [{ op: "create", localId: ev.localId, dateKey, event: ev }];
+  try {
+    const res = await fetch(`${GCAL_WORKER_URL}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ ops }),
+    });
+    const data = await res.json();
+    if (!data.ok) return { ok: false, reason: data.error || "Sync fehlgeschlagen" };
+    const r = (data.results || [])[0];
+    if (!r || !r.ok) return { ok: false, reason: r?.error || "Sync fehlgeschlagen" };
+    return { ok: true, gcalId: r.gcalId || null, deduped: r.deduped || 0 };
+  } catch (e) {
+    return { ok: false, reason: "Netzwerkfehler — bitte erneut versuchen" };
+  }
 }
 
 // ============================================================
