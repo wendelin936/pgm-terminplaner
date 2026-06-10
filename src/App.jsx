@@ -259,6 +259,45 @@ function fmtMailDate(key) {
   return `${wd}, ${String(d).padStart(2,"0")}.${String(m).padStart(2,"0")}.${y}`;
 }
 
+// ============================================================
+// DRUCK/PDF-HELFER (Wochen- & Monatsübersicht)
+// ============================================================
+const PRINT_WEEKDAYS = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+const PRINT_WEEKDAYS_SHORT = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+const PRINT_MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+function p2(n){ return String(n).padStart(2,"0"); }
+function ymdKey(d){ return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; }
+function parseYmd(key){ const [y,m,dd] = String(key).split("-").map(Number); return new Date(y, m-1, dd); }
+// Montag der Woche, in der d liegt (ISO: Woche beginnt Montag)
+function mondayOf(d){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const off = (x.getDay()+6)%7; x.setDate(x.getDate()-off); return x; }
+function addDays(d, n){ const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate()+n); return x; }
+// ISO-Kalenderwoche
+function isoWeek(d){
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (date.getUTCDay()+6)%7;
+  date.setUTCDate(date.getUTCDate()-dayNum+3);
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const fOff = (firstThursday.getUTCDay()+6)%7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate()-fOff+3);
+  return 1 + Math.round((date - firstThursday)/(7*24*3600*1000));
+}
+// Tage-Array für eine Woche (7) bzw. einen Monat (Mo-Raster, 4-6 Wochen)
+function weekDays(anchorKey){
+  const mon = mondayOf(parseYmd(anchorKey));
+  return Array.from({length:7}, (_,i) => { const dt = addDays(mon, i); return { key: ymdKey(dt), dateObj: dt, inMonth: true }; });
+}
+function monthGridDays(year, month){
+  const first = new Date(year, month, 1);
+  const gridStart = mondayOf(first);
+  const last = new Date(year, month+1, 0);
+  const gridEnd = addDays(mondayOf(last), 6);
+  const out = [];
+  for (let dt = gridStart; dt <= gridEnd; dt = addDays(dt, 1)) {
+    out.push({ key: ymdKey(dt), dateObj: new Date(dt), inMonth: dt.getMonth() === month });
+  }
+  return out;
+}
+
 // Vergleicht den Ausgangszustand (snap) eines gebuchten Gruppenbesuchs mit dem aktuellen (cur)
 // und liefert die geänderten Felder als [{label, from, to}] zurück.
 function diffGroupTour(snap, cur) {
@@ -1174,6 +1213,13 @@ export default function App() {
   const [showBackups, setShowBackups] = useState(false);
   const [backupsIndex, setBackupsIndex] = useState([]);
   const [openedBackup, setOpenedBackup] = useState(null); // { date, events }
+  // Druck/PDF: Wochen- bzw. Monatsübersicht
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [printMode, setPrintMode] = useState("week"); // "week" | "month"
+  const [printAnchor, setPrintAnchor] = useState(() => ymdKey(new Date())); // Bezugstag für die Woche
+  const [printYear, setPrintYear] = useState(() => new Date().getFullYear());
+  const [printMonth, setPrintMonth] = useState(() => new Date().getMonth()); // 0-11
+  const [printPayload, setPrintPayload] = useState(null); // gesetzt => Druck-Portal rendert + window.print()
   const [siteTheme, setSiteTheme] = useState(DEFAULT_THEME);
   const [adminTheme, setAdminTheme] = useState(DEFAULT_ADMIN_THEME);
   const [publicTheme, setPublicTheme] = useState(DEFAULT_PUBLIC_THEME);
@@ -1841,6 +1887,78 @@ export default function App() {
     return true;
   };
 
+  // Sammelt alle Termine (Events + Veranstaltungen) eines Tages für die Druckansicht,
+  // normalisiert auf eine einheitliche Struktur und sortiert (ganztägig zuerst, dann nach Uhrzeit).
+  const collectPrintItems = useCallback((key) => {
+    const items = [];
+    const ev = events[key];
+    if (ev && ev.status !== "deleted") {
+      const all = [ev, ...((ev.subEvents || []).filter(s => s && s.status !== "deleted"))];
+      all.forEach(s => {
+        if (!s || s.status === "deleted") return;
+        const et = eventTypes.find(t => t.id === s.type);
+        const color = s.status === "pending" ? BRAND.aprikot
+          : s.status === "blocked" ? BRAND.tuerkis
+          : (et?.color || BRAND.lila);
+        items.push({
+          kind: "event",
+          allDay: !!s.allDay,
+          start: s.startTime || "",
+          end: s.endTime || "",
+          title: s.label || et?.label || s.name || "Termin",
+          who: s.name || s.groupName || s.contactName || "",
+          guests: s.guests || "",
+          typeLabel: et?.label || "",
+          statusLabel: s.status === "pending" ? "Anfrage" : s.status === "blocked" ? "Intern" : "",
+          pending: s.status === "pending",
+          blocked: s.status === "blocked",
+          color,
+        });
+      });
+    }
+    (veranstaltungDateMap[key] || []).forEach(({ veranstaltung, dateEntry }) => {
+      items.push({
+        kind: "veranstaltung",
+        allDay: !!dateEntry.allDay,
+        start: dateEntry.startTime || "",
+        end: dateEntry.endTime || "",
+        title: veranstaltung.title || "Veranstaltung",
+        who: "",
+        guests: "",
+        typeLabel: "Veranstaltung",
+        statusLabel: "",
+        color: BRAND.lila,
+        isVeranstaltung: true,
+      });
+    });
+    items.sort((a, b) => {
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      return (a.start || "").localeCompare(b.start || "");
+    });
+    return items;
+  }, [events, eventTypes, veranstaltungDateMap]);
+
+  // Anzahl Termine im aktuell gewählten Druck-Zeitraum (nur berechnen wenn Dialog offen)
+  const printItemCount = showPrintDialog
+    ? (printMode === "week" ? weekDays(printAnchor) : monthGridDays(printYear, printMonth)).reduce((sum, d) => sum + (d.inMonth ? collectPrintItems(d.key).length : 0), 0)
+    : 0;
+
+  // Druck auslösen: Payload setzen (Portal rendert), kurz warten (Render + Logo), dann Druckdialog.
+  const triggerPrint = useCallback((payload) => {
+    setShowPrintDialog(false);
+    setPrintPayload(payload);
+    setTimeout(() => {
+      const cleanup = () => { window.removeEventListener("afterprint", cleanup); setPrintPayload(null); };
+      window.addEventListener("afterprint", cleanup);
+      try { window.print(); } catch (e) { console.warn("[print] window.print fehlgeschlagen", e); }
+      // Fallback, falls afterprint nicht feuert
+      setTimeout(() => { window.removeEventListener("afterprint", cleanup); setPrintPayload(p => (p === payload ? null : p)); }, 120000);
+    }, 400);
+  }, []);
+
+  // Weißes Logo fürs Druck-Kopfband vorladen, sobald der Druck-Dialog geöffnet wird
+  useEffect(() => { if (showPrintDialog) { const img = new Image(); img.src = "/assets/PGM_Logo_Weiss_RGB_3.svg"; } }, [showPrintDialog]);
+
   const handleDateClick = (day) => {
     if (!day) return;
     const key = dateKey(year, month, day);
@@ -2342,6 +2460,10 @@ export default function App() {
                   label:"Veranstaltungen", full:"Veranstaltungen verwalten", color:"#5dd4cd", onClick:() => setShowVeranstaltungenAdmin(true),
                   icon:<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><rect x="2.5" y="3.5" width="11" height="10" rx="1.4"/><path d="M2.5 6.5h11M5.5 1.5v3M10.5 1.5v3"/></svg>
                 },
+                ...(winW < 520 ? [] : [{
+                  label:"Drucken", full:"Wochen-/Monatsübersicht als PDF", color:BRAND.lila, onClick:() => setShowPrintDialog(true),
+                  icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                }]),
                 ...(winW < 520 ? [] : [{
                   label:"Backups", full:"Backups anzeigen", color:BRAND.mintgruen, onClick:() => setShowBackups(true),
                   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
@@ -4798,6 +4920,188 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Druck/PDF-Dialog: Wochen- bzw. Monatsübersicht wählen */}
+      {showPrintDialog && (() => {
+        const mon = mondayOf(parseYmd(printAnchor));
+        const sun = addDays(mon, 6);
+        const sameM = mon.getMonth() === sun.getMonth();
+        const weekRange = `${mon.getDate()}.${sameM ? "" : " " + PRINT_MONTHS[mon.getMonth()].slice(0,3) + "."} – ${sun.getDate()}. ${PRINT_MONTHS[sun.getMonth()].slice(0,3)}. ${sun.getFullYear()}`;
+        const stepWeek = (n) => setPrintAnchor(ymdKey(addDays(mon, n*7)));
+        const stepMonth = (n) => { let m = printMonth + n, y = printYear; if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; } setPrintMonth(m); setPrintYear(y); };
+        const navBtn = (onClick, dir) => (
+          <button onClick={onClick} style={{ width:34, height:34, borderRadius:8, border:"1px solid #e0d8de", background:"#fff", color:BRAND.aubergine, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">{dir === "prev" ? <polyline points="15 18 9 12 15 6"/> : <polyline points="9 18 15 12 9 6"/>}</svg>
+          </button>
+        );
+        return (
+          <div onClick={() => setShowPrintDialog(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(5px)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:460, boxShadow:"0 24px 60px rgba(0,0,0,0.25)", overflow:"hidden" }}>
+              <div style={{ background:BRAND.aubergine, color:"#fff", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  <span style={{ fontSize:16, fontWeight:700 }}>Übersicht drucken</span>
+                </div>
+                <button onClick={() => setShowPrintDialog(false)} style={{ background:"rgba(255,255,255,0.15)", border:"none", width:30, height:30, borderRadius:8, color:"#fff", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+              </div>
+              <div style={{ padding:"20px" }}>
+                <div style={{ display:"flex", gap:8, marginBottom:18 }}>
+                  {[["week","Woche"],["month","Monat"]].map(([m,l]) => (
+                    <button key={m} onClick={() => setPrintMode(m)} style={{ flex:1, padding:"10px 0", borderRadius:9, border:`1.5px solid ${printMode===m?BRAND.lila:"#e0d8de"}`, background: printMode===m?BRAND.lila:"#fff", color: printMode===m?"#fff":"#666", fontSize:14, fontWeight:600, cursor:"pointer", transition:"all .15s" }}>{l}</button>
+                  ))}
+                </div>
+                <div style={{ background:"#faf7f9", border:"1px solid #efe9ef", borderRadius:12, padding:"14px 14px 16px" }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                    {navBtn(() => printMode==="week"?stepWeek(-1):stepMonth(-1), "prev")}
+                    <div style={{ textAlign:"center", flex:1, minWidth:0 }}>
+                      {printMode === "week" ? (
+                        <>
+                          <div style={{ fontSize:11, fontWeight:700, color:BRAND.lila, textTransform:"uppercase", letterSpacing:0.6 }}>Kalenderwoche {isoWeek(mon)}</div>
+                          <div style={{ fontSize:17, fontWeight:700, color:BRAND.aubergine, marginTop:2 }}>{weekRange}</div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ fontSize:11, fontWeight:700, color:BRAND.lila, textTransform:"uppercase", letterSpacing:0.6 }}>Monat</div>
+                          <div style={{ fontSize:19, fontWeight:700, color:BRAND.aubergine, marginTop:2 }}>{PRINT_MONTHS[printMonth]} {printYear}</div>
+                        </>
+                      )}
+                    </div>
+                    {navBtn(() => printMode==="week"?stepWeek(1):stepMonth(1), "next")}
+                  </div>
+                  {printMode === "week" && (
+                    <div style={{ marginTop:12, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                      <span style={{ fontSize:12, color:"#888" }}>Tag wählen:</span>
+                      <input type="date" value={printAnchor} onChange={e => e.target.value && setPrintAnchor(e.target.value)} style={{ border:"1px solid #e0d8de", borderRadius:7, padding:"5px 8px", fontSize:13, fontFamily:"inherit", color:"#444" }} />
+                    </div>
+                  )}
+                  <div style={{ marginTop:12, textAlign:"center", fontSize:13, color: printItemCount>0 ? BRAND.moosgruen : "#999", fontWeight:600 }}>
+                    {printItemCount === 0 ? "Keine Termine in diesem Zeitraum" : `${printItemCount} ${printItemCount===1?"Termin":"Termine"} in diesem Zeitraum`}
+                  </div>
+                </div>
+                <div style={{ marginTop:14, fontSize:11.5, color:"#999", lineHeight:1.45, textAlign:"center" }}>
+                  A4 Querformat · im Druckdialog <b style={{ color:"#777" }}>„Als PDF speichern"</b> wählen. Falls Farben fehlen: <b style={{ color:"#777" }}>„Hintergrundgrafiken"</b> aktivieren.
+                </div>
+                <div style={{ display:"flex", gap:10, marginTop:18 }}>
+                  <button onClick={() => setShowPrintDialog(false)} style={{ flex:1, padding:"12px 0", borderRadius:10, border:"1px solid #e0d8de", background:"#fff", color:"#777", fontSize:14, fontWeight:600, cursor:"pointer" }}>Abbrechen</button>
+                  <button onClick={() => triggerPrint({ mode: printMode, anchor: printAnchor, year: printYear, month: printMonth })} style={{ flex:2, padding:"12px 0", borderRadius:10, border:"none", background:BRAND.lila, color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    PDF erstellen
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Druck-Portal: rendert die A4-Querformat-Ansicht (nur sichtbar im Druck) und löst window.print() aus */}
+      {printPayload && createPortal((() => {
+        const days = printPayload.mode === "week" ? weekDays(printPayload.anchor) : monthGridDays(printPayload.year, printPayload.month);
+        const todayKey = ymdKey(new Date());
+        let title, kicker;
+        if (printPayload.mode === "week") {
+          const mon = mondayOf(parseYmd(printPayload.anchor));
+          const sun = addDays(mon, 6);
+          const sameM = mon.getMonth() === sun.getMonth();
+          kicker = `Wochenübersicht · KW ${isoWeek(mon)}`;
+          title = `${mon.getDate()}.${sameM ? "" : " " + PRINT_MONTHS[mon.getMonth()]} – ${sun.getDate()}. ${PRINT_MONTHS[sun.getMonth()]} ${sun.getFullYear()}`;
+        } else {
+          kicker = "Monatsübersicht";
+          title = `${PRINT_MONTHS[printPayload.month]} ${printPayload.year}`;
+        }
+        const n = new Date();
+        const created = `${p2(n.getDate())}.${p2(n.getMonth()+1)}.${n.getFullYear()}`;
+        const css = `
+          @media screen { #pgm-print-root { display:none; } }
+          @media print {
+            @page { size: A4 landscape; margin: 8mm; }
+            html, body { background:#fff !important; margin:0 !important; padding:0 !important; }
+            body > *:not(#pgm-print-root) { display:none !important; }
+            #pgm-print-root { display:block !important; }
+          }
+          #pgm-print-root { -webkit-print-color-adjust:exact; print-color-adjust:exact; color:#2b2b2b; font-family:'Acumin Pro','Segoe UI',system-ui,sans-serif; line-height:1.25; padding:2px; }
+          #pgm-print-root * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+          #pgm-print-root .pgm-pt-h1 { font-family:'TAN Gardenia','Acumin Pro',serif; font-weight:400; }
+          #pgm-print-root .pgm-pt-week { display:flex; gap:5px; align-items:stretch; }
+          #pgm-print-root .pgm-pt-col { flex:1 1 0; min-width:0; border:1px solid #e2dbe0; border-radius:6px; overflow:hidden; display:flex; flex-direction:column; }
+          #pgm-print-root .pgm-pt-ev, #pgm-print-root .pgm-pt-cell, #pgm-print-root .pgm-pt-chip { break-inside:avoid; }
+        `;
+        return (
+          <div id="pgm-print-root">
+            <style>{css}</style>
+            <div style={{ background:BRAND.aubergine, color:"#fff", borderRadius:8, padding:"12px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:9, gap:16 }}>
+              <img src="/assets/PGM_Logo_Weiss_RGB_3.svg" alt="Paradiesgarten Mattuschka" style={{ height:38, flexShrink:0 }} onError={e => { e.currentTarget.style.display = "none"; }} />
+              <div style={{ textAlign:"right" }}>
+                <div style={{ fontSize:11, letterSpacing:1, textTransform:"uppercase", opacity:0.85 }}>{kicker}</div>
+                <div className="pgm-pt-h1" style={{ fontSize:24, lineHeight:1.05, textTransform:"uppercase", marginTop:2 }}>{title}</div>
+              </div>
+            </div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:14, fontSize:9, color:"#777", marginBottom:8, alignItems:"center" }}>
+              <span><span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:BRAND.aprikot, marginRight:4, verticalAlign:"middle" }} />Anfrage (offen)</span>
+              <span><span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:BRAND.tuerkis, marginRight:4, verticalAlign:"middle" }} />Interner Termin</span>
+              <span><span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:BRAND.lila, marginRight:4, verticalAlign:"middle" }} />Veranstaltung (V)</span>
+              <span style={{ color:"#aaa" }}>Gebuchte Termine in der jeweiligen Kategoriefarbe.</span>
+            </div>
+            {printPayload.mode === "week" ? (
+              <div className="pgm-pt-week">
+                {days.map((d, i) => {
+                  const items = collectPrintItems(d.key);
+                  const weekend = i >= 5;
+                  const isToday = d.key === todayKey;
+                  return (
+                    <div className="pgm-pt-col" key={d.key}>
+                      <div style={{ background: isToday ? BRAND.lila : (weekend ? "#f3eef5" : "#faf7f9"), borderBottom:`2px solid ${BRAND.aubergine}`, padding:"5px 8px" }}>
+                        <div style={{ fontSize:9.5, fontWeight:700, color: isToday ? "#fff" : BRAND.aubergine, textTransform:"uppercase", letterSpacing:0.5 }}>{PRINT_WEEKDAYS[i]}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color: isToday ? "#fff" : "#2b2b2b" }}>{d.dateObj.getDate()}. {PRINT_MONTHS[d.dateObj.getMonth()].slice(0,3)}</div>
+                      </div>
+                      <div style={{ padding:"5px 5px 7px", display:"flex", flexDirection:"column", gap:4, flex:1 }}>
+                        {items.length === 0
+                          ? <div style={{ fontSize:9, color:"#c9c9c9", fontStyle:"italic", textAlign:"center", marginTop:6 }}>–</div>
+                          : items.map((it, j) => (
+                            <div className="pgm-pt-ev" key={j} style={{ borderLeft:`3px solid ${it.color}`, background:`${it.color}12`, borderRadius:4, padding:"3px 5px" }}>
+                              <div style={{ fontSize:8.5, fontWeight:700, color:it.color }}>
+                                {it.allDay ? "GANZTÄGIG" : `${it.start}–${it.end}`}{it.isVeranstaltung ? " · V" : ""}{it.pending ? " · ANFRAGE" : ""}{it.blocked ? " · INTERN" : ""}
+                              </div>
+                              <div style={{ fontSize:9.5, fontWeight:600, color:"#222" }}>{it.title}</div>
+                              {(it.who || it.guests) && <div style={{ fontSize:8.5, color:"#777" }}>{[it.who, it.guests && `${it.guests} Gäste`].filter(Boolean).join(" · ")}</div>}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1, background:"#e2dbe0", border:"1px solid #e2dbe0", borderRadius:6, overflow:"hidden" }}>
+                {PRINT_WEEKDAYS_SHORT.map((wd, i) => (
+                  <div key={"h"+i} style={{ background:BRAND.aubergine, color:"#fff", fontSize:10, fontWeight:700, textAlign:"center", padding:"5px 0", letterSpacing:0.5 }}>{wd}</div>
+                ))}
+                {days.map((d, i) => {
+                  const items = d.inMonth ? collectPrintItems(d.key) : [];
+                  const weekend = (i % 7) >= 5;
+                  const isToday = d.key === todayKey;
+                  return (
+                    <div className="pgm-pt-cell" key={d.key} style={{ background: !d.inMonth ? "#f6f3f6" : (isToday ? `${BRAND.lila}14` : "#fff"), minHeight:74, padding:"3px 4px 4px" }}>
+                      <div style={{ fontSize:10, fontWeight:700, textAlign:"right", color: !d.inMonth ? "#cfc7cf" : (weekend ? BRAND.lila : "#666"), marginBottom:2 }}>{d.dateObj.getDate()}</div>
+                      {items.map((it, j) => (
+                        <div key={j} className="pgm-pt-chip" style={{ display:"flex", alignItems:"baseline", gap:3, fontSize:8, lineHeight:1.3, marginBottom:1.5 }}>
+                          <span style={{ width:5, height:5, borderRadius:"50%", background:it.color, flexShrink:0, alignSelf:"center" }} />
+                          {!it.allDay && <span style={{ fontWeight:700, color:it.color, whiteSpace:"nowrap", flexShrink:0 }}>{it.start}</span>}
+                          <span style={{ color:"#333", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{it.title}{it.isVeranstaltung ? " (V)" : ""}{it.pending ? " *" : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ marginTop:10, paddingTop:6, borderTop:"1px solid #e2dbe0", display:"flex", justifyContent:"space-between", fontSize:8, color:"#999" }}>
+              <span>Paradiesgarten Mattuschka · Emmersdorfer Straße 86 · 9061 Klagenfurt am Wörthersee · www.derparadiesgarten.at</span>
+              <span>Erstellt am {created}</span>
+            </div>
+          </div>
+        );
+      })(), document.body)}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
