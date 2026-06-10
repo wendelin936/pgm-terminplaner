@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { loadData, saveData, saveDataIfAuthed, subscribeData, adminLogin, adminLogout, onAuthChange, getIdToken } from "./firebase.js";
-import { syncEventsDiff, ensureLocalIds, syncVeranstaltungenDiff, setGcalTokenProvider } from "./gcal-sync.js";
+import { syncEventsDiff, ensureLocalIds, syncVeranstaltungenDiff, setGcalTokenProvider, forceSyncSingleEvent } from "./gcal-sync.js";
 
 // Token-Provider für gcal-sync beim Modul-Load einmalig registrieren.
 // Ohne gültigen Firebase-ID-Token feuert gcal-sync keinen Request.
@@ -1803,6 +1803,39 @@ export default function App() {
   const saveFailToast = useCallback((was) => {
     setToast({ msg: "⚠ Speichern fehlgeschlagen", detail: `${was} wurde NICHT gespeichert. Internet prüfen und erneut versuchen.`, color: "#c44" });
   }, []);
+
+  // Manueller Google-Kalender-Re-Sync für einen einzelnen Termin (Button auf der Termin-Karte).
+  // Dank Worker-Idempotenz repariert das auch verlorene Verknüpfungen und räumt Duplikate auf.
+  const [gcalResyncBusy, setGcalResyncBusy] = useState(null); // "dateKey:subIdx" des laufenden Syncs
+  const handleForceGcalSync = useCallback(async (dateKey, subIdx) => {
+    const busyKey = `${dateKey}:${subIdx}`;
+    if (gcalResyncBusy) return; // nie zwei parallel
+    // localIds sicherstellen (für Termine, die noch nie gespeichert/gesynct wurden)
+    const working = ensureLocalIds(events);
+    const target = subIdx >= 0 ? working[dateKey]?.subEvents?.[subIdx] : working[dateKey];
+    if (!target) return;
+    setGcalResyncBusy(busyKey);
+    const res = await forceSyncSingleEvent(target, dateKey);
+    setGcalResyncBusy(null);
+    if (!res.ok) {
+      setToast({ msg: "⚠ Google-Sync fehlgeschlagen", detail: res.reason || "Bitte erneut versuchen.", actionColor: "#c44" });
+      return;
+    }
+    // Neue/bestätigte googleEventId in State + Firestore eintragen
+    const updated = structuredClone(working);
+    const t = subIdx >= 0 ? updated[dateKey]?.subEvents?.[subIdx] : updated[dateKey];
+    if (t && res.gcalId) t.googleEventId = res.gcalId;
+    setEvents(updated);
+    lastSyncedEvents.current = updated;
+    const j = JSON.stringify(updated);
+    lastSavedEventsJson.current = j;
+    saveData("events", j).catch(() => saveFailToast("Google-Verknüpfung"));
+    setToast({
+      msg: "✓ Im Google Kalender eingetragen",
+      detail: res.deduped > 0 ? `${res.deduped} Duplikat${res.deduped > 1 ? "e" : ""} in Google entfernt` : "Termin ist aktuell und verknüpft",
+      actionColor: BRAND.moosgruen,
+    });
+  }, [events, gcalResyncBusy, saveFailToast]);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch { saveFailToast("Preise/Typen"); } }, [saveFailToast]);
 
   const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch { saveFailToast("Design"); } }, [saveFailToast]);
@@ -6752,7 +6785,7 @@ export default function App() {
                             onMouseEnter={e => { e.currentTarget.style.background = "#f3eef5"; }}
                             onMouseLeave={e => { e.currentTarget.style.background = "#f9f7fa"; }}
                             style={{ background:"#f9f7fa", borderRadius:8, padding:"12px 14px", marginBottom:8, borderLeft:`3px solid ${subColor}`, position:"relative", cursor:"pointer", transition:"background .15s" }}>
-                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4, gap:8 }}>
+                            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:4, gap:8 }}>
                               <div style={{ flex:1, minWidth:0 }}>
                                 <span style={{ fontSize:12, fontWeight:700, color:subColor, textTransform:"uppercase", letterSpacing:0.5 }}>{sub.isSeries ? "Serie" : sub.status === "booked" ? "Gebucht" : sub.status === "blocked" ? "Intern" : sub.status === "pending" ? "Anfrage" : ""}</span>
                                 {sub.label && <span style={{ fontSize:14, color:BRAND.aubergine, fontWeight:500, marginLeft:8 }}>{sub.label}</span>}
@@ -6766,6 +6799,33 @@ export default function App() {
                                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3z" stroke={BRAND.aprikot} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
                                 </button>
                               )}
+                              {/* Google-Kalender-Re-Sync: nur für gebuchte/interne Termine (keine Serien, keine Anfragen) */}
+                              {!subIsPending && !sub.isSeries && !sub.seriesId && (sub.status === "booked" || sub.status === "blocked") && (() => {
+                                const syncedToGoogle = !!sub.googleEventId;
+                                const busy = gcalResyncBusy === `${selectedDate}:${sub._isMain ? -1 : subIndex}`;
+                                return (
+                                  <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2, flexShrink:0 }}>
+                                    <button onClick={(e) => { e.stopPropagation(); handleForceGcalSync(selectedDate, sub._isMain ? -1 : subIndex); }}
+                                      disabled={busy}
+                                      title={syncedToGoogle ? "Erneut mit Google Kalender synchronisieren (repariert auch Duplikate)" : "Jetzt in den Google Kalender eintragen"}
+                                      onMouseEnter={e => { if (!busy) { e.currentTarget.style.background = `${BRAND.lila}15`; e.currentTarget.style.borderColor = `${BRAND.lila}60`; } }}
+                                      onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e0d8de"; }}
+                                      style={{ background:"#fff", border:"1px solid #e0d8de", borderRadius:5, padding:"4px 6px", cursor: busy ? "wait" : "pointer", display:"flex", alignItems:"center", transition:"all .15s", opacity: busy ? 0.5 : 1 }}>
+                                      {/* Kalender mit Sync-Pfeilen */}
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={syncedToGoogle ? BRAND.moosgruen : BRAND.lila} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="4" width="18" height="17" rx="2"/>
+                                        <path d="M8 2v4M16 2v4M3 9h18"/>
+                                        <path d="M14.5 13.2a3 3 0 0 0-4.9 1"/>
+                                        <path d="M9.5 16.8a3 3 0 0 0 4.9-1"/>
+                                        <path d="M9.4 12.4v1.9h1.9M14.6 17.6v-1.9h-1.9"/>
+                                      </svg>
+                                    </button>
+                                    <span style={{ fontSize:8.5, color: busy ? "#aaa" : (syncedToGoogle ? BRAND.moosgruen : "#999"), fontWeight:600, letterSpacing:0.2, whiteSpace:"nowrap" }}>
+                                      {busy ? "Synchronisiere…" : syncedToGoogle ? "Termin bereits eingetragen" : "Im Google Kalender eintragen"}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <div style={{ fontSize:12, color:"#888" }}><ClockIcon color="#bbb" />{sub.slotLabel || `${sub.startTime} – ${sub.endTime}`}{sub.allDay ? " · Ganztägig" : ""}</div>
                             {sub.name && <div style={{ fontSize:13, color:BRAND.aubergine, marginTop:4, fontWeight:500 }}>👤 {sub.name}</div>}
