@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { loadData, saveData, subscribeData, adminLogin, adminLogout, onAuthChange, getIdToken } from "./firebase.js";
+import { loadData, saveData, saveDataIfAuthed, subscribeData, adminLogin, adminLogout, onAuthChange, getIdToken } from "./firebase.js";
 import { syncEventsDiff, ensureLocalIds, syncVeranstaltungenDiff, setGcalTokenProvider } from "./gcal-sync.js";
 
 // Token-Provider für gcal-sync beim Modul-Load einmalig registrieren.
@@ -1334,7 +1334,7 @@ export default function App() {
     }
     return unsub;
   }, []);
-  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveData("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveData("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveData("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveData("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; const base = { publicPrice: sv.publicPrice || "", publicPriceLabel: sv.publicPriceLabel || "Eintritt", kaertnerCardFree: !!sv.kaertnerCardFree, adminPrice: sv.adminPrice || "", adminPaymentStatus: sv.adminPaymentStatus || "open", adminPartialAmount: sv.adminPartialAmount || "", imagePosition: sv.imagePosition || "50% 50%", contactEmail: sv.contactEmail || "" }; if (!d) return { ...sv, ...base, imageKey: correctedKey }; return { ...sv, ...base, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); lastSyncedVeranstaltungen.current = merged; if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveData("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { lastSyncedVeranstaltungen.current = DEFAULT_VERANSTALTUNGEN; try { await saveData("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
+  useEffect(() => { (async () => { try { const evData = await loadData("events"); if (evData) { const parsed = JSON.parse(evData); const hydrated = ensureLocalIds(parsed); setEvents(hydrated); lastSyncedEvents.current = hydrated; if (JSON.stringify(hydrated) !== JSON.stringify(parsed)) { try { await saveDataIfAuthed("events", JSON.stringify(hydrated)); } catch {} } } else { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; try { await saveDataIfAuthed("events", JSON.stringify(SEED_EVENTS)); } catch {} } } catch { setEvents(SEED_EVENTS); lastSyncedEvents.current = SEED_EVENTS; } try { const tyData = await loadData("types"); if (tyData) { const saved = JSON.parse(tyData); const merged = DEFAULT_TYPES.map(d => { const s = saved.find(x => x.id === d.id); const m = s ? { ...d, ...s } : d; if (m.id === "gruppenfuehrung" && m.label === "Gruppenführung") m.label = "Gruppenbesuch"; return m; }); setEventTypes(merged); /* Falls Migration stattgefunden hat, zurück in Firestore speichern */ if (JSON.stringify(merged.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice}))) !== JSON.stringify(saved.map(({id,label,coffeePrice,cakePrice})=>({id,label,coffeePrice,cakePrice})))) { try { await saveDataIfAuthed("types", JSON.stringify(merged)); } catch {} } } } catch {} try { const thData = await loadData("theme"); if (thData) { const saved = JSON.parse(thData); setSiteTheme({ ...DEFAULT_THEME, ...saved }); } } catch {} try { const atData = await loadData("adminTheme"); if (atData) { const saved = JSON.parse(atData); setAdminTheme({ ...DEFAULT_ADMIN_THEME, ...saved }); } } catch {} try { const ptData = await loadData("publicTheme"); if (ptData) { const saved = JSON.parse(ptData); const migrated = { ...DEFAULT_PUBLIC_THEME, ...saved }; if (migrated.pageTitle === "Was tut sich im Garten") { migrated.pageTitle = "Was tut sich im Paradiesgarten"; try { await saveDataIfAuthed("publicTheme", JSON.stringify(migrated)); } catch {} } setPublicTheme(migrated); } } catch {} try { const biData = await loadData("backups-index"); if (biData) { setBackupsIndex(JSON.parse(biData)); } } catch {} try { const vData = await loadData("veranstaltungen"); if (vData) { const saved = JSON.parse(vData); if (Array.isArray(saved) && saved.length) { const merged = saved.map(sv => { const d = DEFAULT_VERANSTALTUNGEN.find(x => x.id === sv.id); const correctedKey = sv.imageKey && VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] ? VERANSTALTUNG_IMAGE_CORRECTIONS[sv.imageKey] : sv.imageKey; const base = { publicPrice: sv.publicPrice || "", publicPriceLabel: sv.publicPriceLabel || "Eintritt", kaertnerCardFree: !!sv.kaertnerCardFree, adminPrice: sv.adminPrice || "", adminPaymentStatus: sv.adminPaymentStatus || "open", adminPartialAmount: sv.adminPartialAmount || "", imagePosition: sv.imagePosition || "50% 50%", contactEmail: sv.contactEmail || "" }; if (!d) return { ...sv, ...base, imageKey: correctedKey }; return { ...sv, ...base, imageKey: (correctedKey && correctedKey.trim()) ? correctedKey : d.imageKey, iconPattern: sv.iconPattern || d.iconPattern || "yoga", openingHours: sv.openingHours || DEFAULT_OPENING_HOURS }; }); setVeranstaltungen(merged); lastSyncedVeranstaltungen.current = merged; if (JSON.stringify(merged) !== JSON.stringify(saved)) { try { await saveDataIfAuthed("veranstaltungen", JSON.stringify(merged)); } catch {} } } } else { lastSyncedVeranstaltungen.current = DEFAULT_VERANSTALTUNGEN; try { await saveDataIfAuthed("veranstaltungen", JSON.stringify(DEFAULT_VERANSTALTUNGEN)); } catch {} } } catch {} setLoading(false); })(); }, []);
 
   // ============================================================
   // REALTIME-LISTENER für Multi-Device-Sync
@@ -1654,6 +1654,7 @@ export default function App() {
     } catch (err) {
       console.error("[saveEvents] saveData hat fehlgeschlagen:", err);
       console.error("[saveEvents] Wahrscheinlich hindern die Firestore-Rules das Schreiben. Bitte Rules in Firebase Console prüfen.");
+      setToast({ msg: "⚠ Speichern fehlgeschlagen", detail: "Termine wurden NICHT in der Datenbank gespeichert. Internet prüfen, neu laden und erneut versuchen.", color: "#c44" });
     }
     // Google Calendar Sync läuft im Hintergrund silent — kein Toast mehr bei jeder Änderung.
     // Toasts gibt es nur noch bei Bestätigen, Herabstufen oder Löschen (siehe handleAdminAction / handleAdminSave).
@@ -1798,18 +1799,22 @@ export default function App() {
   // Ref auf saveEvents für rekursive Re-Syncs (nach abgeschlossenem laufenden Sync)
   const saveEventsRef = useRef(null);
   useEffect(() => { saveEventsRef.current = saveEvents; }, [saveEvents]);
-  const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch {} }, []);
+  // Gemeinsamer Fehler-Toast für fehlgeschlagene Firestore-Writes
+  const saveFailToast = useCallback((was) => {
+    setToast({ msg: "⚠ Speichern fehlgeschlagen", detail: `${was} wurde NICHT gespeichert. Internet prüfen und erneut versuchen.`, color: "#c44" });
+  }, []);
+  const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch { saveFailToast("Preise/Typen"); } }, [saveFailToast]);
 
-  const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch {} }, []);
-  const saveAdminTheme = useCallback(async (updated) => { setAdminTheme(updated); try { await saveData("adminTheme", JSON.stringify(updated)); } catch {} }, []);
-  const savePublicTheme = useCallback(async (updated) => { setPublicTheme(updated); try { await saveData("publicTheme", JSON.stringify(updated)); } catch {} }, []);
+  const saveTheme = useCallback(async (updated) => { setSiteTheme(updated); try { await saveData("theme", JSON.stringify(updated)); } catch { saveFailToast("Design"); } }, [saveFailToast]);
+  const saveAdminTheme = useCallback(async (updated) => { setAdminTheme(updated); try { await saveData("adminTheme", JSON.stringify(updated)); } catch { saveFailToast("Admin-Design"); } }, [saveFailToast]);
+  const savePublicTheme = useCallback(async (updated) => { setPublicTheme(updated); try { await saveData("publicTheme", JSON.stringify(updated)); } catch { saveFailToast("Veranstaltungsseiten-Design"); } }, [saveFailToast]);
   const saveVeranstaltungen = useCallback(async (updated) => {
     const oldSnapshot = lastSyncedVeranstaltungen.current || [];
     lastSyncedVeranstaltungen.current = updated;
     setVeranstaltungen(updated);
     const updatedJson = JSON.stringify(updated);
     lastSavedVeranstaltungenJson.current = updatedJson;
-    try { await saveData("veranstaltungen", updatedJson); } catch {}
+    try { await saveData("veranstaltungen", updatedJson); } catch { saveFailToast("Veranstaltungen"); }
     // Google Calendar Sync im Hintergrund; wenn Rueckgabe googleEventIds patched hat, zurueckschreiben
     syncVeranstaltungenDiff(oldSnapshot, updated).then(patched => {
       if (patched) {
@@ -1817,7 +1822,7 @@ export default function App() {
         setVeranstaltungen(patched);
         const patchedJson = JSON.stringify(patched);
         lastSavedVeranstaltungenJson.current = patchedJson;
-        try { saveData("veranstaltungen", patchedJson); } catch {}
+        saveData("veranstaltungen", patchedJson).catch(() => {});
       }
     }).catch(() => {});
   }, []);
