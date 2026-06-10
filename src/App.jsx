@@ -1830,11 +1830,7 @@ export default function App() {
     const j = JSON.stringify(updated);
     lastSavedEventsJson.current = j;
     saveData("events", j).catch(() => saveFailToast("Google-Verknüpfung"));
-    setToast({
-      msg: "✓ Im Google Kalender eingetragen",
-      detail: res.deduped > 0 ? `${res.deduped} Duplikat${res.deduped > 1 ? "e" : ""} in Google entfernt` : "Termin ist aktuell und verknüpft",
-      actionColor: BRAND.moosgruen,
-    });
+    // Kein Erfolgs-Toast — der Status-Text am Termin ("Termin bereits eingetragen") ist Feedback genug.
   }, [events, gcalResyncBusy, saveFailToast]);
   const saveTypes = useCallback(async (updated) => { setEventTypes(updated); try { await saveData("types", JSON.stringify(updated)); } catch { saveFailToast("Preise/Typen"); } }, [saveFailToast]);
 
