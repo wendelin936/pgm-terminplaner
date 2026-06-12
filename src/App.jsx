@@ -1884,11 +1884,14 @@ export default function App() {
   // editingSubIndex nur beim Schließen des Modals zurücksetzen (nicht beim Öffnen!)
   useEffect(() => { if (modalView === null) { setEditingSubIndex(-1); setReminderPopup(null); setChipPopup(null); setAdminTab("details"); } }, [modalView]);
   // Beim Öffnen des Admin-Modals: Dashboard-Chips als Übersicht zeigen, Editoren sind initial geschlossen
+  // Nachricht-vom-Kunden-Feld: ausklappbar (mobil ist der Resize-Griff nicht bedienbar)
+  const [msgExpanded, setMsgExpanded] = useState(false);
   useEffect(() => {
     if (modalView !== "admin") return;
     setStatusCollapsed(true);
     setTimeCollapsed(true);
     setTypeSelectExpanded(false);
+    setMsgExpanded(false);
   }, [modalView, selectedDate]);
 
   // Autosave wurde entfernt: Speichern erfolgt ausschließlich bewusst über den
@@ -5584,11 +5587,20 @@ export default function App() {
                   {/* Nachricht-Karte: nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat */}
                   {hasCustomerMessage && (
                     <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                      <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
-                        Nachricht vom Kunden
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:8 }}>
+                        <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600 }}>
+                          Nachricht vom Kunden
+                        </div>
+                        <button onClick={() => setMsgExpanded(x => !x)}
+                          style={{ display:"flex", alignItems:"center", gap:5, background:"#fff", border:`1px solid ${BRAND.lila}35`, borderRadius:7, padding:"5px 10px", fontSize:11, fontWeight:600, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
+                          {msgExpanded ? "Einklappen" : "Ganze Nachricht"}
+                          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: msgExpanded ? "rotate(180deg)" : "none", transition:"transform .15s" }}><polyline points="3 6 8 11 13 6"/></svg>
+                        </button>
                       </div>
                       <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
+                        ref={el => { if (el) { if (msgExpanded) { el.style.height = "auto"; el.style.height = (el.scrollHeight + 4) + "px"; } else { el.style.height = ""; } } }}
+                        onInput={e => { if (msgExpanded) { e.target.style.height = "auto"; e.target.style.height = (e.target.scrollHeight + 4) + "px"; } }}
+                        style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, maxHeight: msgExpanded ? "none" : 110, overflowY: msgExpanded ? "hidden" : "auto", resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
                     </div>
                   )}
                   </>
@@ -5648,11 +5660,20 @@ export default function App() {
                     {/* Nachricht-Karte (Gruppenbesuch): nur anzeigen wenn der Kunde eine Nachricht hinterlassen hat — lila */}
                     {!!(adminForm.customerMessage||"").trim() && (
                       <div style={{ background:`${BRAND.lila}08`, border:`1px solid ${BRAND.lila}25`, borderRadius:14, padding:"14px 16px", marginBottom:10 }}>
-                        <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600, marginBottom:8 }}>
-                          Nachricht vom Kunden
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:8 }}>
+                          <div style={{ fontSize:11, color:BRAND.aubergine, letterSpacing:1.5, textTransform:"uppercase", fontWeight:600 }}>
+                            Nachricht vom Kunden
+                          </div>
+                          <button onClick={() => setMsgExpanded(x => !x)}
+                            style={{ display:"flex", alignItems:"center", gap:5, background:"#fff", border:`1px solid ${BRAND.lila}35`, borderRadius:7, padding:"5px 10px", fontSize:11, fontWeight:600, color:BRAND.lila, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}>
+                            {msgExpanded ? "Einklappen" : "Ganze Nachricht"}
+                            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: msgExpanded ? "rotate(180deg)" : "none", transition:"transform .15s" }}><polyline points="3 6 8 11 13 6"/></svg>
+                          </button>
                         </div>
                         <textarea value={adminForm.customerMessage||""} onChange={e => setAdminForm(f=>({...f, customerMessage:e.target.value}))}
-                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
+                          ref={el => { if (el) { if (msgExpanded) { el.style.height = "auto"; el.style.height = (el.scrollHeight + 4) + "px"; } else { el.style.height = ""; } } }}
+                          onInput={e => { if (msgExpanded) { e.target.style.height = "auto"; e.target.style.height = (e.target.scrollHeight + 4) + "px"; } }}
+                          style={{ width:"100%", padding:"10px 12px", border:"1px solid #e8d8e4", borderRadius:8, fontSize:13, fontFamily:"inherit", boxSizing:"border-box", minHeight:56, maxHeight: msgExpanded ? "none" : 110, overflowY: msgExpanded ? "hidden" : "auto", resize:"vertical", color:BRAND.aubergine, lineHeight:1.5, background:`${BRAND.lila}04` }} />
                       </div>
                     )}
                     </>)}
