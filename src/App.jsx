@@ -1258,6 +1258,11 @@ export default function App() {
   const [expandedSeries, setExpandedSeries] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [astridUpdatePrompt, setAstridUpdatePrompt] = useState(null); // {dateKey, changes, mailEv} — Abfrage nach Speichern eines geänderten Gruppenbesuchs
+  // Annahme-Abfrage (Variante B): Beim Annehmen eines Gruppenbesuchs (pending → booked) fragen,
+  // ob Astrid die Termin-Mail bekommen soll. acceptPrompt = {kind:"save"|"action", ...args}
+  const [acceptPrompt, setAcceptPrompt] = useState(null);
+  const [acceptNotify, setAcceptNotify] = useState(true); // Schalter im Dialog, Standard: an
+  const astridNotifyDecision = useRef(null); // null = noch keine Entscheidung (Abfrage zeigen); true/false = aus Dialog
   const [modalPull, setModalPull] = useState(0);
   const [editingField, setEditingField] = useState(null);
   const [editFieldVal, setEditFieldVal] = useState("");
@@ -2063,6 +2068,21 @@ export default function App() {
       }
     }
     setAdminSubmitAttempted(false);
+    // Annahme-Abfrage: Gruppenbesuch wechselt von "pending" auf "booked" → erst fragen, ob Astrid
+    // benachrichtigt werden soll (gilt für Annehmen-Chip, "als gebucht speichern" und manuellen Status-Wechsel)
+    if (!silent && effectiveType === "booked" && adminForm.eventType === "gruppenfuehrung" && !adminForm.editAllSeries && astridNotifyDecision.current === null) {
+      const pMain = events[selectedDate];
+      const pSub = editingSubIndex >= 0 ? pMain?.subEvents?.[editingSubIndex] : null;
+      const pStatus = adminForm.addToExisting ? null : (pSub?.status ?? pMain?.status);
+      if (pStatus === "pending") {
+        setAcceptNotify(true);
+        setAcceptPrompt({ kind: "save", silent, forceStatus });
+        return; // Save pausiert — der Dialog ruft handleAdminSave mit gesetzter Entscheidung erneut auf
+      }
+    }
+    // Entscheidung aus dem Dialog (falls vorhanden) einmalig konsumieren
+    const astridDecision = astridNotifyDecision.current; // null | true | false
+    astridNotifyDecision.current = null;
     prevEvents.current = { ...events };
     // Alten Status ermitteln für Herabstufungs-Erkennung (booked → pending)
     const prevMain = events[selectedDate];
@@ -2127,7 +2147,7 @@ export default function App() {
         wasAlreadyBooked = oldMain?.status === "booked" && oldMain?.type === "gruppenfuehrung";
       }
       if (!wasAlreadyBooked) {
-        notifyGroupTour(selectedDate, entry, editingSubIndex);
+        if (astridDecision !== false) notifyGroupTour(selectedDate, entry, editingSubIndex);
       } else if (!silent && groupBookingSnapshot.current) {
         // Bereits gebuchter Gruppenbesuch wurde bearbeitet -> bei echter Änderung Astrid-Update anbieten
         const cur = {
@@ -2341,6 +2361,15 @@ export default function App() {
     prevEvents.current = { ...events };
     const updated = { ...events };
     if (action === "confirm") {
+      // Annahme-Abfrage: Gruppenbesuch von "pending" auf "booked" → erst fragen, ob Astrid die Mail bekommt
+      const targetEv = subIndex >= 0 ? events[key]?.subEvents?.[subIndex] : events[key];
+      if (targetEv?.type === "gruppenfuehrung" && targetEv?.status === "pending" && astridNotifyDecision.current === null) {
+        setAcceptNotify(true);
+        setAcceptPrompt({ kind: "action", key, subIndex });
+        return;
+      }
+      const astridDecision = astridNotifyDecision.current; // null | true | false
+      astridNotifyDecision.current = null;
       if (subIndex >= 0) {
         const day = { ...updated[key] };
         const sub = day.subEvents?.[subIndex];
@@ -2353,8 +2382,8 @@ export default function App() {
         updated[key] = day;
         saveEvents(updated);
         showToast("Bestätigt", `${fmtDateAT(key)}${sub?.label ? " · " + sub.label : ""}${sub?.name ? " · " + sub.name : ""}`, false, BRAND.moosgruen);
-        // Extra-Notification bei Gruppenführung
-        if (sub && sub.type === "gruppenfuehrung") notifyGroupTour(key, { ...sub, status: "booked" }, subIndex);
+        // Extra-Notification bei Gruppenführung (außer im Dialog abgewählt)
+        if (sub && sub.type === "gruppenfuehrung" && astridDecision !== false) notifyGroupTour(key, { ...sub, status: "booked" }, subIndex);
         notifyCustomerBooked(key, { ...sub, status: "booked" }, eventTypes.find(t => t.id === sub?.type)?.label || "");
         return;
       }
@@ -2365,8 +2394,8 @@ export default function App() {
       saveEvents(updated);
       setModalView(null);
       showToast("Bestätigt", `${fmtDateAT(key)}${ev?.label ? " · " + ev.label : ""}${ev?.name ? " · " + ev.name : ""}`, false, BRAND.moosgruen);
-      // Extra-Notification bei Gruppenführung
-      if (ev && ev.type === "gruppenfuehrung") notifyGroupTour(key, { ...ev, status: "booked" }, -1);
+      // Extra-Notification bei Gruppenführung (außer im Dialog abgewählt)
+      if (ev && ev.type === "gruppenfuehrung" && astridDecision !== false) notifyGroupTour(key, { ...ev, status: "booked" }, -1);
       notifyCustomerBooked(key, { ...ev, status: "booked" }, eventTypes.find(t => t.id === ev?.type)?.label || "");
     }
   };
@@ -5176,6 +5205,58 @@ export default function App() {
       )}
 
       {/* Abfrage nach dem Speichern eines geänderten Gruppenbesuchs: Astrid informieren? */}
+      {/* Annahme-Abfrage (Variante B): Gruppenbesuch annehmen — Astrid-Mail per Schalter wählbar */}
+      {acceptPrompt && (() => {
+        const isSave = acceptPrompt.kind === "save";
+        const src = isSave
+          ? adminForm
+          : (acceptPrompt.subIndex >= 0 ? events[acceptPrompt.key]?.subEvents?.[acceptPrompt.subIndex] : events[acceptPrompt.key]) || {};
+        const dKey = isSave ? selectedDate : acceptPrompt.key;
+        const who = src.groupName || src.contactName || src.name || "";
+        const contact = src.contactName && src.contactName !== who ? src.contactName : "";
+        const timeStr = src.allDay ? "Ganztägig" : `${src.startTime || ""}–${src.endTime || ""}`;
+        const guests = isSave ? adminForm.guests : src.guests;
+        const confirm = () => {
+          astridNotifyDecision.current = acceptNotify;
+          setAcceptPrompt(null);
+          if (isSave) handleAdminSave(acceptPrompt.silent, acceptPrompt.forceStatus);
+          else handleAdminAction(acceptPrompt.key, "confirm", acceptPrompt.subIndex);
+        };
+        return (
+          <div onClick={() => setAcceptPrompt(null)} style={{ position:"fixed", inset:0, background:"rgba(40,6,33,0.45)", backdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:400, width:"100%", boxShadow:"0 20px 50px rgba(0,0,0,0.25)", overflow:"hidden" }}>
+              <div style={{ background:BRAND.aubergine, color:"#fff", padding:"14px 18px", display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ width:30, height:30, borderRadius:8, background:"rgba(255,255,255,0.14)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:15, flexShrink:0 }}>✓</span>
+                <span style={{ fontSize:15.5, fontWeight:700 }}>Termin annehmen</span>
+              </div>
+              <div style={{ padding:18 }}>
+                <div style={{ background:"#f7f2f6", border:"1px solid #ecdfe9", borderRadius:10, padding:"10px 13px", fontSize:13, color:BRAND.aubergine, marginBottom:16, lineHeight:1.5 }}>
+                  <b style={{ color:BRAND.lila }}>{who || "Gruppenbesuch"}</b> · {fmtDateAT(dKey)} · {timeStr}
+                  {(guests || contact) && <br/>}
+                  {[guests ? `${guests} Teilnehmer` : "", contact].filter(Boolean).join(" · ")}
+                </div>
+                <button onClick={() => setAcceptNotify(v => !v)}
+                  style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, background:"#f7f2f6", border:"1px solid #ecdfe9", borderRadius:10, padding:"12px 13px", cursor:"pointer", fontFamily:"inherit" }}>
+                  <span style={{ fontSize:13.5, fontWeight:600, color:BRAND.aubergine, display:"flex", alignItems:"center", gap:8 }}>✉️ Astrid per E-Mail benachrichtigen</span>
+                  <span style={{ width:46, height:26, borderRadius:99, background: acceptNotify ? BRAND.moosgruen : "#cfc2cc", position:"relative", flexShrink:0, transition:"background .15s" }}>
+                    <span style={{ position:"absolute", top:3, left: acceptNotify ? 23 : 3, width:20, height:20, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.25)", transition:"left .15s" }} />
+                  </span>
+                </button>
+                <div style={{ fontSize:11.5, color:"#8a7a88", margin:"6px 0 14px 2px" }}>Standard: an — einfach ausschalten, wenn keine Mail gehen soll.</div>
+                <button onClick={confirm}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", border:0, borderRadius:10, padding:"13px 0", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", background:BRAND.moosgruen, color:"#fff" }}>
+                  ✓&nbsp; Termin annehmen
+                </button>
+                <button onClick={() => setAcceptPrompt(null)}
+                  style={{ display:"block", width:"100%", border:0, background:"none", color:"#a292a0", fontWeight:600, fontSize:13, padding:"10px 0 0", cursor:"pointer", fontFamily:"inherit", marginTop:4 }}>
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {astridUpdatePrompt && (
         <div onClick={() => setAstridUpdatePrompt(null)} style={{ position:"fixed", inset:0, background:"rgba(40,6,33,0.45)", backdropFilter:"blur(3px)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:16, maxWidth:400, width:"100%", boxShadow:"0 20px 50px rgba(0,0,0,0.25)", overflow:"hidden" }}>
